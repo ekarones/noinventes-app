@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Monatekeda",
+    "slug": "mobileapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.monatekeda.app"
+    },
+    "android": {
+      "package": "com.monatekeda.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permite el acceso a la cámara para escanear códigos QR de productos.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite el acceso a tus fotos para subir imágenes de productos.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-font",
+      "expo-secure-store",
+      "expo-sharing"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2b60ed45-a976-4f91-a70b-a7a81cdaf97b"
+      }
+    },
+    "owner": "ekarones"
+  }
+}
