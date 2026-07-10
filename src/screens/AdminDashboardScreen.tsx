@@ -187,9 +187,19 @@ export default function AdminDashboardScreen() {
               />
             </View>
 
-            {/* Low stock alert */}
+            {/* Low stock alert — tap to see the critical products */}
             {data && data.lowStock.count > 0 && (
-              <View style={styles.lowStock}>
+              <TouchableOpacity
+                style={styles.lowStock}
+                activeOpacity={0.8}
+                onPress={() =>
+                  navigation.navigate('AdminLowStock', {
+                    items: data.lowStock.products,
+                    threshold: data.lowStock.threshold,
+                    hasMore: data.lowStock.hasMore,
+                  })
+                }
+              >
                 <View style={styles.lowStockIcon}>
                   <Ionicons name="alert-circle-outline" size={22} color={colors.warning} />
                 </View>
@@ -198,7 +208,8 @@ export default function AdminDashboardScreen() {
                   {data.lowStock.count === 1 ? ' combinación' : ' combinaciones'} con stock bajo
                   {' '}(menos de {data.lowStock.threshold} uds.)
                 </Text>
-              </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.warning} />
+              </TouchableOpacity>
             )}
 
             {/* Top products */}

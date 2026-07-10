@@ -12,7 +12,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchAdminProductDetail } from '../api/admin/products';
 import {
@@ -20,6 +19,7 @@ import {
   setFeaturedImage,
   uploadProductImages,
 } from '../api/admin/productImages';
+import { pickImages } from '../utils/imagePicker';
 import { colors } from '../theme/colors';
 import { useToast } from '../context/ToastContext';
 import type { AdminProductImage } from '../types';
@@ -67,22 +67,12 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
       Alert.alert('Límite alcanzado', `Un producto admite hasta ${MAX_IMAGES} imágenes.`);
       return;
     }
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Permiso requerido', 'Concede acceso a tus fotos para subir imágenes.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: remaining,
-      quality: 0.8,
-    });
-    if (result.canceled || result.assets.length === 0) return;
+    const uris = await pickImages({ multiple: true, selectionLimit: remaining });
+    if (uris.length === 0) return;
 
     setBusy(true);
     try {
-      await uploadProductImages(productId, result.assets.map((a) => a.uri));
+      await uploadProductImages(productId, uris);
       showToast('Imágenes subidas', 'checkmark-circle');
       load();
     } catch (e: any) {

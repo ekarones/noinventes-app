@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,6 +21,8 @@ import { createVariation, updateVariation } from '../api/admin/products';
 import { fetchAdminAttributes } from '../api/admin/attributes';
 import { colors } from '../theme/colors';
 import { useToast } from '../context/ToastContext';
+import { buildVariationCode } from '../utils/slug';
+import { pickImages } from '../utils/imagePicker';
 import type { AdminAttribute } from '../types';
 import type { AdminProductsStackParamList } from '../navigation/types';
 
@@ -28,13 +31,27 @@ type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminVariation
 export default function AdminVariationFormScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
-  const { productId, productName, variation, attributeIds } = route.params;
+  const {
+    productId,
+    productName,
+    productCode,
+    productUnitValue,
+    productFinalPrice,
+    variation,
+    attributeIds,
+  } = route.params;
   const editing = !!variation;
 
   const [code, setCode] = useState(variation?.code ?? '');
-  const [unitValue, setUnitValue] = useState(String(variation?.unitValue ?? '1'));
+  // Once the admin edits the code by hand, stop auto-generating it (only when
+  // creating; on edit the code stands on its own from the start).
+  const [codeTouched, setCodeTouched] = useState(editing);
+  // On create, inherit the parent's unit value / price as editable defaults.
+  const [unitValue, setUnitValue] = useState(
+    editing ? String(variation!.unitValue) : productUnitValue != null ? String(productUnitValue) : '1'
+  );
   const [finalPrice, setFinalPrice] = useState(
-    variation ? String(variation.finalPrice) : ''
+    editing ? String(variation!.finalPrice) : productFinalPrice != null ? String(productFinalPrice) : ''
   );
 
   const [attributes, setAttributes] = useState<AdminAttribute[]>([]);
@@ -48,6 +65,16 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
   // the admin picks which attributes this product will use.
   const [chosenIds, setChosenIds] = useState<number[]>([]);
   const [attributePickerOpen, setAttributePickerOpen] = useState(false);
+
+  // Newly-picked reference image (local URI). Null means "no new pick": on edit
+  // the existing remote image is shown instead. Only sent to the server when set.
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const previewUri = imageUri ?? variation?.imageUrl ?? null;
+
+  async function pickImage() {
+    const [uri] = await pickImages();
+    if (uri) setImageUri(uri);
+  }
 
   // Attributes are only needed when creating (the combo is immutable on edit).
   useEffect(() => {
@@ -72,6 +99,21 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
 
   // Every attribute in play needs exactly one value.
   const comboReady = pickable.length > 0 && pickable.every((a) => selection[a.id] != null);
+
+  // Selected value ids, in attribute order — the same order used both for the
+  // POST payload and the auto-generated code, so the two always agree.
+  const orderedValueIds = pickable.map((a) => selection[a.id]).filter((id) => id != null);
+
+  // Auto-generate the code from the product code + chosen value slugs, the same
+  // way the server does (Str::slug). Runs while creating and until the admin
+  // types their own code. Needs productCode from the caller.
+  useEffect(() => {
+    if (codeTouched || !productCode) return;
+    const values = pickable
+      .map((a) => a.values.find((v) => v.id === selection[a.id])?.value)
+      .filter((v): v is string => !!v);
+    setCode(buildVariationCode(productCode, values));
+  }, [codeTouched, productCode, pickable, selection]);
 
   function toggleAttribute(id: number) {
     setChosenIds((prev) => {
@@ -100,19 +142,27 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
     setSaving(true);
     try {
       if (editing) {
-        await updateVariation(variation!.id, {
-          code: code.trim(),
-          unitValue: unit,
-          finalPrice: price,
-        });
+        await updateVariation(
+          variation!.id,
+          {
+            code: code.trim(),
+            unitValue: unit,
+            finalPrice: price,
+          },
+          imageUri ?? undefined
+        );
         showToast('Variación actualizada', 'checkmark-circle');
       } else {
-        await createVariation(productId, {
-          code: code.trim(),
-          unitValue: unit,
-          finalPrice: price,
-          attributeValueIds: Object.values(selection),
-        });
+        await createVariation(
+          productId,
+          {
+            code: code.trim(),
+            unitValue: unit,
+            finalPrice: price,
+            attributeValueIds: orderedValueIds,
+          },
+          imageUri ?? undefined
+        );
         showToast('Variación creada', 'checkmark-circle');
       }
       navigation.goBack();
@@ -147,6 +197,31 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
       >
         <Text style={styles.productName}>{productName}</Text>
         {editing && !!comboLabel && <Text style={styles.productSub}>{comboLabel}</Text>}
+
+        {/* Reference image — same look as the product form. On edit it preloads
+            the existing photo; the ✕ only undoes a fresh pick. */}
+        <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.85}>
+          {previewUri ? (
+            <Image source={{ uri: previewUri }} style={styles.imagePreview} resizeMode="cover" />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="image-outline" size={34} color={colors.textSecondary} />
+              <Text style={styles.imageHint}>Imagen de referencia</Text>
+            </View>
+          )}
+          {imageUri && (
+            <TouchableOpacity
+              style={styles.imageRemove}
+              onPress={() => setImageUri(null)}
+              hitSlop={8}
+            >
+              <Ionicons name="close-circle" size={24} color={colors.error} />
+            </TouchableOpacity>
+          )}
+          <View style={styles.imageBadge}>
+            <Ionicons name="camera-outline" size={16} color={colors.textOnPrimary} />
+          </View>
+        </TouchableOpacity>
 
         {/* Attribute combo — only when creating */}
         {!editing && (
@@ -217,12 +292,18 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
         <TextInput
           style={styles.input}
           value={code}
-          onChangeText={setCode}
+          onChangeText={(t) => {
+            setCodeTouched(true);
+            setCode(t);
+          }}
           placeholder="Ej. POL-001-RJ-M"
           placeholderTextColor={colors.textSecondary}
           autoCapitalize="characters"
           autoCorrect={false}
         />
+        {!editing && !codeTouched && productCode && (
+          <Text style={styles.hint}>Se genera solo a partir del producto y los valores. Puedes editarlo.</Text>
+        )}
 
         <Text style={styles.label}>Precio final</Text>
         <TextInput
@@ -370,6 +451,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
   },
+  imagePicker: { alignSelf: 'center', width: 150, height: 150, borderRadius: 18, marginTop: 16 },
+  imagePreview: { width: 150, height: 150, borderRadius: 18 },
+  imageBadge: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: colors.background,
+  },
+  imageRemove: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+  },
+  imagePlaceholder: {
+    width: 150,
+    height: 150,
+    borderRadius: 18,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  imageHint: { fontSize: 12, color: colors.textSecondary },
   attrRow: { marginBottom: 10 },
   attrName: { fontSize: 13, color: colors.textSecondary, marginBottom: 4 },
   select: {

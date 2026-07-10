@@ -278,6 +278,9 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                     navigation.navigate('AdminVariationForm', {
                       productId: d.id,
                       productName: d.name,
+                      productCode: d.code,
+                      productUnitValue: d.unitValue,
+                      productFinalPrice: d.finalPrice,
                       attributeIds,
                     })
                   }
@@ -294,6 +297,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                 variations.map((v) => (
                   <View key={v.id} style={styles.varCard}>
                     <View style={styles.varHeader}>
+                      <ProductImage uri={v.imageUrl} style={styles.varThumb} iconSize={16} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.varName}>{variationLabel(v)}</Text>
                         <Text style={styles.varMeta}>
@@ -305,6 +309,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                           navigation.navigate('AdminVariationForm', {
                             productId: d.id,
                             productName: d.name,
+                            productCode: d.code,
                             variation: v,
                           })
                         }
@@ -518,7 +523,8 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
   },
-  varHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  varHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  varThumb: { width: 40, height: 40, borderRadius: 10 },
   varName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
   varMeta: { fontSize: 13, color: colors.textSecondary, marginTop: 1 },
   varIconBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },

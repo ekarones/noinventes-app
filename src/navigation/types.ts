@@ -6,6 +6,7 @@ import type {
   AdminSaleSummary,
   AdminUser,
   AdminVariation,
+  LowStockItem,
   Product,
   SaleSummary,
   StockByBranch,
@@ -44,6 +45,7 @@ export type TabParamList = {
 export type AdminHomeStackParamList = {
   AdminDashboard: undefined;
   AdminProfile: undefined;
+  AdminLowStock: { items: LowStockItem[]; threshold: number; hasMore: boolean };
 };
 
 export type AdminSalesStackParamList = {
@@ -70,9 +72,14 @@ export type AdminProductsStackParamList = {
   };
   // `variation` absent = creating. `attributeIds` are the attributes the product
   // already uses; a new variation must supply exactly one value for each.
+  // `productCode` seeds the auto-generated variation code; `productUnitValue` /
+  // `productFinalPrice` seed the price fields, inherited from the parent.
   AdminVariationForm: {
     productId: number;
     productName: string;
+    productCode?: string;
+    productUnitValue?: number;
+    productFinalPrice?: number;
     variation?: AdminVariation;
     attributeIds?: number[];
   };

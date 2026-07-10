@@ -38,7 +38,21 @@ type RawAdminDashboard = {
     items_count: number;
     created_at: string;
   }[];
-  low_stock: { threshold: number; count: number };
+  low_stock: {
+    threshold: number;
+    count: number;
+    products?: {
+      product_id: number;
+      product_code: string;
+      product_name: string;
+      product_type: 'simple' | 'variable';
+      image_url: string | null;
+      branch_id: number;
+      branch_name: string;
+      stock: number;
+    }[];
+    has_more?: boolean;
+  };
 };
 
 // GET /admin/dashboard — global KPIs for admins (admin-api gated). When
@@ -93,6 +107,17 @@ export async function fetchAdminDashboard(
     lowStock: {
       threshold: res.low_stock?.threshold ?? 0,
       count: res.low_stock?.count ?? 0,
+      products: (res.low_stock?.products ?? []).map((p) => ({
+        productId: p.product_id,
+        productCode: p.product_code,
+        productName: p.product_name,
+        productType: p.product_type,
+        imageUrl: p.image_url ?? null,
+        branchId: p.branch_id,
+        branchName: p.branch_name,
+        stock: p.stock,
+      })),
+      hasMore: res.low_stock?.has_more ?? false,
     },
   };
 }

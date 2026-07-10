@@ -16,12 +16,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createProduct, updateProduct, type ProductPayload } from '../api/admin/products';
 import { fetchAdminCategories } from '../api/admin/categories';
 import { fetchAdminTags } from '../api/admin/tags';
 import { fetchAdminAttributes } from '../api/admin/attributes';
+import { pickImages } from '../utils/imagePicker';
 import { colors } from '../theme/colors';
 import { useToast } from '../context/ToastContext';
 import type {
@@ -94,16 +94,8 @@ export default function AdminProductFormScreen({ route, navigation }: Props) {
     categoryId == null ? 'Sin categoría' : categories.find((c) => c.id === categoryId)?.name ?? '—';
 
   async function pickImage() {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Permiso requerido', 'Concede acceso a tus fotos para elegir una imagen.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
+    const [uri] = await pickImages();
+    if (uri) setImageUri(uri);
   }
 
   function toggleTag(id: number) {
@@ -167,6 +159,9 @@ export default function AdminProductFormScreen({ route, navigation }: Props) {
         navigation.replace('AdminVariationForm', {
           productId: newId,
           productName: payload.name,
+          productCode: payload.code,
+          productUnitValue: payload.unitValue,
+          productFinalPrice: payload.finalPrice,
           attributeIds,
         });
         return;

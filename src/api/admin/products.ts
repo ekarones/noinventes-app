@@ -70,7 +70,9 @@ type RawAdminVariation = {
   code: string;
   unit_value: string;
   final_price: string;
-  image_url: string | null;
+  // Returned by index/store/update (shared shape). Optional + defensive in case
+  // an older server build omits it; `null` when the variation has no image.
+  image_url?: string | null;
   attribute_values?: AttributeValue[];
   stock_by_branch?: RawStockByBranch[];
 };
@@ -134,7 +136,7 @@ function mapVariation(v: RawAdminVariation): AdminVariation {
     code: v.code,
     unitValue: parseFloat(v.unit_value),
     finalPrice: parseFloat(v.final_price),
-    imageUrl: v.image_url,
+    imageUrl: v.image_url ?? null,
     attributeValues: v.attribute_values ?? [],
     stockByBranch: (v.stock_by_branch ?? []).map(mapStock),
   };
@@ -353,11 +355,27 @@ export type CreateVariationPayload = {
 
 // POST /admin/products/{id}/variations — 422 if the product isn't `variable`,
 // if the attribute set doesn't match, if the combo collides, or if `code` dupes.
+// An optional reference `image` is sent as multipart (same convention as
+// createProduct); without it the request goes out as plain JSON.
 export async function createVariation(
   productId: number,
-  payload: CreateVariationPayload
+  payload: CreateVariationPayload,
+  imageUri?: string
 ): Promise<void> {
-  await apiRequest(`/admin/products/${productId}/variations`, {
+  const path = `/admin/products/${productId}/variations`;
+
+  if (imageUri) {
+    const form = new FormData();
+    form.append('code', payload.code);
+    form.append('unit_value', String(payload.unitValue));
+    form.append('final_price', String(payload.finalPrice));
+    for (const id of payload.attributeValueIds) form.append('attribute_values[]', String(id));
+    form.append('image', filePart(imageUri));
+    await apiRequest(path, { method: 'POST', body: form });
+    return;
+  }
+
+  await apiRequest(path, {
     method: 'POST',
     body: {
       code: payload.code,
@@ -368,13 +386,29 @@ export async function createVariation(
   });
 }
 
-// PUT /admin/product-variations/{id} — only code + prices; the attribute combo
-// is immutable. 422 on a duplicate code within the product.
+// PUT /admin/product-variations/{id} — edits code + prices (the attribute combo
+// is immutable). 422 on a duplicate code within the product. A new `image`
+// replaces the reference photo; since multipart can't be sent as PUT, that path
+// POSTs with `_method=PUT` (Laravel method spoofing), same as updateProduct.
 export async function updateVariation(
   variationId: number,
-  payload: { code: string; unitValue: number; finalPrice: number }
+  payload: { code: string; unitValue: number; finalPrice: number },
+  imageUri?: string
 ): Promise<void> {
-  await apiRequest(`/admin/product-variations/${variationId}`, {
+  const path = `/admin/product-variations/${variationId}`;
+
+  if (imageUri) {
+    const form = new FormData();
+    form.append('code', payload.code);
+    form.append('unit_value', String(payload.unitValue));
+    form.append('final_price', String(payload.finalPrice));
+    form.append('image', filePart(imageUri));
+    form.append('_method', 'PUT');
+    await apiRequest(path, { method: 'POST', body: form });
+    return;
+  }
+
+  await apiRequest(path, {
     method: 'PUT',
     body: {
       code: payload.code,

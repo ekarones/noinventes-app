@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminProfileScreen from '../screens/AdminProfileScreen';
+import AdminLowStockScreen from '../screens/AdminLowStockScreen';
 import AdminSalesScreen from '../screens/AdminSalesScreen';
 import AdminSaleDetailScreen from '../screens/AdminSaleDetailScreen';
 import AdminSalesTrashScreen from '../screens/AdminSalesTrashScreen';
@@ -40,6 +41,7 @@ function HomeStack() {
     <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
       <HomeStackNav.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <HomeStackNav.Screen name="AdminProfile" component={AdminProfileScreen} />
+      <HomeStackNav.Screen name="AdminLowStock" component={AdminLowStockScreen} />
     </HomeStackNav.Navigator>
   );
 }

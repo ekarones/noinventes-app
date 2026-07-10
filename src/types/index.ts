@@ -165,6 +165,18 @@ export type AdminRecentSale = {
   createdAt: string;
 };
 
+// One (product, branch) pair whose stock is below the low-stock threshold.
+export type LowStockItem = {
+  productId: number;
+  productCode: string;
+  productName: string;
+  productType: ProductType;
+  imageUrl: string | null;
+  branchId: number;
+  branchName: string;
+  stock: number;
+};
+
 export type AdminDashboard = {
   period: StatsPeriod;
   summary: DashboardSummary;
@@ -172,8 +184,15 @@ export type AdminDashboard = {
   salesByBranch: AdminSalesByBranch[];
   salesBySeller: AdminSalesBySeller[];
   recentSales: AdminRecentSale[];
-  // Rows in branch_product with stock below `threshold`.
-  lowStock: { threshold: number; count: number };
+  // Products low on stock. `count` is the total number of critical
+  // (product, branch) pairs; `products` lists up to 50 of them (most critical
+  // first) and `hasMore` is true when count exceeds that.
+  lowStock: {
+    threshold: number;
+    count: number;
+    products: LowStockItem[];
+    hasMore: boolean;
+  };
 };
 
 // ---- Admin sales (cross-seller: GET /admin/sales, /admin/sales/{id}) ----
