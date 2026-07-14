@@ -23,6 +23,15 @@ type RawProduct = {
   final_price: string;
   unit_of_measure: string;
   image_url: string | null;
+  image_thumb_url?: string | null;
+  // Detail-only; absent in the listing response.
+  images?: {
+    id: number;
+    url: string;
+    thumb_url?: string | null;
+    is_featured: boolean;
+    sort_order: number;
+  }[];
   stock: number;
   variations_count: number;
   category: RawCategoryRef;
@@ -34,6 +43,7 @@ type RawVariation = {
   unit_value: string;
   final_price: string;
   image_url: string | null;
+  image_thumb_url?: string | null;
   stock: number;
   attribute_values: AttributeValue[];
 };
@@ -59,6 +69,16 @@ function mapProduct(p: RawProduct): Product {
     finalPrice: parseFloat(p.final_price),
     unitOfMeasure: p.unit_of_measure,
     imageUrl: p.image_url,
+    // Fall back to the full image if the server sends no thumb (older build).
+    imageThumbUrl: p.image_thumb_url ?? p.image_url,
+    // Empty from the listing; the detail endpoint fills it.
+    images: (p.images ?? []).map((i) => ({
+      id: i.id,
+      url: i.url,
+      thumbUrl: i.thumb_url ?? i.url,
+      isFeatured: i.is_featured,
+      sortOrder: i.sort_order,
+    })),
     stock: p.stock,
     variationsCount: p.variations_count,
     category: p.category,
@@ -72,6 +92,7 @@ function mapVariation(v: RawVariation): Variation {
     unitValue: parseFloat(v.unit_value),
     finalPrice: parseFloat(v.final_price),
     imageUrl: v.image_url,
+    imageThumbUrl: v.image_thumb_url ?? v.image_url,
     stock: v.stock,
     attributeValues: v.attribute_values ?? [],
   };
@@ -79,9 +100,16 @@ function mapVariation(v: RawVariation): Variation {
 
 // ---- Endpoints ----
 
+// Server-side whitelist. Anything else falls back to the API default (`name`
+// for the seller catalog).
+export type ProductSortBy = 'id' | 'created_at' | 'name' | 'code' | 'final_price';
+export type SortDir = 'asc' | 'desc';
+
 export type FetchProductsParams = {
   search?: string;
   categoryId?: number | null;
+  sortBy?: ProductSortBy;
+  sortDir?: SortDir;
   page?: number;
   perPage?: number;
 };
@@ -92,6 +120,8 @@ export async function fetchProducts(
   const query = new URLSearchParams();
   if (params.search) query.set('search', params.search);
   if (params.categoryId) query.set('category_id', String(params.categoryId));
+  if (params.sortBy) query.set('sort_by', params.sortBy);
+  if (params.sortDir) query.set('sort_dir', params.sortDir);
   query.set('per_page', String(params.perPage ?? 30));
   query.set('page', String(params.page ?? 1));
 

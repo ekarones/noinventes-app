@@ -1,5 +1,5 @@
 import { apiRequest } from '../client';
-import type { AdminDashboard, StatsPeriod } from '../../types';
+import type { AdminDashboard, PaymentMethod, StatsPeriod } from '../../types';
 
 // Raw shape from GET /admin/dashboard (snake_case + string decimals).
 type RawAdminDashboard = {
@@ -16,6 +16,7 @@ type RawAdminDashboard = {
     quantity_sold: number;
     total: string;
     image_url: string | null;
+    image_thumb_url?: string | null;
   }[];
   sales_by_branch: {
     branch_id: number;
@@ -33,6 +34,7 @@ type RawAdminDashboard = {
     id: number;
     customer_name: string;
     total: string;
+    payment_method: PaymentMethod;
     seller: { id: number; name: string } | null;
     branch: { id: number; name: string } | null;
     items_count: number;
@@ -47,6 +49,7 @@ type RawAdminDashboard = {
       product_name: string;
       product_type: 'simple' | 'variable';
       image_url: string | null;
+      image_thumb_url?: string | null;
       branch_id: number;
       branch_name: string;
       stock: number;
@@ -82,6 +85,7 @@ export async function fetchAdminDashboard(
       quantitySold: p.quantity_sold,
       total: parseFloat(p.total),
       imageUrl: p.image_url ?? null,
+      imageThumbUrl: p.image_thumb_url ?? p.image_url ?? null,
     })),
     salesByBranch: (res.sales_by_branch ?? []).map((b) => ({
       branchId: b.branch_id,
@@ -99,6 +103,7 @@ export async function fetchAdminDashboard(
       id: s.id,
       customerName: s.customer_name,
       total: parseFloat(s.total),
+      paymentMethod: s.payment_method,
       seller: s.seller ?? null,
       branch: s.branch ?? null,
       itemsCount: s.items_count,
@@ -113,6 +118,7 @@ export async function fetchAdminDashboard(
         productName: p.product_name,
         productType: p.product_type,
         imageUrl: p.image_url ?? null,
+        imageThumbUrl: p.image_thumb_url ?? p.image_url ?? null,
         branchId: p.branch_id,
         branchName: p.branch_name,
         stock: p.stock,

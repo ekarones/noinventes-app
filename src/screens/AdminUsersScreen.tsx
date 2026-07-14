@@ -7,19 +7,22 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { deleteUser, fetchAdminUsers } from '../api/admin/users';
 import type { PaginationMeta } from '../api/products';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import SearchBar from '../components/SearchBar';
+import LoadingState from '../components/LoadingState';
+import ScreenHeader from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
 import { useDebounce } from '../hooks/useDebounce';
 import type { AdminUser, AdminUserRole } from '../types';
 import type { AdminMoreStackParamList } from '../navigation/types';
@@ -37,7 +40,6 @@ const ROLE_FILTERS: { value: RoleFilter; label: string }[] = [
 ];
 
 export default function AdminUsersScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const { user: me } = useAuth();
 
@@ -161,14 +163,24 @@ export default function AdminUsersScreen({ navigation }: Props) {
         </View>
         <TouchableOpacity
           onPress={() => navigation.navigate('AdminUserForm', { user: item })}
-          hitSlop={8}
+          hitSlop={HIT_SLOP}
           style={styles.rowBtn}
+          activeOpacity={ROW_PRESS_OPACITY}
+          accessibilityRole="button"
+          accessibilityLabel={`Editar usuario ${item.name}`}
         >
           <Ionicons name="create-outline" size={20} color={colors.primary} />
         </TouchableOpacity>
         {/* Deleting yourself is rejected by the server — don't even offer it. */}
         {!isMe && (
-          <TouchableOpacity onPress={() => confirmDelete(item)} hitSlop={8} style={styles.rowBtn}>
+          <TouchableOpacity
+            onPress={() => confirmDelete(item)}
+            hitSlop={HIT_SLOP}
+            style={styles.rowBtn}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel={`Eliminar usuario ${item.name}`}
+          >
             <Ionicons name="trash-outline" size={20} color={colors.error} />
           </TouchableOpacity>
         )}
@@ -178,44 +190,29 @@ export default function AdminUsersScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Usuarios</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('AdminUserForm', {})}
-          hitSlop={8}
-          style={styles.backBtn}
-        >
-          <Ionicons name="add" size={26} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Usuarios"
+        onBack={() => navigation.goBack()}
+        action={{
+          icon: 'add',
+          onPress: () => navigation.navigate('AdminUserForm', {}),
+          label: 'Nuevo usuario',
+        }}
+      />
 
       <View style={styles.filters}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color={colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar por nombre..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchText}
-            onChangeText={setSearchText}
-            autoCorrect={false}
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </View>
+        <SearchBar
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="Buscar por nombre..."
+        />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {ROLE_FILTERS.map((r) => (
             <TouchableOpacity
               key={r.value}
               style={[styles.chip, role === r.value && styles.chipActive]}
               onPress={() => setRole(r.value)}
-              activeOpacity={0.8}
+              activeOpacity={ROW_PRESS_OPACITY}
             >
               <Text style={[styles.chipText, role === r.value && styles.chipTextActive]}>
                 {r.label}
@@ -226,17 +223,13 @@ export default function AdminUsersScreen({ navigation }: Props) {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingState />
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={48} color={colors.border} />
-          <Text style={styles.muted}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => loadFirstPage()}>
-            <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="cloud-offline-outline"
+          message={error}
+          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+        />
       ) : (
         <FlatList
           data={users}
@@ -261,11 +254,11 @@ export default function AdminUsersScreen({ navigation }: Props) {
             ) : null
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="people-outline" size={64} color={colors.border} />
-              <Text style={styles.emptyTitle}>Sin usuarios</Text>
-              <Text style={styles.muted}>Prueba con otra búsqueda o filtro.</Text>
-            </View>
+            <EmptyState
+              icon="people-outline"
+              title="Sin usuarios"
+              message="Prueba con otra búsqueda o filtro."
+            />
           }
         />
       )}
@@ -275,26 +268,7 @@ export default function AdminUsersScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
   filters: { paddingHorizontal: 20 },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.primarySoft,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
-  },
-  searchInput: { flex: 1, fontSize: 16, color: colors.textPrimary, height: '100%' },
   chips: { gap: 8, paddingVertical: 10, paddingRight: 8 },
   chip: {
     paddingHorizontal: 16,
@@ -307,43 +281,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  chipText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   chipTextActive: { color: colors.textOnPrimary },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12, paddingHorizontal: 32 },
-  muted: { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: 8 },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  retryText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   list: { paddingHorizontal: 20, paddingBottom: 24, flexGrow: 1 },
   sep: { height: 1, backgroundColor: colors.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   avatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarAdmin: { backgroundColor: colors.textPrimary },
-  avatarText: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '700' },
+  avatarText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold },
   rowInfo: { flex: 1 },
   nameLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rowName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary, flexShrink: 1 },
+  rowName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, flexShrink: 1 },
   meBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
-  meText: { fontSize: 10, fontWeight: '700', color: colors.primary },
-  rowEmail: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  meText: { fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
+  rowEmail: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   roleBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
   roleBadgeAdmin: { backgroundColor: '#e5e7eb' },
-  roleText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  roleText: { fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
   roleTextAdmin: { color: colors.textPrimary },
   branchBadge: {
     flexDirection: 'row',
@@ -357,6 +319,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     maxWidth: 140,
   },
-  branchText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
+  branchText: { fontSize: FONT_SIZE.badge, color: colors.textSecondary, fontWeight: FONT_WEIGHT.medium },
   rowBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
 });

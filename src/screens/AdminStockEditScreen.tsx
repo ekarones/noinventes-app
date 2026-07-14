@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -8,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { updateProductStock, updateVariationStock } from '../api/admin/products';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT } from '../theme/tokens';
+import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
+import Button from '../components/Button';
 import type { AdminProductsStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminStockEdit'>;
@@ -75,13 +76,7 @@ export default function AdminStockEditScreen({ route, navigation }: Props) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Editar stock</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title="Editar stock" onBack={() => navigation.goBack()} />
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 20 }}
@@ -122,20 +117,13 @@ export default function AdminStockEditScreen({ route, navigation }: Props) {
           Solo se actualizan las sucursales que cambies; las demás conservan su stock.
         </Text>
 
-        <TouchableOpacity
-          style={[styles.saveBtn, (!hasChanges || saving) && styles.saveBtnDisabled]}
+        <Button
+          label={hasChanges ? 'Guardar cambios' : 'Sin cambios'}
           onPress={save}
-          disabled={!hasChanges || saving}
-          activeOpacity={0.9}
-        >
-          {saving ? (
-            <ActivityIndicator color={colors.textOnPrimary} />
-          ) : (
-            <Text style={styles.saveText}>
-              {hasChanges ? 'Guardar cambios' : 'Sin cambios'}
-            </Text>
-          )}
-        </TouchableOpacity>
+          loading={saving}
+          disabled={!hasChanges}
+          style={styles.saveBtn}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -143,18 +131,9 @@ export default function AdminStockEditScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  productName: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
-  productSub: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
-  muted: { fontSize: 14, color: colors.textSecondary, marginTop: 20 },
+  productName: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  productSub: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
+  muted: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 20 },
   box: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -166,7 +145,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
   branchInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  branchName: { flex: 1, fontSize: 15, color: colors.textPrimary, fontWeight: '600' },
+  branchName: { flex: 1, fontSize: FONT_SIZE.body, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
   input: {
     width: 84,
     height: 46,
@@ -175,19 +154,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.background,
     textAlign: 'center',
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.heading,
+    fontWeight: FONT_WEIGHT.bold,
     color: colors.textPrimary,
   },
-  hint: { fontSize: 12, color: colors.textSecondary, marginTop: 14, lineHeight: 17 },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    height: 54,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  saveBtnDisabled: { backgroundColor: colors.primaryLight, opacity: 0.6 },
-  saveText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 14, lineHeight: 17 },
+  saveBtn: { marginTop: 24 },
 });

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   ScrollView,
@@ -9,14 +8,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ApiError } from '../api/client';
+import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 
 // Support contact — reemplazar con los datos reales de monatekeda.
 // WhatsApp: solo dígitos con código de país (ej. '51999888777'). Deja '' para
@@ -27,7 +28,6 @@ const SUPPORT_EMAIL = 'mizonaonline69@gmail.com';
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { user, signOut, refresh } = useAuth();
   const { showToast } = useToast();
@@ -76,12 +76,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Perfil</Text>
-      </View>
+      <ScreenHeader title="Perfil" onBack={() => navigation.goBack()} />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -119,19 +114,15 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <TouchableOpacity
-          style={styles.syncBtn}
-          activeOpacity={0.85}
+        <Button
+          label={syncing ? 'Sincronizando…' : 'Sincronizar sesión'}
+          icon="sync-outline"
+          variant="secondary"
+          size="md"
           onPress={handleSync}
-          disabled={syncing}
-        >
-          {syncing ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Ionicons name="sync-outline" size={18} color={colors.primary} />
-          )}
-          <Text style={styles.syncText}>{syncing ? 'Sincronizando…' : 'Sincronizar sesión'}</Text>
-        </TouchableOpacity>
+          loading={syncing}
+          style={styles.syncBtn}
+        />
 
         {/* Support */}
         <Text style={styles.sectionTitle}>Ayuda</Text>
@@ -140,15 +131,18 @@ export default function ProfileScreen() {
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logout} activeOpacity={0.85} onPress={confirmLogout}>
-          <Ionicons name="log-out-outline" size={20} color={colors.primary} />
-          <Text style={styles.logoutText}>Cerrar sesión</Text>
-        </TouchableOpacity>
+        <Button
+          label="Cerrar sesión"
+          icon="log-out-outline"
+          variant="outline"
+          onPress={confirmLogout}
+          style={styles.logout}
+        />
 
         <View style={styles.footerCredit}>
           <Text style={styles.version}>Versión {APP_VERSION}</Text>
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={ROW_PRESS_OPACITY}
             onPress={() => Linking.openURL('https://mizonaonline.com').catch(() => {})}
           >
             <Text style={styles.credit}>
@@ -197,7 +191,7 @@ function ActionRow({
   return (
     <TouchableOpacity
       style={[styles.row, !last && styles.rowBorder]}
-      activeOpacity={0.7}
+      activeOpacity={ROW_PRESS_OPACITY}
       onPress={onPress}
     >
       <Ionicons name={icon} size={20} color={colors.textSecondary} />
@@ -209,22 +203,19 @@ function ActionRow({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 26, fontWeight: '700', color: colors.textPrimary },
   scroll: { paddingBottom: 24 },
   profileCard: { alignItems: 'center', paddingVertical: 20 },
   avatar: {
     width: 88,
     height: 88,
-    borderRadius: 44,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.textOnPrimary, fontSize: 36, fontWeight: '700' },
-  name: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginTop: 12 },
-  email: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
+  avatarText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.avatar, fontWeight: FONT_WEIGHT.bold },
+  name: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 12 },
+  email: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
   roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -235,10 +226,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginTop: 8,
   },
-  roleText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
+  roleText: { color: colors.primary, fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.caption,
+    fontWeight: FONT_WEIGHT.bold,
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -256,36 +247,13 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowLabel: { fontSize: 15, color: colors.textSecondary },
-  rowValue: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.textPrimary, textAlign: 'right' },
-  actionLabel: { flex: 1, color: colors.textPrimary, fontWeight: '600' },
-  syncBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: 20,
-    marginTop: 12,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-  },
-  syncText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
-  logout: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: 20,
-    marginTop: 24,
-    height: 54,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  logoutText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
+  rowLabel: { fontSize: FONT_SIZE.body, color: colors.textSecondary },
+  rowValue: { flex: 1, fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, textAlign: 'right' },
+  actionLabel: { flex: 1, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
+  syncBtn: { marginHorizontal: 20, marginTop: 12 },
+  logout: { marginHorizontal: 20, marginTop: 24 },
   footerCredit: { alignItems: 'center', marginTop: 18, gap: 4 },
-  version: { textAlign: 'center', color: colors.textSecondary, fontSize: 12 },
-  credit: { textAlign: 'center', color: colors.textSecondary, fontSize: 12 },
-  creditBrand: { color: colors.primary, fontWeight: '700' },
+  version: { textAlign: 'center', color: colors.textSecondary, fontSize: FONT_SIZE.micro },
+  credit: { textAlign: 'center', color: colors.textSecondary, fontSize: FONT_SIZE.micro },
+  creditBrand: { color: colors.primary, fontWeight: FONT_WEIGHT.bold },
 });

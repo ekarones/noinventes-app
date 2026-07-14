@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -16,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
 import { linePrice, variationLabel } from '../utils/cart';
 import { PAYMENT_METHODS } from '../utils/payment';
@@ -25,6 +24,9 @@ import { createSale, type CreateSaleItem } from '../api/sales';
 import { lookupByCode } from '../api/products';
 import { ApiError, TIMEOUT_STATUS } from '../api/client';
 import { hapticSuccess } from '../utils/haptics';
+import Field from '../components/Field';
+import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 import type { CartItem, PaymentMethod } from '../types';
 import type { CartStackParamList } from '../navigation/types';
 
@@ -179,13 +181,7 @@ export default function CheckoutScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Cobrar</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title="Cobrar" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -218,17 +214,13 @@ export default function CheckoutScreen({ navigation }: Props) {
 
           {/* Customer */}
           <Text style={styles.sectionTitle}>Cliente</Text>
-          <View style={styles.inputWrapper}>
-            <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
-            <TextInput
-              style={styles.input}
-              placeholder="Cliente final"
-              placeholderTextColor={colors.textSecondary}
-              value={customerName}
-              onChangeText={setCustomerName}
-              maxLength={255}
-            />
-          </View>
+          <Field
+            icon="person-outline"
+            placeholder="Cliente final"
+            value={customerName}
+            onChangeText={setCustomerName}
+            maxLength={255}
+          />
 
           {/* Payment method */}
           <Text style={styles.sectionTitle}>Método de pago</Text>
@@ -240,7 +232,7 @@ export default function CheckoutScreen({ navigation }: Props) {
                   key={m.value}
                   style={[styles.payPill, active && styles.payPillActive]}
                   onPress={() => setPaymentMethod(m.value)}
-                  activeOpacity={0.8}
+                  activeOpacity={ROW_PRESS_OPACITY}
                 >
                   <Ionicons
                     name={m.icon}
@@ -255,34 +247,24 @@ export default function CheckoutScreen({ navigation }: Props) {
 
           {/* Discount */}
           <Text style={styles.sectionTitle}>Descuento (opcional)</Text>
-          <View style={[styles.inputWrapper, discountInvalid && styles.inputWrapperError]}>
-            <Ionicons name="pricetag-outline" size={20} color={colors.textSecondary} />
-            <TextInput
-              style={styles.input}
-              placeholder="0"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="decimal-pad"
-              value={discountText}
-              onChangeText={setDiscountText}
-            />
-          </View>
-          {discountInvalid && (
-            <Text style={styles.errorHint}>El descuento no puede ser mayor al subtotal.</Text>
-          )}
+          <Field
+            icon="pricetag-outline"
+            placeholder="0"
+            keyboardType="decimal-pad"
+            value={discountText}
+            onChangeText={setDiscountText}
+            error={discountInvalid ? 'El descuento no puede ser mayor al subtotal.' : undefined}
+          />
 
           {/* Notes */}
           <Text style={styles.sectionTitle}>Notas (opcional)</Text>
-          <View style={[styles.inputWrapper, styles.notesWrapper]}>
-            <TextInput
-              style={[styles.input, styles.notesInput]}
-              placeholder="Ej. Cliente recurrente, pagó con QR…"
-              placeholderTextColor={colors.textSecondary}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              maxLength={1000}
-            />
-          </View>
+          <Field
+            placeholder="Ej. Cliente recurrente, pagó con QR…"
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            maxLength={1000}
+          />
 
           {/* Totals */}
           <View style={styles.totalsBox}>
@@ -297,18 +279,12 @@ export default function CheckoutScreen({ navigation }: Props) {
 
         {/* Submit */}
         <View style={[styles.footer, { paddingBottom: 16 }]}>
-          <TouchableOpacity
-            style={[styles.payBtn, (submitting || discountInvalid) && styles.payBtnDisabled]}
+          <Button
+            label={`Cobrar ${formatPrice(total)}`}
             onPress={handleSubmit}
-            disabled={submitting || discountInvalid}
-            activeOpacity={0.9}
-          >
-            {submitting ? (
-              <ActivityIndicator color={colors.textOnPrimary} />
-            ) : (
-              <Text style={styles.payBtnText}>Cobrar {formatPrice(total)}</Text>
-            )}
-          </TouchableOpacity>
+            loading={submitting}
+            disabled={discountInvalid}
+          />
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -345,18 +321,9 @@ function Row({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.bodySm,
+    fontWeight: FONT_WEIGHT.bold,
     color: colors.textPrimary,
     marginTop: 20,
     marginBottom: 10,
@@ -370,26 +337,10 @@ const styles = StyleSheet.create({
   },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  summaryQty: { fontSize: 14, fontWeight: '700', color: colors.primary, minWidth: 28 },
-  summaryName: { fontSize: 15, color: colors.textPrimary, fontWeight: '500' },
-  summaryVariation: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 1 },
-  summaryPrice: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.primarySoft,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    minHeight: 52,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  inputWrapperError: { borderColor: colors.error },
-  input: { flex: 1, fontSize: 16, color: colors.textPrimary, paddingVertical: 12 },
-  notesWrapper: { alignItems: 'flex-start' },
-  notesInput: { minHeight: 60, textAlignVertical: 'top' },
-  errorHint: { color: colors.error, fontSize: 13, marginTop: 6 },
+  summaryQty: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.primary, minWidth: 28 },
+  summaryName: { fontSize: FONT_SIZE.body, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
+  summaryVariation: { fontSize: FONT_SIZE.micro, color: colors.primary, fontWeight: FONT_WEIGHT.medium, marginTop: 1 },
+  summaryPrice: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   payGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   payPill: {
     flexDirection: 'row',
@@ -403,7 +354,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   payPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  payText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+  payText: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   payTextActive: { color: colors.textOnPrimary },
   totalsBox: {
     backgroundColor: colors.surface,
@@ -414,10 +365,10 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   totalLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: 14, color: colors.textSecondary },
-  totalLabelBig: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
-  totalValue: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  totalValueBig: { fontSize: 22, fontWeight: '700', color: colors.primary },
+  totalLabel: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
+  totalLabelBig: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  totalValue: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  totalValueBig: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
   footer: {
     paddingHorizontal: 20,
@@ -426,13 +377,4 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
   },
-  payBtn: {
-    backgroundColor: colors.primary,
-    height: 54,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  payBtnDisabled: { backgroundColor: colors.primaryLight, opacity: 0.7 },
-  payBtnText: { color: colors.textOnPrimary, fontSize: 17, fontWeight: '700' },
 });

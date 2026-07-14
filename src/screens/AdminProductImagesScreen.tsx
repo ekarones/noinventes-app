@@ -2,13 +2,13 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +21,10 @@ import {
 } from '../api/admin/productImages';
 import { pickImages } from '../utils/imagePicker';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, ROW_PRESS_OPACITY } from '../theme/tokens';
+import LoadingState from '../components/LoadingState';
+import EmptyState from '../components/EmptyState';
+import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
 import type { AdminProductImage } from '../types';
 import type { AdminProductsStackParamList } from '../navigation/types';
@@ -120,26 +124,16 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Imágenes</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title="Imágenes" onBack={() => navigation.goBack()} />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingState />
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={48} color={colors.border} />
-          <Text style={styles.muted}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="cloud-offline-outline"
+          message={error}
+          action={{ label: 'Reintentar', onPress: load }}
+        />
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
@@ -160,7 +154,13 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
             <View style={styles.grid}>
               {images.map((img) => (
                 <View key={img.id} style={styles.tile}>
-                  <Image source={{ uri: img.url }} style={styles.tileImg} resizeMode="cover" />
+                  <Image
+                    source={img.thumbUrl}
+                    style={styles.tileImg}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
+                  />
                   {img.isFeatured && (
                     <View style={styles.featuredBadge}>
                       <Ionicons name="star" size={12} color={colors.textOnPrimary} />
@@ -172,6 +172,11 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
                       style={styles.tileBtn}
                       onPress={() => makeFeatured(img)}
                       disabled={busy || img.isFeatured}
+                      activeOpacity={ROW_PRESS_OPACITY}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        img.isFeatured ? 'Imagen destacada' : 'Destacar esta imagen'
+                      }
                     >
                       <Ionicons
                         name={img.isFeatured ? 'star' : 'star-outline'}
@@ -183,6 +188,9 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
                       style={styles.tileBtn}
                       onPress={() => confirmDelete(img)}
                       disabled={busy}
+                      activeOpacity={ROW_PRESS_OPACITY}
+                      accessibilityRole="button"
+                      accessibilityLabel="Eliminar esta imagen"
                     >
                       <Ionicons name="trash-outline" size={18} color={colors.error} />
                     </TouchableOpacity>
@@ -196,7 +204,7 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
             style={[styles.uploadBtn, (busy || remaining <= 0) && styles.uploadBtnDisabled]}
             onPress={pickAndUpload}
             disabled={busy || remaining <= 0}
-            activeOpacity={0.9}
+            activeOpacity={ROW_PRESS_OPACITY}
           >
             {busy ? (
               <ActivityIndicator color={colors.textOnPrimary} />
@@ -219,28 +227,9 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12, paddingHorizontal: 32 },
-  muted: { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  retryText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
-  productName: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
-  counter: { fontSize: 13, color: colors.textSecondary, marginTop: 2, marginBottom: 16 },
+  muted: { fontSize: FONT_SIZE.body, color: colors.textSecondary, textAlign: 'center' },
+  productName: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  counter: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 2, marginBottom: 16 },
   emptyBox: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   tile: {
@@ -265,7 +254,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 10,
   },
-  featuredText: { color: colors.textOnPrimary, fontSize: 10, fontWeight: '700' },
+  featuredText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold },
   tileActions: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 6 },
   tileBtn: { width: 40, height: 34, alignItems: 'center', justifyContent: 'center' },
   uploadBtn: {
@@ -279,6 +268,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   uploadBtnDisabled: { opacity: 0.5 },
-  uploadText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
-  hint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 12, lineHeight: 17 },
+  uploadText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: 12, lineHeight: 17 },
 });

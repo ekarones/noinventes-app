@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,10 @@ import {
   fetchAdminProductVariations,
 } from '../api/admin/products';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import LoadingState from '../components/LoadingState';
+import EmptyState from '../components/EmptyState';
+import ScreenHeader from '../components/ScreenHeader';
 import { formatPrice } from '../utils/format';
 import { stockColor } from '../utils/stock';
 import { useToast } from '../context/ToastContext';
@@ -132,35 +135,29 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {product.name}
-        </Text>
-        <TouchableOpacity
-          onPress={() => d && navigation.navigate('AdminProductForm', { product: d })}
-          hitSlop={8}
-          style={styles.backBtn}
-          disabled={!d}
-        >
-          <Ionicons name="create-outline" size={22} color={d ? colors.primary : colors.border} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={product.name}
+        onBack={() => navigation.goBack()}
+        // The detail is still loading (or failed): there's nothing to edit yet.
+        action={
+          d
+            ? {
+                icon: 'create-outline',
+                label: 'Editar producto',
+                onPress: () => navigation.navigate('AdminProductForm', { product: d }),
+              }
+            : undefined
+        }
+      />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingState />
       ) : error || !d ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={48} color={colors.border} />
-          <Text style={styles.errorText}>{error ?? 'No se pudo cargar.'}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={load}>
-            <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="cloud-offline-outline"
+          message={error ?? 'No se pudo cargar.'}
+          action={{ label: 'Reintentar', onPress: load }}
+        />
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
@@ -175,7 +172,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
             >
               {d.images.map((img) => (
                 <View key={img.id}>
-                  <ProductImage uri={img.url} style={styles.galleryImg} iconSize={28} />
+                  <ProductImage uri={img.thumbUrl} style={styles.galleryImg} iconSize={28} />
                   {img.isFeatured && (
                     <View style={styles.featuredBadge}>
                       <Ionicons name="star" size={11} color={colors.textOnPrimary} />
@@ -193,7 +190,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
             onPress={() =>
               navigation.navigate('AdminProductImages', { productId: d.id, productName: d.name })
             }
-            activeOpacity={0.85}
+            activeOpacity={ROW_PRESS_OPACITY}
           >
             <Ionicons name="images-outline" size={16} color={colors.primary} />
             <Text style={styles.editText}>Gestionar imágenes ({d.images.length})</Text>
@@ -258,6 +255,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                       stock: d.stockByBranch,
                     })
                   }
+                  activeOpacity={ROW_PRESS_OPACITY}
                 >
                   <Ionicons name="create-outline" size={16} color={colors.primary} />
                   <Text style={styles.editText}>Editar</Text>
@@ -284,6 +282,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                       attributeIds,
                     })
                   }
+                  activeOpacity={ROW_PRESS_OPACITY}
                 >
                   <Ionicons name="add" size={16} color={colors.primary} />
                   <Text style={styles.editText}>Agregar</Text>
@@ -297,7 +296,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                 variations.map((v) => (
                   <View key={v.id} style={styles.varCard}>
                     <View style={styles.varHeader}>
-                      <ProductImage uri={v.imageUrl} style={styles.varThumb} iconSize={16} />
+                      <ProductImage uri={v.imageThumbUrl} style={styles.varThumb} iconSize={16} />
                       <View style={{ flex: 1 }}>
                         <Text style={styles.varName}>{variationLabel(v)}</Text>
                         <Text style={styles.varMeta}>
@@ -313,15 +312,21 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                             variation: v,
                           })
                         }
-                        hitSlop={8}
+                        hitSlop={HIT_SLOP}
                         style={styles.varIconBtn}
+                        activeOpacity={ROW_PRESS_OPACITY}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Editar variación ${variationLabel(v)}`}
                       >
                         <Ionicons name="create-outline" size={20} color={colors.primary} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => confirmDeleteVariation(v)}
-                        hitSlop={8}
+                        hitSlop={HIT_SLOP}
                         style={styles.varIconBtn}
+                        activeOpacity={ROW_PRESS_OPACITY}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Eliminar variación ${variationLabel(v)}`}
                       >
                         <Ionicons name="trash-outline" size={20} color={colors.error} />
                       </TouchableOpacity>
@@ -338,6 +343,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                           stock: v.stockByBranch,
                         })
                       }
+                      activeOpacity={ROW_PRESS_OPACITY}
                     >
                       <Ionicons name="cube-outline" size={16} color={colors.primary} />
                       <Text style={styles.editText}>Editar stock</Text>
@@ -352,7 +358,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
           <TouchableOpacity
             style={styles.deleteBtn}
             onPress={confirmDeleteProduct}
-            activeOpacity={0.9}
+            activeOpacity={ROW_PRESS_OPACITY}
           >
             <Ionicons name="trash-outline" size={20} color={colors.error} />
             <Text style={styles.deleteText}>Eliminar producto</Text>
@@ -400,26 +406,6 @@ function statusTextStyle(status: string) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, flex: 1, textAlign: 'center' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12, paddingHorizontal: 32 },
-  errorText: { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  retryText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   gallery: { gap: 12, paddingRight: 8 },
   galleryImg: { width: 150, height: 150, borderRadius: 16, backgroundColor: colors.primarySoft },
   heroPlaceholder: { width: '100%', height: 200, borderRadius: 16 },
@@ -429,17 +415,17 @@ const styles = StyleSheet.create({
     left: 8,
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   titleBlock: { marginTop: 18, gap: 6 },
-  name: { fontSize: 22, fontWeight: '700', color: colors.textPrimary },
-  code: { fontSize: 13, color: colors.textSecondary },
+  name: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  code: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 },
-  statusText: { fontSize: 12, fontWeight: '700' },
+  statusText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.bold },
   typeBadge: {
     backgroundColor: colors.background,
     borderWidth: 1,
@@ -448,8 +434,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
   },
-  typeText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  price: { fontSize: 24, fontWeight: '700', color: colors.primary, marginTop: 6 },
+  typeText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
+  price: { fontSize: FONT_SIZE.sectionValue, fontWeight: FONT_WEIGHT.bold, color: colors.primary, marginTop: 6 },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -457,9 +443,9 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 10,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 24, marginBottom: 10 },
-  sectionTitleInline: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
-  description: { fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+  sectionTitle: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 24, marginBottom: 10 },
+  sectionTitleInline: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  description: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, lineHeight: 20 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   tag: {
     backgroundColor: colors.primarySoft,
@@ -467,7 +453,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 16,
   },
-  tagText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
+  tagText: { fontSize: FONT_SIZE.caption, color: colors.primary, fontWeight: FONT_WEIGHT.medium },
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -477,7 +463,7 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
   },
-  editText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+  editText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
   manageImagesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -499,8 +485,8 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
     marginTop: 32,
   },
-  deleteText: { color: colors.error, fontSize: 16, fontWeight: '700' },
-  deleteHint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 10 },
+  deleteText: { color: colors.error, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
+  deleteHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: 10 },
   stockBox: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -511,10 +497,10 @@ const styles = StyleSheet.create({
   stockBoxCompact: { marginTop: 10 },
   stockRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13 },
   stockBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  stockBranch: { flex: 1, fontSize: 14, color: colors.textPrimary, fontWeight: '600' },
+  stockBranch: { flex: 1, fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
   stockPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  stockPillText: { fontSize: 13, fontWeight: '700' },
-  muted: { fontSize: 14, color: colors.textSecondary },
+  stockPillText: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.bold },
+  muted: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
   varCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -525,8 +511,8 @@ const styles = StyleSheet.create({
   },
   varHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   varThumb: { width: 40, height: 40, borderRadius: 10 },
-  varName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  varMeta: { fontSize: 13, color: colors.textSecondary, marginTop: 1 },
+  varName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  varMeta: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 1 },
   varIconBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   stockEditBtn: {
     flexDirection: 'row',

@@ -12,13 +12,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { lookupByCode } from '../api/products';
 import { ApiError } from '../api/client';
-import { linePrice, lineImageUrl, variationLabel } from '../utils/cart';
+import { linePrice, lineImageUrl, lineStock, variationLabel } from '../utils/cart';
 import { hapticAdd } from '../utils/haptics';
+import Button from '../components/Button';
+import EmptyState from '../components/EmptyState';
 import ProductImage from '../components/ProductImage';
 import QRScannerModal from '../components/QRScannerModal';
 import type { CartItem } from '../types';
@@ -86,6 +89,10 @@ export default function CartScreen() {
 
   function renderItem({ item }: { item: CartItem }) {
     const price = linePrice(item);
+    // The stepper only steps. Removing a line goes through the trash button, so a
+    // stray "−" tap can't silently drop it; "+" stops at the stock we can actually sell.
+    const canDecrease = item.quantity > 1;
+    const canIncrease = item.quantity < lineStock(item);
     return (
       <View style={styles.card}>
         <ProductImage uri={lineImageUrl(item)} style={styles.image} iconSize={22} />
@@ -101,9 +108,13 @@ export default function CartScreen() {
           <Text style={styles.price}>{formatPrice(price)}</Text>
           <View style={styles.qtyRow}>
             <TouchableOpacity
-              style={styles.qtyBtn}
+              style={[styles.qtyBtn, !canDecrease && styles.qtyBtnDisabled]}
               onPress={() => updateQuantity(item.key, item.quantity - 1)}
-              hitSlop={6}
+              disabled={!canDecrease}
+              activeOpacity={ROW_PRESS_OPACITY}
+              hitSlop={HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel="Quitar una unidad"
             >
               <Ionicons name="remove" size={18} color={colors.textPrimary} />
             </TouchableOpacity>
@@ -116,16 +127,26 @@ export default function CartScreen() {
               maxLength={4}
             />
             <TouchableOpacity
-              style={styles.qtyBtn}
+              style={[styles.qtyBtn, !canIncrease && styles.qtyBtnDisabled]}
               onPress={() => updateQuantity(item.key, item.quantity + 1)}
-              hitSlop={6}
+              disabled={!canIncrease}
+              activeOpacity={ROW_PRESS_OPACITY}
+              hitSlop={HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel="Agregar una unidad"
             >
               <Ionicons name="add" size={18} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
         <View style={styles.right}>
-          <TouchableOpacity onPress={() => removeItem(item.key)} hitSlop={8}>
+          <TouchableOpacity
+            onPress={() => removeItem(item.key)}
+            activeOpacity={ROW_PRESS_OPACITY}
+            hitSlop={HIT_SLOP}
+            accessibilityRole="button"
+            accessibilityLabel={`Quitar ${item.product.name} del carrito`}
+          >
             <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={styles.lineTotal}>{formatPrice(price * item.quantity)}</Text>
@@ -140,19 +161,16 @@ export default function CartScreen() {
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
           <Text style={styles.title}>Ventas</Text>
         </View>
-        <View style={styles.empty}>
-          <Ionicons name="cart-outline" size={64} color={colors.border} />
-          <Text style={styles.emptyTitle}>Tu carrito está vacío</Text>
-          <Text style={styles.emptyText}>Agrega productos desde el catálogo o escanea un código QR.</Text>
-          <TouchableOpacity
-            style={styles.scanBtnLarge}
-            activeOpacity={0.9}
-            onPress={() => setScannerVisible(true)}
-          >
-            <Ionicons name="qr-code-outline" size={20} color={colors.textOnPrimary} />
-            <Text style={styles.scanBtnLargeText}>Escanear código QR</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="cart-outline"
+          title="Tu carrito está vacío"
+          message="Agrega productos desde el catálogo o escanea un código QR."
+          action={{
+            label: 'Escanear código QR',
+            icon: 'qr-code-outline',
+            onPress: () => setScannerVisible(true),
+          }}
+        />
         <QRScannerModal
           visible={scannerVisible}
           onClose={() => setScannerVisible(false)}
@@ -170,13 +188,13 @@ export default function CartScreen() {
           <Text style={styles.subtitle}>{totalItems} artículos</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.clearBtn} activeOpacity={0.85} onPress={confirmClear}>
+          <TouchableOpacity style={styles.clearBtn} activeOpacity={ROW_PRESS_OPACITY} onPress={confirmClear}>
             <Ionicons name="trash-outline" size={18} color={colors.textSecondary} />
             <Text style={styles.clearBtnText}>Vaciar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.scanBtn}
-            activeOpacity={0.85}
+            activeOpacity={ROW_PRESS_OPACITY}
             onPress={() => setScannerVisible(true)}
           >
             <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
@@ -198,9 +216,7 @@ export default function CartScreen() {
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalValue}>{formatPrice(totalPrice)}</Text>
         </View>
-        <TouchableOpacity style={styles.checkout} activeOpacity={0.9} onPress={goToCheckout}>
-          <Text style={styles.checkoutText}>Continuar al cobro</Text>
-        </TouchableOpacity>
+        <Button label="Continuar al cobro" size="lg" onPress={goToCheckout} />
       </View>
 
       <QRScannerModal
@@ -225,7 +241,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 12,
   },
-  scanBtnText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
+  scanBtnText: { color: colors.primary, fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   clearBtn: {
     flexDirection: 'row',
@@ -237,20 +253,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  clearBtnText: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
-  scanBtnLarge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    height: 50,
-    borderRadius: 14,
-    marginTop: 16,
-  },
-  scanBtnLargeText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
-  title: { fontSize: 26, fontWeight: '700', color: colors.textPrimary },
-  subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
+  clearBtnText: { color: colors.textSecondary, fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium },
+  title: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  subtitle: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
   list: { padding: 20, paddingTop: 4, gap: 14 },
   card: {
     flexDirection: 'row',
@@ -263,18 +268,19 @@ const styles = StyleSheet.create({
   },
   image: { width: 76, height: 76, borderRadius: 12 },
   info: { flex: 1, justifyContent: 'space-between' },
-  name: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  variation: { fontSize: 12, color: colors.primary, fontWeight: '600', marginTop: 1 },
-  price: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  variation: { fontSize: FONT_SIZE.micro, color: colors.primary, fontWeight: FONT_WEIGHT.medium, marginTop: 1 },
+  price: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 2 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 6 },
   qtyBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.sm,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  qtyBtnDisabled: { opacity: 0.4 },
   qtyInput: {
     minWidth: 46,
     height: 32,
@@ -282,17 +288,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.subheading,
+    fontWeight: FONT_WEIGHT.bold,
     color: colors.textPrimary,
     paddingVertical: 0,
     paddingHorizontal: 4,
   },
   right: { justifyContent: 'space-between', alignItems: 'flex-end' },
-  lineTotal: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: 8 },
-  emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 32 },
+  lineTotal: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   footer: {
     paddingHorizontal: 20,
     paddingTop: 14,
@@ -306,14 +309,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  totalLabel: { fontSize: 16, color: colors.textSecondary },
-  totalValue: { fontSize: 24, fontWeight: '700', color: colors.textPrimary },
-  checkout: {
-    backgroundColor: colors.primary,
-    height: 54,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkoutText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
+  totalLabel: { fontSize: FONT_SIZE.subheading, color: colors.textSecondary },
+  totalValue: { fontSize: FONT_SIZE.sectionValue, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
 });

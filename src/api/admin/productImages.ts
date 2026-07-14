@@ -2,10 +2,23 @@ import { apiRequest } from '../client';
 import { filePart } from '../upload';
 import type { AdminProductImage } from '../../types';
 
-type RawAdminImage = { id: number; url: string; is_featured: boolean; sort_order: number };
+type RawAdminImage = {
+  id: number;
+  url: string;
+  thumb_url?: string | null;
+  is_featured: boolean;
+  sort_order: number;
+};
 
 function mapImage(i: RawAdminImage): AdminProductImage {
-  return { id: i.id, url: i.url, isFeatured: i.is_featured, sortOrder: i.sort_order };
+  return {
+    id: i.id,
+    url: i.url,
+    // Falls back to the full image when the server has no thumb.
+    thumbUrl: i.thumb_url ?? i.url,
+    isFeatured: i.is_featured,
+    sortOrder: i.sort_order,
+  };
 }
 
 // POST /admin/products/{id}/images — up to 10 files per request, and at most 10

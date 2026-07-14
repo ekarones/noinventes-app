@@ -2,25 +2,27 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createVariation, updateVariation } from '../api/admin/products';
 import { fetchAdminAttributes } from '../api/admin/attributes';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import Field from '../components/Field';
+import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
+import BottomSheet, { SheetOption } from '../components/BottomSheet';
+import Button from '../components/Button';
 import { buildVariationCode } from '../utils/slug';
 import { pickImages } from '../utils/imagePicker';
 import type { AdminAttribute } from '../types';
@@ -69,7 +71,8 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
   // Newly-picked reference image (local URI). Null means "no new pick": on edit
   // the existing remote image is shown instead. Only sent to the server when set.
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const previewUri = imageUri ?? variation?.imageUrl ?? null;
+  // The preview is only 150px, so prefer the thumbnail over the full original.
+  const previewUri = imageUri ?? variation?.imageThumbUrl ?? null;
 
   async function pickImage() {
     const [uri] = await pickImages();
@@ -182,13 +185,10 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{editing ? 'Editar variación' : 'Nueva variación'}</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader
+        title={editing ? 'Editar variación' : 'Nueva variación'}
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
@@ -200,9 +200,15 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
 
         {/* Reference image — same look as the product form. On edit it preloads
             the existing photo; the ✕ only undoes a fresh pick. */}
-        <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={ROW_PRESS_OPACITY}>
           {previewUri ? (
-            <Image source={{ uri: previewUri }} style={styles.imagePreview} resizeMode="cover" />
+            <Image
+              source={previewUri}
+              style={styles.imagePreview}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           ) : (
             <View style={styles.imagePlaceholder}>
               <Ionicons name="image-outline" size={34} color={colors.textSecondary} />
@@ -214,6 +220,7 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
               style={styles.imageRemove}
               onPress={() => setImageUri(null)}
               hitSlop={8}
+              activeOpacity={ROW_PRESS_OPACITY}
             >
               <Ionicons name="close-circle" size={24} color={colors.error} />
             </TouchableOpacity>
@@ -242,7 +249,7 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
                     <TouchableOpacity
                       style={[styles.select, chosenIds.length > 0 && styles.selectActive]}
                       onPress={() => setAttributePickerOpen(true)}
-                      activeOpacity={0.8}
+                      activeOpacity={ROW_PRESS_OPACITY}
                     >
                       <Text
                         style={[styles.selectText, chosenIds.length === 0 && styles.selectPlaceholder]}
@@ -265,7 +272,7 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
                       <TouchableOpacity
                         style={[styles.select, chosen && styles.selectActive]}
                         onPress={() => setPicker(a)}
-                        activeOpacity={0.8}
+                        activeOpacity={ROW_PRESS_OPACITY}
                       >
                         <Text
                           style={[styles.selectText, !chosen && styles.selectPlaceholder]}
@@ -288,40 +295,36 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
           </>
         )}
 
-        <Text style={styles.label}>Código</Text>
-        <TextInput
-          style={styles.input}
+        <Field
+          label="Código"
           value={code}
           onChangeText={(t) => {
             setCodeTouched(true);
             setCode(t);
           }}
           placeholder="Ej. POL-001-RJ-M"
-          placeholderTextColor={colors.textSecondary}
           autoCapitalize="characters"
           autoCorrect={false}
+          hint={
+            !editing && !codeTouched && productCode
+              ? 'Se genera solo a partir del producto y los valores. Puedes editarlo.'
+              : undefined
+          }
         />
-        {!editing && !codeTouched && productCode && (
-          <Text style={styles.hint}>Se genera solo a partir del producto y los valores. Puedes editarlo.</Text>
-        )}
 
-        <Text style={styles.label}>Precio final</Text>
-        <TextInput
-          style={styles.input}
+        <Field
+          label="Precio final"
           value={finalPrice}
           onChangeText={setFinalPrice}
           placeholder="39.90"
-          placeholderTextColor={colors.textSecondary}
           keyboardType="decimal-pad"
         />
 
-        <Text style={styles.label}>Valor unitario</Text>
-        <TextInput
-          style={styles.input}
+        <Field
+          label="Valor unitario"
           value={unitValue}
           onChangeText={setUnitValue}
           placeholder="1"
-          placeholderTextColor={colors.textSecondary}
           keyboardType="decimal-pad"
         />
 
@@ -331,126 +334,70 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
           </Text>
         )}
 
-        <TouchableOpacity
-          style={[styles.saveBtn, !canSubmit && styles.saveBtnDisabled]}
+        <Button
+          label={editing ? 'Guardar cambios' : 'Crear variación'}
           onPress={save}
+          loading={saving}
           disabled={!canSubmit}
-          activeOpacity={0.9}
-        >
-          {saving ? (
-            <ActivityIndicator color={colors.textOnPrimary} />
-          ) : (
-            <Text style={styles.saveText}>{editing ? 'Guardar cambios' : 'Crear variación'}</Text>
-          )}
-        </TouchableOpacity>
+          style={styles.saveBtn}
+        />
       </ScrollView>
 
       {/* Attribute value picker */}
-      <Modal
+      <BottomSheet
         visible={picker !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPicker(null)}
+        onClose={() => setPicker(null)}
+        title={picker?.name ?? ''}
+        scrollable
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setPicker(null)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 12, maxHeight: '70%' }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{picker?.name}</Text>
-            <ScrollView>
-              {picker?.values.map((v) => {
-                const active = selection[picker.id] === v.id;
-                return (
-                  <TouchableOpacity
-                    key={v.id}
-                    style={styles.pickerRow}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      setSelection((prev) => ({ ...prev, [picker.id]: v.id }));
-                      setPicker(null);
-                    }}
-                  >
-                    <Text style={[styles.pickerLabel, active && styles.pickerLabelActive]}>
-                      {v.value}
-                    </Text>
-                    {active && <Ionicons name="checkmark" size={20} color={colors.primary} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        {picker?.values.map((v) => (
+          <SheetOption
+            key={v.id}
+            label={v.value}
+            active={selection[picker.id] === v.id}
+            onPress={() => {
+              setSelection((prev) => ({ ...prev, [picker.id]: v.id }));
+              setPicker(null);
+            }}
+          />
+        ))}
+      </BottomSheet>
 
       {/* Attribute multi-select (only when the set isn't pinned yet) */}
-      <Modal
+      <BottomSheet
         visible={attributePickerOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAttributePickerOpen(false)}
+        onClose={() => setAttributePickerOpen(false)}
+        title="Atributos del producto"
+        scrollable
+        footer={
+          <Button
+            label="Listo"
+            size="md"
+            onPress={() => setAttributePickerOpen(false)}
+            style={styles.doneBtn}
+          />
+        }
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setAttributePickerOpen(false)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 12, maxHeight: '70%' }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Atributos del producto</Text>
-            <ScrollView>
-              {attributes.map((a) => {
-                const active = chosenIds.includes(a.id);
-                return (
-                  <TouchableOpacity
-                    key={a.id}
-                    style={styles.pickerRow}
-                    activeOpacity={0.7}
-                    onPress={() => toggleAttribute(a.id)}
-                  >
-                    <Ionicons
-                      name={active ? 'checkbox' : 'square-outline'}
-                      size={20}
-                      color={active ? colors.primary : colors.textSecondary}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.pickerLabel, active && styles.pickerLabelActive]}>
-                        {a.name}
-                      </Text>
-                      <Text style={styles.attrValues} numberOfLines={1}>
-                        {a.values.map((v) => v.value).join(', ')}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            <TouchableOpacity style={styles.doneBtn} onPress={() => setAttributePickerOpen(false)}>
-              <Text style={styles.saveText}>Listo</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        {attributes.map((a) => (
+          <SheetOption
+            key={a.id}
+            label={a.name}
+            hint={a.values.map((v) => v.value).join(', ')}
+            multi
+            active={chosenIds.includes(a.id)}
+            onPress={() => toggleAttribute(a.id)}
+          />
+        ))}
+      </BottomSheet>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  productName: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
-  productSub: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginTop: 18, marginBottom: 6 },
-  input: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 50,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
+  productName: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  productSub: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
+  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: 18, marginBottom: 6 },
   imagePicker: { alignSelf: 'center', width: 150, height: 150, borderRadius: 18, marginTop: 16 },
   imagePreview: { width: 150, height: 150, borderRadius: 18 },
   imageBadge: {
@@ -459,7 +406,7 @@ const styles = StyleSheet.create({
     bottom: -4,
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -485,9 +432,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderStyle: 'dashed',
   },
-  imageHint: { fontSize: 12, color: colors.textSecondary },
+  imageHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
   attrRow: { marginBottom: 10 },
-  attrName: { fontSize: 13, color: colors.textSecondary, marginBottom: 4 },
+  attrName: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: 4 },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -500,47 +447,10 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   selectActive: { borderColor: colors.primary },
-  selectText: { flex: 1, fontSize: 16, color: colors.textPrimary },
+  selectText: { flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   selectPlaceholder: { color: colors.textSecondary },
-  warn: { fontSize: 14, color: colors.warning, lineHeight: 20 },
-  hint: { fontSize: 12, color: colors.textSecondary, marginTop: 8, lineHeight: 17 },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    height: 54,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 28,
-  },
-  saveBtnDisabled: { backgroundColor: colors.primaryLight, opacity: 0.6 },
-  saveText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: 12,
-  },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
-  pickerLabel: { flex: 1, fontSize: 16, color: colors.textPrimary },
-  pickerLabelActive: { fontWeight: '700', color: colors.primary },
-  attrValues: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
-  doneBtn: {
-    backgroundColor: colors.primary,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
+  warn: { fontSize: FONT_SIZE.bodySm, color: colors.warning, lineHeight: 20 },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 8, lineHeight: 17 },
+  saveBtn: { marginTop: 28 },
+  doneBtn: { marginTop: 10 },
 });

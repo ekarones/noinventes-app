@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,10 +11,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { formatPrice, formatRelative } from '../utils/format';
+import { paymentMethodLabel } from '../utils/payment';
 import { useAuth } from '../context/AuthContext';
 import { fetchAdminDashboard } from '../api/admin/dashboard';
 import { fetchAdminBranches } from '../api/admin/branches';
+import LoadingState from '../components/LoadingState';
+import BottomSheet, { SheetOption } from '../components/BottomSheet';
 import ProductImage from '../components/ProductImage';
 import type { AdminBranch, AdminDashboard, StatsPeriod } from '../types';
 
@@ -101,7 +102,7 @@ export default function AdminDashboardScreen() {
           </View>
           <TouchableOpacity
             style={styles.profileBtn}
-            activeOpacity={0.8}
+            activeOpacity={ROW_PRESS_OPACITY}
             onPress={() => navigation.navigate('AdminProfile')}
             accessibilityLabel="Perfil"
           >
@@ -118,7 +119,7 @@ export default function AdminDashboardScreen() {
                 key={p.value}
                 style={[styles.periodPill, active && styles.periodPillActive]}
                 onPress={() => setPeriod(p.value)}
-                activeOpacity={0.8}
+                activeOpacity={ROW_PRESS_OPACITY}
               >
                 <Text style={[styles.periodText, active && styles.periodTextActive]}>{p.label}</Text>
               </TouchableOpacity>
@@ -130,7 +131,7 @@ export default function AdminDashboardScreen() {
         <TouchableOpacity
           style={[styles.branchSelect, branchId != null && styles.branchSelectActive]}
           onPress={() => setBranchPickerOpen(true)}
-          activeOpacity={0.8}
+          activeOpacity={ROW_PRESS_OPACITY}
         >
           <Ionicons
             name="storefront-outline"
@@ -144,7 +145,7 @@ export default function AdminDashboardScreen() {
             {branchName}
           </Text>
           {branchId != null ? (
-            <TouchableOpacity onPress={() => setBranchId(null)} hitSlop={10}>
+            <TouchableOpacity onPress={() => setBranchId(null)} hitSlop={10} activeOpacity={ROW_PRESS_OPACITY}>
               <Ionicons name="close-circle" size={18} color={colors.primary} />
             </TouchableOpacity>
           ) : (
@@ -153,14 +154,12 @@ export default function AdminDashboardScreen() {
         </TouchableOpacity>
 
         {loading ? (
-          <View style={styles.centerPad}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <LoadingState />
         ) : error ? (
           <View style={styles.centerPad}>
             <Ionicons name="cloud-offline-outline" size={44} color={colors.border} />
             <Text style={styles.emptyText}>{error}</Text>
-            <TouchableOpacity style={styles.cta} onPress={() => load()}>
+            <TouchableOpacity style={styles.cta} onPress={() => load()} activeOpacity={ROW_PRESS_OPACITY}>
               <Text style={styles.ctaText}>Reintentar</Text>
             </TouchableOpacity>
           </View>
@@ -191,7 +190,7 @@ export default function AdminDashboardScreen() {
             {data && data.lowStock.count > 0 && (
               <TouchableOpacity
                 style={styles.lowStock}
-                activeOpacity={0.8}
+                activeOpacity={ROW_PRESS_OPACITY}
                 onPress={() =>
                   navigation.navigate('AdminLowStock', {
                     items: data.lowStock.products,
@@ -226,7 +225,7 @@ export default function AdminDashboardScreen() {
                     style={[styles.topRow, index > 0 && styles.rowBorder]}
                   >
                     <View style={styles.topThumbWrap}>
-                      <ProductImage uri={tp.imageUrl} style={styles.topThumb} iconSize={18} />
+                      <ProductImage uri={tp.imageThumbUrl} style={styles.topThumb} iconSize={18} />
                       <View style={styles.rankBadge}>
                         <Text style={styles.rankText}>{index + 1}</Text>
                       </View>
@@ -302,7 +301,7 @@ export default function AdminDashboardScreen() {
             {/* Recent sales */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Ventas recientes</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('AdminSalesTab')}>
+              <TouchableOpacity onPress={() => navigation.navigate('AdminSalesTab')} activeOpacity={ROW_PRESS_OPACITY}>
                 <Text style={styles.link}>Ver todas</Text>
               </TouchableOpacity>
             </View>
@@ -328,7 +327,12 @@ export default function AdminDashboardScreen() {
                         {formatRelative(sale.createdAt)}
                       </Text>
                     </View>
-                    <Text style={styles.orderTotal}>{formatPrice(sale.total)}</Text>
+                    <View style={styles.orderRight}>
+                      <Text style={styles.orderTotal}>{formatPrice(sale.total)}</Text>
+                      <View style={styles.payBadge}>
+                        <Text style={styles.payText}>{paymentMethodLabel(sale.paymentMethod)}</Text>
+                      </View>
+                    </View>
                   </View>
                 ))}
               </View>
@@ -338,60 +342,33 @@ export default function AdminDashboardScreen() {
       </ScrollView>
 
       {/* Branch picker */}
-      <Modal
+      <BottomSheet
         visible={branchPickerOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setBranchPickerOpen(false)}
+        onClose={() => setBranchPickerOpen(false)}
+        title="Sucursal"
+        scrollable
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setBranchPickerOpen(false)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 12, maxHeight: '70%' }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Sucursal</Text>
-            <ScrollView>
-              <PickerRow
-                label="Todas las sucursales"
-                active={branchId == null}
-                onPress={() => {
-                  setBranchId(null);
-                  setBranchPickerOpen(false);
-                }}
-              />
-              {branches.map((b) => (
-                <PickerRow
-                  key={b.id}
-                  label={b.name}
-                  active={branchId === b.id}
-                  onPress={() => {
-                    setBranchId(b.id);
-                    setBranchPickerOpen(false);
-                  }}
-                />
-              ))}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        <SheetOption
+          label="Todas las sucursales"
+          active={branchId == null}
+          onPress={() => {
+            setBranchId(null);
+            setBranchPickerOpen(false);
+          }}
+        />
+        {branches.map((b) => (
+          <SheetOption
+            key={b.id}
+            label={b.name}
+            active={branchId === b.id}
+            onPress={() => {
+              setBranchId(b.id);
+              setBranchPickerOpen(false);
+            }}
+          />
+        ))}
+      </BottomSheet>
     </View>
-  );
-}
-
-function PickerRow({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity style={styles.pickerRow} onPress={onPress} activeOpacity={0.7}>
-      <Text style={[styles.pickerLabel, active && styles.pickerLabelActive]} numberOfLines={1}>
-        {label}
-      </Text>
-      {active && <Ionicons name="checkmark" size={20} color={colors.primary} />}
-    </TouchableOpacity>
   );
 }
 
@@ -428,17 +405,17 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   headerTexts: { flex: 1 },
-  hello: { fontSize: 15, color: colors.textSecondary },
-  headerTitle: { fontSize: 26, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
+  hello: { fontSize: FONT_SIZE.body, color: colors.textSecondary },
+  headerTitle: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 2 },
   profileBtn: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileInitial: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '700' },
+  profileInitial: { color: colors.textOnPrimary, fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold },
   periodRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 14 },
   periodPill: {
     flex: 1,
@@ -451,7 +428,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   periodPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  periodText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+  periodText: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   periodTextActive: { color: colors.textOnPrimary },
   branchSelect: {
     flexDirection: 'row',
@@ -467,28 +444,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   branchSelectActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  branchSelectText: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  branchSelectText: { flex: 1, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   branchSelectTextActive: { color: colors.primary },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: 12,
-  },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
-  pickerLabel: { flex: 1, fontSize: 16, color: colors.textPrimary },
-  pickerLabelActive: { fontWeight: '700', color: colors.primary },
   centerPad: { alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12, paddingHorizontal: 32 },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingTop: 16, gap: 12 },
   kpiCard: {
@@ -511,8 +468,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   kpiIconHighlight: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  kpiValue: { fontSize: 22, fontWeight: '700', color: colors.textPrimary },
-  kpiLabel: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  kpiValue: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  kpiLabel: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 2 },
   kpiTextOnPrimary: { color: colors.textOnPrimary },
   kpiTextOnPrimarySoft: { color: 'rgba(255,255,255,0.85)' },
   lowStock: {
@@ -535,8 +492,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lowStockText: { flex: 1, fontSize: 13, lineHeight: 18, color: colors.textPrimary },
-  lowStockCount: { fontWeight: '700', color: colors.warning },
+  lowStockText: { flex: 1, fontSize: FONT_SIZE.caption, lineHeight: 18, color: colors.textPrimary },
+  lowStockCount: { fontWeight: FONT_WEIGHT.bold, color: colors.warning },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -545,8 +502,8 @@ const styles = StyleSheet.create({
     marginTop: 26,
     marginBottom: 12,
   },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  link: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  link: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.primary },
   card: {
     marginHorizontal: 20,
     backgroundColor: colors.surface,
@@ -574,11 +531,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.surface,
   },
-  rankText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 11 },
+  rankText: { color: colors.textOnPrimary, fontWeight: FONT_WEIGHT.bold, fontSize: FONT_SIZE.badge },
   topInfo: { flex: 1 },
-  topName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  topCategory: { fontSize: 13, color: colors.textSecondary, marginTop: 1 },
-  topQty: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  topName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  topCategory: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 1 },
+  topQty: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   iconBox: {
     width: 38,
     height: 38,
@@ -590,16 +547,24 @@ const styles = StyleSheet.create({
   avatarSm: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarSmText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
+  avatarSmText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
   orderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  orderTotal: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  orderRight: { alignItems: 'flex-end', gap: 4 },
+  orderTotal: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  payBadge: {
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  payText: { color: colors.primary, fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold },
   emptyBox: { alignItems: 'center', paddingVertical: 24, gap: 10, marginHorizontal: 20 },
-  emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
+  emptyText: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
   cta: {
     backgroundColor: colors.primary,
     paddingHorizontal: 22,
@@ -609,5 +574,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 6,
   },
-  ctaText: { color: colors.textOnPrimary, fontSize: 15, fontWeight: '700' },
+  ctaText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold },
 });

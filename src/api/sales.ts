@@ -244,6 +244,7 @@ type RawStats = {
     quantity_sold: number;
     total: string;
     image_url: string | null;
+    image_thumb_url?: string | null;
   }[];
   recent_sales: {
     id: number;
@@ -271,6 +272,7 @@ export async function fetchStatistics(period: StatsPeriod): Promise<DashboardSta
       quantitySold: p.quantity_sold,
       total: parseFloat(p.total),
       imageUrl: p.image_url ?? null,
+      imageThumbUrl: p.image_thumb_url ?? p.image_url ?? null,
     })),
     recentSales: res.recent_sales.map((s) => ({
       id: s.id,

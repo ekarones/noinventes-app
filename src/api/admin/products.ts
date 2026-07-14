@@ -1,6 +1,6 @@
 import { apiRequest } from '../client';
 import { filePart } from '../upload';
-import type { PaginationMeta } from '../products';
+import type { PaginationMeta, ProductSortBy, SortDir } from '../products';
 import type {
   AdminProductDetail,
   AdminProductImage,
@@ -27,6 +27,7 @@ type RawAdminProductRow = {
   final_price: string;
   unit_of_measure: string;
   image_url: string | null;
+  image_thumb_url?: string | null;
   variations_count: number;
   category: { id: number; name: string } | null;
   stock?: number | null;
@@ -35,6 +36,7 @@ type RawAdminProductRow = {
 type RawAdminImage = {
   id: number;
   url: string;
+  thumb_url?: string | null;
   is_featured: boolean;
   sort_order: number;
 };
@@ -73,6 +75,7 @@ type RawAdminVariation = {
   // Returned by index/store/update (shared shape). Optional + defensive in case
   // an older server build omits it; `null` when the variation has no image.
   image_url?: string | null;
+  image_thumb_url?: string | null;
   attribute_values?: AttributeValue[];
   stock_by_branch?: RawStockByBranch[];
 };
@@ -84,7 +87,13 @@ function mapStock(s: RawStockByBranch): StockByBranch {
 }
 
 function mapImage(i: RawAdminImage): AdminProductImage {
-  return { id: i.id, url: i.url, isFeatured: i.is_featured, sortOrder: i.sort_order };
+  return {
+    id: i.id,
+    url: i.url,
+    thumbUrl: i.thumb_url ?? i.url,
+    isFeatured: i.is_featured,
+    sortOrder: i.sort_order,
+  };
 }
 
 function mapRow(p: RawAdminProductRow): AdminProductRow {
@@ -98,6 +107,8 @@ function mapRow(p: RawAdminProductRow): AdminProductRow {
     finalPrice: parseFloat(p.final_price),
     unitOfMeasure: p.unit_of_measure,
     imageUrl: p.image_url,
+    // Fall back to the full image if the server sends no thumb (older build).
+    imageThumbUrl: p.image_thumb_url ?? p.image_url,
     variationsCount: p.variations_count,
     category: p.category as CategoryRef | null,
     stock: p.stock ?? null,
@@ -137,6 +148,7 @@ function mapVariation(v: RawAdminVariation): AdminVariation {
     unitValue: parseFloat(v.unit_value),
     finalPrice: parseFloat(v.final_price),
     imageUrl: v.image_url ?? null,
+    imageThumbUrl: v.image_thumb_url ?? v.image_url ?? null,
     attributeValues: v.attribute_values ?? [],
     stockByBranch: (v.stock_by_branch ?? []).map(mapStock),
   };
@@ -148,6 +160,8 @@ export type FetchAdminProductsParams = {
   search?: string;
   categoryId?: number | null;
   status?: AdminProductStatus;
+  sortBy?: ProductSortBy;
+  sortDir?: SortDir;
   page?: number;
   perPage?: number;
 };
@@ -159,6 +173,8 @@ export async function fetchAdminProducts(
   if (params.search) q.set('search', params.search);
   if (params.categoryId) q.set('category_id', String(params.categoryId));
   if (params.status) q.set('status', params.status);
+  if (params.sortBy) q.set('sort_by', params.sortBy);
+  if (params.sortDir) q.set('sort_dir', params.sortDir);
   q.set('per_page', String(params.perPage ?? 30));
   q.set('page', String(params.page ?? 1));
 

@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -20,12 +19,18 @@ import { ApiError } from '../api/client';
 import type { Category, Product } from '../types';
 import type { CatalogStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { useDebounce } from '../hooks/useDebounce';
 import { hapticAdd } from '../utils/haptics';
 import { stockColor } from '../utils/stock';
+import { PRODUCT_SORT_OPTIONS, SELLER_DEFAULT_SORT } from '../utils/productSort';
+import SearchBar from '../components/SearchBar';
+import LoadingState from '../components/LoadingState';
+import { ClearFiltersButton, SortControl } from '../components/FilterControls';
+import EmptyState from '../components/EmptyState';
 import ProductImage from '../components/ProductImage';
 import QRScannerModal from '../components/QRScannerModal';
 
@@ -49,7 +54,10 @@ function AddButton({ onPress, disabled }: { onPress: () => void; disabled?: bool
         style={[styles.addBtn, disabled && styles.addBtnDisabled]}
         onPress={handlePress}
         disabled={disabled}
-        hitSlop={8}
+        activeOpacity={ROW_PRESS_OPACITY}
+        hitSlop={HIT_SLOP}
+        accessibilityRole="button"
+        accessibilityLabel="Agregar al carrito"
       >
         <Ionicons name="add" size={22} color={colors.textOnPrimary} />
       </TouchableOpacity>
@@ -75,6 +83,16 @@ export default function CatalogScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [scannerVisible, setScannerVisible] = useState(false);
 
+  const [sortIndex, setSortIndex] = useState(SELLER_DEFAULT_SORT);
+  const sort = PRODUCT_SORT_OPTIONS[sortIndex];
+
+  const hasFilters = searchText.length > 0 || categoryId !== null;
+
+  function clearFilters() {
+    setSearchText('');
+    setCategoryId(null);
+  }
+
   // Load categories once (they rarely change).
   useEffect(() => {
     fetchCategories()
@@ -92,6 +110,8 @@ export default function CatalogScreen({ navigation }: Props) {
         const { items, meta: m } = await fetchProducts({
           search: query,
           categoryId,
+          sortBy: sort.sortBy,
+          sortDir: sort.sortDir,
           page: 1,
           perPage: PER_PAGE,
         });
@@ -106,10 +126,10 @@ export default function CatalogScreen({ navigation }: Props) {
         setRefreshing(false);
       }
     },
-    [query, categoryId]
+    [query, categoryId, sort]
   );
 
-  // Reload whenever the (debounced) search or category changes.
+  // Reload whenever the (debounced) search, category or sort changes.
   useEffect(() => {
     loadFirstPage();
   }, [loadFirstPage]);
@@ -121,6 +141,8 @@ export default function CatalogScreen({ navigation }: Props) {
       const { items, meta: m } = await fetchProducts({
         search: query,
         categoryId,
+        sortBy: sort.sortBy,
+        sortDir: sort.sortDir,
         page: meta.currentPage + 1,
         perPage: PER_PAGE,
       });
@@ -171,10 +193,10 @@ export default function CatalogScreen({ navigation }: Props) {
     return (
       <TouchableOpacity
         style={styles.card}
-        activeOpacity={0.85}
+        activeOpacity={ROW_PRESS_OPACITY}
         onPress={() => navigation.navigate('ProductDetail', { product: item })}
       >
-        <ProductImage uri={item.imageUrl} style={styles.image} />
+        <ProductImage uri={item.imageThumbUrl} style={styles.image} />
         <View style={styles.info}>
           <Text style={styles.category}>{item.category?.name ?? item.code}</Text>
           <Text style={styles.name} numberOfLines={2}>
@@ -208,38 +230,36 @@ export default function CatalogScreen({ navigation }: Props) {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Catálogo</Text>
-          <TouchableOpacity
-            style={styles.scanBtn}
-            activeOpacity={0.85}
-            onPress={() => setScannerVisible(true)}
-          >
-            <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
-            <Text style={styles.scanBtnText}>QR</Text>
-          </TouchableOpacity>
+          <View style={styles.titleTexts}>
+            <Text style={styles.title}>Catálogo</Text>
+            {meta && (
+              <Text style={styles.subtitle} numberOfLines={1}>
+                {meta.total} {hasFilters ? 'coinciden' : 'productos'} · {sort.label}
+              </Text>
+            )}
+          </View>
+          <View style={styles.titleActions}>
+            <SortControl options={PRODUCT_SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
+            <TouchableOpacity
+              style={styles.scanBtn}
+              activeOpacity={ROW_PRESS_OPACITY}
+              onPress={() => setScannerVisible(true)}
+            >
+              <Ionicons name="qr-code-outline" size={18} color={colors.primary} />
+              <Text style={styles.scanBtnText}>QR</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search */}
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color={colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar por nombre o código..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchText}
-            onChangeText={setSearchText}
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </View>
+        <SearchBar
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="Buscar por nombre o código..."
+        />
 
-        {/* Category chips */}
-        {categories.length > 0 && (
+        {/* Category chips + clear — same layout as the sales history */}
+        <View style={styles.filterRow}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -255,21 +275,18 @@ export default function CatalogScreen({ navigation }: Props) {
               />
             ))}
           </ScrollView>
-        )}
+          {hasFilters && <ClearFiltersButton onPress={clearFilters} />}
+        </View>
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingState />
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={48} color={colors.border} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => loadFirstPage()}>
-            <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="cloud-offline-outline"
+          message={error}
+          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+        />
       ) : (
         <FlatList
           data={products}
@@ -294,10 +311,16 @@ export default function CatalogScreen({ navigation }: Props) {
             ) : null
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="search-outline" size={48} color={colors.border} />
-              <Text style={styles.errorText}>No se encontraron productos.</Text>
-            </View>
+            <EmptyState
+              icon={hasFilters ? 'search-outline' : 'cube-outline'}
+              title={hasFilters ? 'Sin resultados' : 'Catálogo vacío'}
+              message={
+                hasFilters
+                  ? 'Prueba con otra búsqueda o límpiala.'
+                  : 'Aún no hay productos en tu sucursal.'
+              }
+              action={hasFilters ? { label: 'Limpiar filtros', onPress: clearFilters } : undefined}
+            />
           }
         />
       )}
@@ -316,7 +339,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
     <TouchableOpacity
       style={[styles.chip, active && styles.chipActive]}
       onPress={onPress}
-      activeOpacity={0.8}
+      activeOpacity={ROW_PRESS_OPACITY}
     >
       <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
         {label}
@@ -330,31 +353,27 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 8 },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 12,
+    gap: 10,
   },
-  title: { fontSize: 26, fontWeight: '700', color: colors.textPrimary },
+  titleTexts: { flex: 1 },
+  titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  title: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  subtitle: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Matches the pill shape used by SortControl / ClearFiltersButton.
   scanBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     backgroundColor: colors.primarySoft,
     paddingHorizontal: 14,
-    height: 40,
-    borderRadius: 12,
+    height: CONTROL_HEIGHT.pill,
+    borderRadius: RADIUS.pill,
   },
-  scanBtnText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.primarySoft,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
-  },
-  searchInput: { flex: 1, fontSize: 16, color: colors.textPrimary, height: '100%' },
+  scanBtnText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
   chips: { gap: 8, paddingVertical: 12, paddingRight: 8 },
   chip: {
     paddingHorizontal: 16,
@@ -368,19 +387,8 @@ const styles = StyleSheet.create({
     maxWidth: 180,
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  chipText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   chipTextActive: { color: colors.textOnPrimary },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12, paddingHorizontal: 32 },
-  errorText: { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  retryText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   list: { padding: 20, paddingTop: 4, gap: 16 },
   card: {
     flexDirection: 'row',
@@ -401,22 +409,22 @@ const styles = StyleSheet.create({
   image: { width: 110, alignSelf: 'stretch' },
   info: { flex: 1, padding: 14, justifyContent: 'space-between' },
   category: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.badge,
+    fontWeight: FONT_WEIGHT.bold,
     color: colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  name: { fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginTop: 2 },
+  name: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: 2 },
   stockRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  stockText: { fontSize: 12, fontWeight: '600' },
+  stockText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.medium },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 8,
   },
-  price: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, flexShrink: 1 },
+  price: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, flexShrink: 1 },
   addBtn: {
     width: 38,
     height: 38,
@@ -432,5 +440,5 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 10,
   },
-  outOfStockText: { color: colors.error, fontSize: 12, fontWeight: '700' },
+  outOfStockText: { color: colors.error, fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.bold },
 });

@@ -12,12 +12,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { formatPrice, formatRelative } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fetchStatistics } from '../api/sales';
 import { fetchProduct } from '../api/products';
 import { ApiError } from '../api/client';
+import LoadingState from '../components/LoadingState';
+import EmptyState from '../components/EmptyState';
 import ProductImage from '../components/ProductImage';
 import type { DashboardRecentSale, DashboardStats, DashboardTopProduct, StatsPeriod } from '../types';
 
@@ -135,7 +138,7 @@ export default function DashboardScreen() {
           </View>
           <TouchableOpacity
             style={styles.profileBtn}
-            activeOpacity={0.8}
+            activeOpacity={ROW_PRESS_OPACITY}
             onPress={() => navigation.navigate('Profile')}
             accessibilityLabel="Perfil"
           >
@@ -154,7 +157,7 @@ export default function DashboardScreen() {
                 key={p.value}
                 style={[styles.periodPill, active && styles.periodPillActive]}
                 onPress={() => setPeriod(p.value)}
-                activeOpacity={0.8}
+                activeOpacity={ROW_PRESS_OPACITY}
               >
                 <Text style={[styles.periodText, active && styles.periodTextActive]}>{p.label}</Text>
               </TouchableOpacity>
@@ -163,17 +166,13 @@ export default function DashboardScreen() {
         </View>
 
         {loading ? (
-          <View style={styles.centerPad}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <LoadingState />
         ) : error ? (
-          <View style={styles.centerPad}>
-            <Ionicons name="cloud-offline-outline" size={44} color={colors.border} />
-            <Text style={styles.emptyText}>{error}</Text>
-            <TouchableOpacity style={styles.cta} onPress={() => load()}>
-              <Text style={styles.ctaText}>Reintentar</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="cloud-offline-outline"
+            message={error}
+            action={{ label: 'Reintentar', onPress: () => load() }}
+          />
         ) : (
           <>
             {/* KPI cards */}
@@ -209,12 +208,12 @@ export default function DashboardScreen() {
                   <TouchableOpacity
                     key={tp.productId}
                     style={[styles.topRow, index > 0 && styles.rowBorder]}
-                    activeOpacity={0.7}
+                    activeOpacity={ROW_PRESS_OPACITY}
                     onPress={() => openProduct(tp)}
                     disabled={openingId !== null}
                   >
                     <View style={styles.topThumbWrap}>
-                      <ProductImage uri={tp.imageUrl} style={styles.topThumb} iconSize={18} />
+                      <ProductImage uri={tp.imageThumbUrl} style={styles.topThumb} iconSize={18} />
                       <View style={styles.rankBadge}>
                         <Text style={styles.rankText}>{index + 1}</Text>
                       </View>
@@ -239,7 +238,12 @@ export default function DashboardScreen() {
             {/* Recent sales */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Ventas recientes</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('OrdersTab', { screen: 'Orders' })}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('OrdersTab', { screen: 'Orders' })}
+                activeOpacity={ROW_PRESS_OPACITY}
+                hitSlop={HIT_SLOP}
+                accessibilityRole="button"
+              >
                 <Text style={styles.link}>Ver todas</Text>
               </TouchableOpacity>
             </View>
@@ -247,7 +251,12 @@ export default function DashboardScreen() {
               <View style={styles.emptyBox}>
                 <Ionicons name="bag-handle-outline" size={40} color={colors.border} />
                 <Text style={styles.emptyText}>Aún no registras ventas en este período.</Text>
-                <TouchableOpacity style={styles.cta} onPress={() => navigation.navigate('CatalogTab')}>
+                <TouchableOpacity
+                  style={styles.cta}
+                  onPress={() => navigation.navigate('CatalogTab')}
+                  activeOpacity={ROW_PRESS_OPACITY}
+                  accessibilityRole="button"
+                >
                   <Text style={styles.ctaText}>Ir al catálogo</Text>
                 </TouchableOpacity>
               </View>
@@ -257,7 +266,7 @@ export default function DashboardScreen() {
                   <TouchableOpacity
                     key={sale.id}
                     style={[styles.orderRow, index > 0 && styles.rowBorder]}
-                    activeOpacity={0.7}
+                    activeOpacity={ROW_PRESS_OPACITY}
                     onPress={() => openSale(sale)}
                   >
                     <View style={styles.iconBox}>
@@ -312,17 +321,17 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   headerTexts: { flex: 1 },
-  hello: { fontSize: 15, color: colors.textSecondary },
-  headerTitle: { fontSize: 26, fontWeight: '700', color: colors.textPrimary, marginTop: 2 },
+  hello: { fontSize: FONT_SIZE.body, color: colors.textSecondary },
+  headerTitle: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 2 },
   profileBtn: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileInitial: { color: colors.textOnPrimary, fontSize: 18, fontWeight: '700' },
+  profileInitial: { color: colors.textOnPrimary, fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold },
   periodRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 14 },
   periodPill: {
     flex: 1,
@@ -335,9 +344,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   periodPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  periodText: { fontSize: 15, fontWeight: '600', color: colors.textSecondary },
+  periodText: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   periodTextActive: { color: colors.textOnPrimary },
-  centerPad: { alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12, paddingHorizontal: 32 },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -365,8 +373,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   kpiIconHighlight: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  kpiValue: { fontSize: 22, fontWeight: '700', color: colors.textPrimary },
-  kpiLabel: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  kpiValue: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  kpiLabel: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 2 },
   kpiTextOnPrimary: { color: colors.textOnPrimary },
   kpiTextOnPrimarySoft: { color: 'rgba(255,255,255,0.85)' },
   sectionHeader: {
@@ -377,8 +385,8 @@ const styles = StyleSheet.create({
     marginTop: 26,
     marginBottom: 12,
   },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  link: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  link: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.primary },
   card: {
     marginHorizontal: 20,
     backgroundColor: colors.surface,
@@ -405,7 +413,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.surface,
   },
-  rankText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 11 },
+  rankText: { color: colors.textOnPrimary, fontWeight: FONT_WEIGHT.bold, fontSize: FONT_SIZE.badge },
   thumbSpinner: {
     position: 'absolute',
     top: 0,
@@ -418,9 +426,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   topInfo: { flex: 1 },
-  topName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  topCategory: { fontSize: 13, color: colors.textSecondary, marginTop: 1 },
-  topQty: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  topName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  topCategory: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 1 },
+  topQty: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   orderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   iconBox: {
     width: 38,
@@ -430,9 +438,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  orderTotal: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  orderTotal: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   emptyBox: { alignItems: 'center', paddingVertical: 24, gap: 10, marginHorizontal: 20 },
-  emptyText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
+  emptyText: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
   cta: {
     backgroundColor: colors.primary,
     paddingHorizontal: 22,
@@ -442,5 +450,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 6,
   },
-  ctaText: { color: colors.textOnPrimary, fontSize: 15, fontWeight: '700' },
+  ctaText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold },
 });

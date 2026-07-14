@@ -14,9 +14,10 @@ export function lineStock(item: CartItem): number {
   return item.variation?.stock ?? item.product.stock;
 }
 
-// Variation image falls back to the parent product image (per API guidance).
+// Thumbnail for a cart row: the variation's, falling back to the parent
+// product's (per API guidance). Cart rows are small, so use the ~600px thumb.
 export function lineImageUrl(item: CartItem): string | null {
-  return item.variation?.imageUrl ?? item.product.imageUrl;
+  return item.variation?.imageThumbUrl ?? item.product.imageThumbUrl;
 }
 
 // "Rojo · M" — built from the variation's attribute values.

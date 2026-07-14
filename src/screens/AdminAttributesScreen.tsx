@@ -1,21 +1,14 @@
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -27,7 +20,14 @@ import {
   updateAttribute,
 } from '../api/admin/attributes';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
+import Field from '../components/Field';
+import LoadingState from '../components/LoadingState';
+import BottomSheet from '../components/BottomSheet';
+import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
 import type { AdminAttribute } from '../types';
 import type { AdminMoreStackParamList } from '../navigation/types';
 
@@ -38,7 +38,6 @@ type Props = NativeStackScreenProps<AdminMoreStackParamList, 'AdminAttributes'>;
 type ValueDraft = { id: number | null; text: string; original: string };
 
 export default function AdminAttributesScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
 
   const [attributes, setAttributes] = useState<AdminAttribute[]>([]);
@@ -164,10 +163,24 @@ export default function AdminAttributesScreen({ navigation }: Props) {
               {item.values.length} {item.values.length === 1 ? 'valor' : 'valores'}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => openEdit(item)} hitSlop={8} style={styles.rowBtn}>
+          <TouchableOpacity
+            onPress={() => openEdit(item)}
+            hitSlop={HIT_SLOP}
+            style={styles.rowBtn}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel={`Editar atributo ${item.name}`}
+          >
             <Ionicons name="create-outline" size={20} color={colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => confirmDelete(item)} hitSlop={8} style={styles.rowBtn}>
+          <TouchableOpacity
+            onPress={() => confirmDelete(item)}
+            hitSlop={HIT_SLOP}
+            style={styles.rowBtn}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel={`Eliminar atributo ${item.name}`}
+          >
             <Ionicons name="trash-outline" size={20} color={colors.error} />
           </TouchableOpacity>
         </View>
@@ -186,28 +199,20 @@ export default function AdminAttributesScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Atributos</Text>
-        <TouchableOpacity onPress={openCreate} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="add" size={26} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Atributos"
+        onBack={() => navigation.goBack()}
+        action={{ icon: 'add', onPress: openCreate, label: 'Nuevo atributo' }}
+      />
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingState />
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={48} color={colors.border} />
-          <Text style={styles.muted}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
-            <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="cloud-offline-outline"
+          message={error}
+          action={{ label: 'Reintentar', onPress: () => load() }}
+        />
       ) : (
         <FlatList
           data={attributes}
@@ -223,104 +228,83 @@ export default function AdminAttributesScreen({ navigation }: Props) {
             />
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="options-outline" size={64} color={colors.border} />
-              <Text style={styles.emptyTitle}>Sin atributos</Text>
-              <Text style={styles.muted}>Crea el primero (ej. Color, Talla) con el botón +.</Text>
-            </View>
+            <EmptyState
+              icon="options-outline"
+              title="Sin atributos"
+              message="Crea el primero (ej. Color, Talla) con el botón +."
+            />
           }
         />
       )}
 
       {/* Create / edit form */}
-      <Modal visible={formOpen} transparent animationType="fade" onRequestClose={() => setFormOpen(false)}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <Pressable style={styles.overlayFill} onPress={() => setFormOpen(false)} />
-          <View style={[styles.sheet, { paddingBottom: insets.bottom + 16, maxHeight: '85%' }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{editing ? 'Editar atributo' : 'Nuevo atributo'}</Text>
+      <BottomSheet
+        visible={formOpen}
+        onClose={() => setFormOpen(false)}
+        title={editing ? 'Editar atributo' : 'Nuevo atributo'}
+        keyboardAware
+      >
+        {/* The value list can grow long, so this form scrolls inside the sheet. */}
+        <ScrollView keyboardShouldPersistTaps="handled">
+          <Field
+            label="Nombre"
+            value={name}
+            onChangeText={setName}
+            placeholder="Ej. Color"
+          />
 
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.label}>Nombre</Text>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Ej. Color"
-                placeholderTextColor={colors.textSecondary}
+          <Text style={styles.label}>Valores</Text>
+          {values.map((v, i) => (
+            <View key={`${v.id ?? 'new'}-${i}`} style={styles.valueRow}>
+              <Field
+                value={v.text}
+                onChangeText={(t) => setValueText(i, t)}
+                placeholder={`Valor ${i + 1}`}
+                containerStyle={styles.valueInput}
               />
-
-              <Text style={styles.label}>Valores</Text>
-              {values.map((v, i) => (
-                <View key={`${v.id ?? 'new'}-${i}`} style={styles.valueRow}>
-                  <TextInput
-                    style={[styles.input, styles.valueInput]}
-                    value={v.text}
-                    onChangeText={(t) => setValueText(i, t)}
-                    placeholder={`Valor ${i + 1}`}
-                    placeholderTextColor={colors.textSecondary}
-                  />
-                  <TouchableOpacity onPress={() => removeValueRow(i)} hitSlop={8} style={styles.rowBtn}>
-                    <Ionicons name="close-circle-outline" size={22} color={colors.error} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-
-              <TouchableOpacity style={styles.addValueBtn} onPress={addValueRow} activeOpacity={0.8}>
-                <Ionicons name="add" size={18} color={colors.primary} />
-                <Text style={styles.addValueText}>Añadir valor</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.hint}>
-                El orden define la posición. Quitar un valor en uso por alguna variación será
-                rechazado por el servidor.
-              </Text>
-
               <TouchableOpacity
-                style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
-                onPress={save}
-                disabled={!canSave}
+                onPress={() => removeValueRow(i)}
+                hitSlop={HIT_SLOP}
+                style={styles.rowBtn}
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityRole="button"
+                accessibilityLabel="Quitar este valor"
               >
-                {saving ? (
-                  <ActivityIndicator color={colors.textOnPrimary} />
-                ) : (
-                  <Text style={styles.saveText}>{editing ? 'Guardar' : 'Crear'}</Text>
-                )}
+                <Ionicons name="close-circle-outline" size={22} color={colors.error} />
               </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+            </View>
+          ))}
+
+          <TouchableOpacity
+            style={styles.addValueBtn}
+            onPress={addValueRow}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+          >
+            <Ionicons name="add" size={18} color={colors.primary} />
+            <Text style={styles.addValueText}>Añadir valor</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.hint}>
+            El orden define la posición. Quitar un valor en uso por alguna variación será rechazado
+            por el servidor.
+          </Text>
+
+          <Button
+            label={editing ? 'Guardar' : 'Crear'}
+            onPress={save}
+            loading={saving}
+            disabled={!canSave}
+            style={styles.saveBtn}
+          />
+        </ScrollView>
+      </BottomSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12, paddingHorizontal: 32 },
-  muted: { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: 8 },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  retryText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   list: { padding: 20, gap: 14, flexGrow: 1 },
   card: {
     backgroundColor: colors.surface,
@@ -338,8 +322,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  cardMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  cardName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  cardMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
   rowBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   valueChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   valueChip: {
@@ -348,36 +332,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 10,
   },
-  valueChipText: { fontSize: 12, fontWeight: '600', color: colors.primary },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
-  overlayFill: { flex: 1 },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: 12,
-  },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginTop: 8, marginBottom: 6 },
-  input: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 50,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
+  valueChipText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.medium, color: colors.primary },
+  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: 8, marginBottom: 6 },
   valueRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  valueInput: { flex: 1 },
+  // The row owns the vertical rhythm here, so the field must not add its own.
+  valueInput: { flex: 1, marginBottom: 0 },
   addValueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -388,17 +347,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
     marginTop: 4,
   },
-  addValueText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
-  hint: { fontSize: 12, color: colors.textSecondary, marginTop: 14, lineHeight: 17 },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    height: 52,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  saveBtnDisabled: { backgroundColor: colors.primaryLight, opacity: 0.6 },
-  saveText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
+  addValueText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 14, lineHeight: 17 },
+  saveBtn: { marginTop: 20, marginBottom: 8 },
 });

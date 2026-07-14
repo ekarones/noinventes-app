@@ -1,0 +1,129 @@
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
+import { CONTROL_HEIGHT, FONT_WEIGHT, RADIUS } from '../theme/tokens';
+
+// primary   — the one thing the screen wants you to do (filled brand).
+// secondary — a supporting action (soft tint, no border).
+// outline   — same weight as secondary but framed; used for sign-out.
+// danger    — destructive (framed in red) so it never looks like a default.
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger';
+export type ButtonSize = 'md' | 'lg';
+
+type Props = {
+  label: string;
+  onPress: () => void;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  icon?: keyof typeof Ionicons.glyphMap;
+  loading?: boolean;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+};
+
+// Uses Pressable rather than TouchableOpacity: pressing darkens the button
+// instead of fading the whole thing out, which reads as a real press and keeps
+// the label legible while the finger is down.
+export default function Button({
+  label,
+  onPress,
+  variant = 'primary',
+  size = 'lg',
+  icon,
+  loading = false,
+  disabled = false,
+  style,
+}: Props) {
+  const v = VARIANTS[variant];
+  const isDisabled = disabled || loading;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      style={({ pressed }) => [
+        styles.base,
+        {
+          height: CONTROL_HEIGHT[size],
+          borderRadius: size === 'lg' ? RADIUS.lg : RADIUS.md,
+          backgroundColor: pressed ? v.pressedBg : v.bg,
+          borderColor: v.border ?? 'transparent',
+          borderWidth: v.border ? 1.5 : 0,
+        },
+        // The filled button carries a soft brand shadow; dropping it while
+        // pressed/disabled makes the state change feel physical.
+        variant === 'primary' && !pressed && !isDisabled && styles.raised,
+        isDisabled && styles.disabled,
+        style,
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color={v.fg} />
+      ) : (
+        <>
+          {icon && <Ionicons name={icon} size={size === 'lg' ? 20 : 18} color={v.fg} />}
+          <Text style={[styles.label, { color: v.fg, fontSize: size === 'lg' ? 16 : 15 }]}>
+            {label}
+          </Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+const VARIANTS: Record<
+  ButtonVariant,
+  { bg: string; pressedBg: string; fg: string; border?: string }
+> = {
+  primary: {
+    bg: colors.primary,
+    pressedBg: colors.primaryDark,
+    fg: colors.textOnPrimary,
+  },
+  secondary: {
+    bg: colors.primarySoft,
+    pressedBg: colors.primarySoftPressed,
+    fg: colors.primary,
+  },
+  outline: {
+    bg: 'transparent',
+    pressedBg: colors.primarySoft,
+    fg: colors.primary,
+    border: colors.primary,
+  },
+  danger: {
+    bg: 'transparent',
+    pressedBg: colors.errorSoft,
+    fg: colors.error,
+    border: colors.error,
+  },
+};
+
+const styles = StyleSheet.create({
+  base: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+  },
+  label: { fontWeight: FONT_WEIGHT.bold },
+  raised: {
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  disabled: { opacity: 0.45 },
+});

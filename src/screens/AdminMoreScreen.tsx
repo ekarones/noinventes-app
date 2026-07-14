@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, ROW_PRESS_OPACITY } from '../theme/tokens';
 import type { AdminMoreStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AdminMoreStackParamList, 'AdminMore'>;
@@ -82,7 +83,7 @@ function Row({
   return (
     <TouchableOpacity
       style={[styles.row, !last && styles.rowBorder]}
-      activeOpacity={0.7}
+      activeOpacity={ROW_PRESS_OPACITY}
       onPress={onPress}
     >
       <View style={styles.iconBox}>
@@ -100,10 +101,10 @@ function Row({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: 20, paddingBottom: 8 },
-  title: { fontSize: 26, fontWeight: '700', color: colors.textPrimary },
+  title: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.caption,
+    fontWeight: FONT_WEIGHT.bold,
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -130,6 +131,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rowInfo: { flex: 1 },
-  rowLabel: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  rowHint: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  rowLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  rowHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
 });

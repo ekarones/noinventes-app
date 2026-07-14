@@ -2,13 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Modal,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -26,9 +23,15 @@ import { fetchAdminUsers } from '../api/admin/users';
 import { ApiError } from '../api/client';
 import type { PaginationMeta } from '../api/products';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import SearchBar from '../components/SearchBar';
+import LoadingState from '../components/LoadingState';
+import BottomSheet, { SheetOption } from '../components/BottomSheet';
+import EmptyState from '../components/EmptyState';
 import { formatDate, formatPrice, ymd } from '../utils/format';
 import { paymentMethodLabel } from '../utils/payment';
 import { useDebounce } from '../hooks/useDebounce';
+import { ClearFiltersButton, SortControl } from '../components/FilterControls';
 import type { AdminBranch, AdminSaleSummary, AdminUser } from '../types';
 import type { AdminSalesStackParamList } from '../navigation/types';
 
@@ -75,7 +78,6 @@ export default function AdminSalesScreen({ navigation }: Props) {
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
 
   const [sortIndex, setSortIndex] = useState(0);
-  const [sortModal, setSortModal] = useState(false);
   const sort = SORT_OPTIONS[sortIndex];
 
   // Cross-seller scoping. null = no filter.
@@ -199,7 +201,7 @@ export default function AdminSalesScreen({ navigation }: Props) {
     return (
       <TouchableOpacity
         style={styles.card}
-        activeOpacity={0.85}
+        activeOpacity={ROW_PRESS_OPACITY}
         onPress={() => navigation.navigate('AdminSaleDetail', { sale: item })}
       >
         <View style={styles.iconBox}>
@@ -254,34 +256,20 @@ export default function AdminSalesScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('AdminSalesTrash')}
               hitSlop={8}
               accessibilityLabel="Papelera"
+              activeOpacity={ROW_PRESS_OPACITY}
             >
               <Ionicons name="trash-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sortBtn} onPress={() => setSortModal(true)} hitSlop={8}>
-              <Ionicons name="swap-vertical" size={16} color={colors.primary} />
-              <Text style={styles.sortText}>Ordenar</Text>
-            </TouchableOpacity>
+            <SortControl options={SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
           </View>
         </View>
 
         {/* Search */}
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color={colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar por cliente o N° de venta..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchText}
-            onChangeText={setSearchText}
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </View>
+        <SearchBar
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="Buscar por cliente o N° de venta..."
+        />
 
         {/* Date range presets */}
         <View style={styles.filterRow}>
@@ -299,12 +287,7 @@ export default function AdminSalesScreen({ navigation }: Props) {
               />
             ))}
           </ScrollView>
-          {hasFilters && (
-            <TouchableOpacity style={styles.clearBtn} onPress={clearFilters} hitSlop={8}>
-              <Ionicons name="close" size={16} color={colors.primary} />
-              <Text style={styles.clearText}>Limpiar</Text>
-            </TouchableOpacity>
-          )}
+          {hasFilters && <ClearFiltersButton onPress={clearFilters} />}
         </View>
 
         {/* Branch / seller scope */}
@@ -327,17 +310,13 @@ export default function AdminSalesScreen({ navigation }: Props) {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingState />
       ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={48} color={colors.border} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => loadFirstPage()}>
-            <Text style={styles.retryText}>Reintentar</Text>
-          </TouchableOpacity>
-        </View>
+        <EmptyState
+          icon="cloud-offline-outline"
+          message={error}
+          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+        />
       ) : (
         <FlatList
           data={sales}
@@ -362,134 +341,55 @@ export default function AdminSalesScreen({ navigation }: Props) {
             ) : null
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="receipt-outline" size={64} color={colors.border} />
-              <Text style={styles.emptyTitle}>
-                {hasFilters ? 'Sin resultados' : 'Aún no hay ventas'}
-              </Text>
-              <Text style={styles.errorText}>
-                {hasFilters
+            <EmptyState
+              icon="receipt-outline"
+              title={hasFilters ? 'Sin resultados' : 'Aún no hay ventas'}
+              message={
+                hasFilters
                   ? 'Prueba con otros filtros o límpialos.'
-                  : 'Las ventas de todos los vendedores aparecerán aquí.'}
-              </Text>
-            </View>
+                  : 'Las ventas de todos los vendedores aparecerán aquí.'
+              }
+              action={hasFilters ? { label: 'Limpiar filtros', onPress: clearFilters } : undefined}
+            />
           }
         />
       )}
 
-      {/* Sort picker */}
-      <Modal
-        visible={sortModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSortModal(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setSortModal(false)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Ordenar por</Text>
-            {SORT_OPTIONS.map((opt, i) => {
-              const active = i === sortIndex;
-              return (
-                <TouchableOpacity
-                  key={opt.key}
-                  style={styles.sheetRow}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setSortIndex(i);
-                    setSortModal(false);
-                  }}
-                >
-                  <Ionicons
-                    name={opt.icon}
-                    size={20}
-                    color={active ? colors.primary : colors.textSecondary}
-                  />
-                  <Text style={[styles.sheetLabel, active && styles.sheetLabelActive]}>
-                    {opt.label}
-                  </Text>
-                  {active && <Ionicons name="checkmark" size={20} color={colors.primary} />}
-                </TouchableOpacity>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      </Modal>
-
       {/* Branch / seller picker — one sheet, driven by `picker`. */}
-      <Modal
+      {/* One sheet serves both scopes — they only differ in their options. */}
+      <BottomSheet
         visible={picker !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPicker(null)}
+        onClose={() => setPicker(null)}
+        title={picker === 'branch' ? 'Sucursal' : 'Vendedor'}
+        scrollable
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setPicker(null)}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 12, maxHeight: '70%' }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{picker === 'branch' ? 'Sucursal' : 'Vendedor'}</Text>
-            <ScrollView>
-              <TouchableOpacity
-                style={styles.sheetRow}
-                activeOpacity={0.7}
-                onPress={() => {
-                  picker === 'branch' ? setBranchId(null) : setSellerId(null);
-                  setPicker(null);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.sheetLabel,
-                    (picker === 'branch' ? branchId : sellerId) == null && styles.sheetLabelActive,
-                  ]}
-                >
-                  {picker === 'branch' ? 'Todas las sucursales' : 'Todos los vendedores'}
-                </Text>
-                {(picker === 'branch' ? branchId : sellerId) == null && (
-                  <Ionicons name="checkmark" size={20} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-
-              {picker === 'branch'
-                ? branches.map((b) => (
-                    <TouchableOpacity
-                      key={b.id}
-                      style={styles.sheetRow}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        setBranchId(b.id);
-                        setPicker(null);
-                      }}
-                    >
-                      <Text style={[styles.sheetLabel, branchId === b.id && styles.sheetLabelActive]}>
-                        {b.name}
-                      </Text>
-                      {branchId === b.id && (
-                        <Ionicons name="checkmark" size={20} color={colors.primary} />
-                      )}
-                    </TouchableOpacity>
-                  ))
-                : sellers.map((s) => (
-                    <TouchableOpacity
-                      key={s.id}
-                      style={styles.sheetRow}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        setSellerId(s.id);
-                        setPicker(null);
-                      }}
-                    >
-                      <Text style={[styles.sheetLabel, sellerId === s.id && styles.sheetLabelActive]}>
-                        {s.name}
-                      </Text>
-                      {sellerId === s.id && (
-                        <Ionicons name="checkmark" size={20} color={colors.primary} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        {(() => {
+          const isBranch = picker === 'branch';
+          const selectedId = isBranch ? branchId : sellerId;
+          const select = (id: number | null) => {
+            isBranch ? setBranchId(id) : setSellerId(id);
+            setPicker(null);
+          };
+          const options = isBranch ? branches : sellers;
+          return (
+            <>
+              <SheetOption
+                label={isBranch ? 'Todas las sucursales' : 'Todos los vendedores'}
+                active={selectedId == null}
+                onPress={() => select(null)}
+              />
+              {options.map((o) => (
+                <SheetOption
+                  key={o.id}
+                  label={o.name}
+                  active={selectedId === o.id}
+                  onPress={() => select(o.id)}
+                />
+              ))}
+            </>
+          );
+        })()}
+      </BottomSheet>
     </View>
   );
 }
@@ -512,7 +412,7 @@ function ScopeChip({
     <TouchableOpacity
       style={[styles.scopeChip, active && styles.scopeChipActive]}
       onPress={onPress}
-      activeOpacity={0.8}
+      activeOpacity={ROW_PRESS_OPACITY}
     >
       <Ionicons name={icon} size={14} color={active ? colors.primary : colors.textSecondary} />
       <Text
@@ -522,7 +422,7 @@ function ScopeChip({
         {label}
       </Text>
       {active ? (
-        <TouchableOpacity onPress={onClear} hitSlop={10}>
+        <TouchableOpacity onPress={onClear} hitSlop={10} activeOpacity={ROW_PRESS_OPACITY}>
           <Ionicons name="close-circle" size={16} color={colors.primary} />
         </TouchableOpacity>
       ) : (
@@ -537,7 +437,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
     <TouchableOpacity
       style={[styles.chip, active && styles.chipActive]}
       onPress={onPress}
-      activeOpacity={0.8}
+      activeOpacity={ROW_PRESS_OPACITY}
     >
       <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
         {label}
@@ -558,66 +458,16 @@ const styles = StyleSheet.create({
   },
   titleTexts: { flex: 1 },
   titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  title: { fontSize: 26, fontWeight: '700', color: colors.textPrimary },
-  subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
+  title: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  subtitle: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
   iconBtn: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clearBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 12,
-    height: 34,
-    borderRadius: 17,
-  },
-  clearText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
-  sortBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 12,
-    height: 34,
-    borderRadius: 17,
-  },
-  sortText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: 12,
-  },
-  sheetTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
-  sheetRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 },
-  sheetLabel: { flex: 1, fontSize: 16, color: colors.textPrimary },
-  sheetLabelActive: { fontWeight: '700', color: colors.primary },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.primarySoft,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
-  },
-  searchInput: { flex: 1, fontSize: 16, color: colors.textPrimary, height: '100%' },
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   scopeRow: { flexDirection: 'row', gap: 8, paddingBottom: 10 },
   scopeChip: {
@@ -633,7 +483,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   scopeChipActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  scopeChipText: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  scopeChipText: { flex: 1, fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   scopeChipTextActive: { color: colors.primary },
   chips: { gap: 8, paddingVertical: 10, paddingRight: 8 },
   chip: {
@@ -647,20 +497,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  chipText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   chipTextActive: { color: colors.textOnPrimary },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12, paddingHorizontal: 32 },
-  errorText: { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: 8 },
-  retryBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  retryText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: 15 },
   list: { padding: 20, paddingTop: 4, gap: 14, flexGrow: 1 },
   card: {
     flexDirection: 'row',
@@ -681,9 +519,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardInfo: { flex: 1, gap: 2 },
-  orderId: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
-  date: { fontSize: 13, color: colors.textSecondary },
-  count: { fontSize: 13, color: colors.textSecondary },
+  orderId: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  date: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
+  count: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   tag: {
     flexDirection: 'row',
@@ -697,14 +535,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     maxWidth: 130,
   },
-  tagText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600' },
+  tagText: { fontSize: FONT_SIZE.badge, color: colors.textSecondary, fontWeight: FONT_WEIGHT.medium },
   cardRight: { alignItems: 'flex-end', gap: 6 },
-  total: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  total: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   payBadge: {
     backgroundColor: colors.primarySoft,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 10,
   },
-  payText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+  payText: { color: colors.primary, fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold },
 });

@@ -15,6 +15,16 @@ export type Category = {
 export type ProductType = 'simple' | 'variable';
 export type ProductStatus = 'public' | 'published';
 
+// One image of a product's gallery. Only the product DETAIL endpoint returns
+// these — the listing sends just the featured image, so `images` is empty there.
+export type ProductImageItem = {
+  id: number;
+  url: string;
+  thumbUrl: string;
+  isFeatured: boolean;
+  sortOrder: number;
+};
+
 export type Product = {
   id: number;
   code: string;
@@ -26,6 +36,12 @@ export type Product = {
   finalPrice: number;
   unitOfMeasure: string;
   imageUrl: string | null;
+  // ~600px version of imageUrl. Use it in lists and cards; keep imageUrl for the
+  // full-screen detail. Falls back to imageUrl when the server has no thumb.
+  imageThumbUrl: string | null;
+  // Full gallery, ordered by sortOrder. Populated only by the detail endpoint;
+  // empty when the product came from the listing.
+  images: ProductImageItem[];
   stock: number; // stock at the seller's branch
   variationsCount: number;
   category: CategoryRef | null;
@@ -42,6 +58,7 @@ export type Variation = {
   unitValue: number;
   finalPrice: number;
   imageUrl: string | null;
+  imageThumbUrl: string | null;
   stock: number;
   attributeValues: AttributeValue[];
 };
@@ -117,6 +134,7 @@ export type DashboardTopProduct = {
   quantitySold: number;
   total: number;
   imageUrl: string | null;
+  imageThumbUrl: string | null;
 };
 
 export type DashboardRecentSale = {
@@ -159,6 +177,7 @@ export type AdminRecentSale = {
   id: number;
   customerName: string;
   total: number;
+  paymentMethod: PaymentMethod;
   seller: UserRef | null;
   branch: { id: number; name: string } | null;
   itemsCount: number;
@@ -172,6 +191,7 @@ export type LowStockItem = {
   productName: string;
   productType: ProductType;
   imageUrl: string | null;
+  imageThumbUrl: string | null;
   branchId: number;
   branchName: string;
   stock: number;
@@ -226,6 +246,8 @@ export type StockByBranch = {
 export type AdminProductImage = {
   id: number;
   url: string;
+  // ~600px version of `url`; falls back to `url` when there's no thumb.
+  thumbUrl: string;
   isFeatured: boolean;
   sortOrder: number;
 };
@@ -241,6 +263,7 @@ export type AdminProductRow = {
   finalPrice: number;
   unitOfMeasure: string;
   imageUrl: string | null;
+  imageThumbUrl: string | null;
   variationsCount: number;
   category: CategoryRef | null;
   // Total across branches, when the API provides it (null if absent).
@@ -339,6 +362,7 @@ export type AdminVariation = {
   unitValue: number;
   finalPrice: number;
   imageUrl: string | null;
+  imageThumbUrl: string | null;
   attributeValues: AttributeValue[];
   stockByBranch: StockByBranch[];
 };

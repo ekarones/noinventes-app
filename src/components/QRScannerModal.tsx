@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -58,7 +59,12 @@ export default function QRScannerModal({ visible, onClose, onScanned }: Props) {
             <Text style={styles.permissionText}>
               Necesitamos permiso para usar la cámara y escanear los códigos QR.
             </Text>
-            <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
+            <TouchableOpacity
+              style={styles.permissionBtn}
+              onPress={requestPermission}
+              activeOpacity={ROW_PRESS_OPACITY}
+              accessibilityRole="button"
+            >
               <Text style={styles.permissionBtnText}>Permitir cámara</Text>
             </TouchableOpacity>
           </View>
@@ -76,7 +82,10 @@ export default function QRScannerModal({ visible, onClose, onScanned }: Props) {
         <TouchableOpacity
           style={[styles.close, { top: insets.top + 12 }]}
           onPress={onClose}
-          hitSlop={8}
+          hitSlop={HIT_SLOP}
+          activeOpacity={ROW_PRESS_OPACITY}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar el escáner"
         >
           <Ionicons name="close" size={26} color={colors.textOnPrimary} />
         </TouchableOpacity>
@@ -106,8 +115,8 @@ const styles = StyleSheet.create({
   },
   hint: {
     color: colors.textOnPrimary,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: FONT_SIZE.body,
+    fontWeight: FONT_WEIGHT.medium,
     marginTop: 24,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
@@ -117,14 +126,14 @@ const styles = StyleSheet.create({
     right: 16,
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: RADIUS.pill,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   permission: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  permissionTitle: { color: colors.textOnPrimary, fontSize: 20, fontWeight: '700', marginTop: 8 },
-  permissionText: { color: '#d1d5db', fontSize: 15, textAlign: 'center', lineHeight: 22 },
+  permissionTitle: { color: colors.textOnPrimary, fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, marginTop: 8 },
+  permissionText: { color: '#d1d5db', fontSize: FONT_SIZE.body, textAlign: 'center', lineHeight: 22 },
   permissionBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: 28,
@@ -134,5 +143,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 12,
   },
-  permissionBtnText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
+  permissionBtnText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
 });

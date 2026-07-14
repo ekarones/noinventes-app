@@ -1,22 +1,22 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../api/client';
+import Field from '../components/Field';
+import Button from '../components/Button';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -25,7 +25,6 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [focused, setFocused] = useState<'email' | 'password' | null>(null);
   const insets = useSafeAreaInsets();
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !loading;
@@ -69,7 +68,7 @@ export default function LoginScreen() {
             <Image
               source={require('../../assets/logo.png')}
               style={styles.logo}
-              resizeMode="contain"
+              contentFit="contain"
             />
           </View>
           <Text style={styles.title}>Bienvenido</Text>
@@ -79,63 +78,46 @@ export default function LoginScreen() {
         {/* Form card */}
         <View style={styles.card}>
           {/* Email */}
-          <Text style={styles.label}>Correo electrónico</Text>
-          <View
-            style={[
-              styles.inputWrapper,
-              focused === 'email' && styles.inputWrapperFocused,
-            ]}
-          >
-            <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
-            <TextInput
-              style={styles.input}
-              placeholder="tucorreo@empresa.com"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => setFocused('email')}
-              onBlur={() => setFocused(null)}
-              returnKeyType="next"
-            />
-          </View>
+          <Field
+            label="Correo electrónico"
+            icon="mail-outline"
+            placeholder="tucorreo@empresa.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+            returnKeyType="next"
+          />
 
           {/* Password */}
-          <Text style={[styles.label, styles.labelSpaced]}>Contraseña</Text>
-          <View
-            style={[
-              styles.inputWrapper,
-              focused === 'password' && styles.inputWrapperFocused,
-            ]}
-          >
-            <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
-            <TextInput
-              style={styles.input}
-              placeholder="Tu contraseña"
-              placeholderTextColor={colors.textSecondary}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={password}
-              onChangeText={setPassword}
-              onFocus={() => setFocused('password')}
-              onBlur={() => setFocused(null)}
-              returnKeyType="done"
-              onSubmitEditing={handleLogin}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword((s) => !s)}
-              hitSlop={8}
-            >
-              <Ionicons
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={20}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-          </View>
+          <Field
+            label="Contraseña"
+            icon="lock-closed-outline"
+            placeholder="Tu contraseña"
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={password}
+            onChangeText={setPassword}
+            returnKeyType="done"
+            onSubmitEditing={handleLogin}
+            accessory={
+              <TouchableOpacity
+                onPress={() => setShowPassword((s) => !s)}
+                hitSlop={HIT_SLOP}
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityRole="button"
+                accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            }
+          />
 
           {/* Error */}
           {error && (
@@ -146,21 +128,13 @@ export default function LoginScreen() {
           )}
 
           {/* Submit */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              !canSubmit && styles.buttonDisabled,
-              pressed && canSubmit && styles.buttonPressed,
-            ]}
+          <Button
+            label="Iniciar sesión"
             onPress={handleLogin}
+            loading={loading}
             disabled={!canSubmit}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.textOnPrimary} />
-            ) : (
-              <Text style={styles.buttonText}>Iniciar sesión</Text>
-            )}
-          </Pressable>
+            style={styles.button}
+          />
         </View>
 
         {/* Footer note */}
@@ -194,12 +168,12 @@ const styles = StyleSheet.create({
   },
   logo: { width: 68, height: 68 },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.display,
+    fontWeight: FONT_WEIGHT.bold,
     color: colors.textPrimary,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.body,
     color: colors.textSecondary,
     marginTop: 6,
     textAlign: 'center',
@@ -216,34 +190,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  labelSpaced: { marginTop: 18 },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.primarySoft,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 54,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  inputWrapperFocused: {
-    borderColor: colors.borderFocused,
-    backgroundColor: '#fff',
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.textPrimary,
-    height: '100%',
-  },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -253,32 +199,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 16,
   },
-  errorText: { color: colors.error, fontSize: 13, flex: 1 },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    height: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 22,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  buttonPressed: { backgroundColor: colors.primaryDark },
-  buttonDisabled: {
-    backgroundColor: colors.primaryLight,
-    opacity: 0.6,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  buttonText: {
-    color: colors.textOnPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  errorText: { color: colors.error, fontSize: FONT_SIZE.caption, flex: 1 },
+  button: { marginTop: 22 },
   demoHint: { alignItems: 'center', marginTop: 24 },
-  demoHintText: { color: colors.textSecondary, fontSize: 12 },
+  demoHintText: { color: colors.textSecondary, fontSize: FONT_SIZE.micro },
 });

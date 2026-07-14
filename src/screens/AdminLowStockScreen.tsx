@@ -4,6 +4,9 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT, ROW_PRESS_OPACITY } from '../theme/tokens';
+import EmptyState from '../components/EmptyState';
+import ScreenHeader from '../components/ScreenHeader';
 import { stockColor } from '../utils/stock';
 import ProductImage from '../components/ProductImage';
 import type { AdminProductRow, LowStockItem } from '../types';
@@ -32,6 +35,7 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
       finalPrice: 0,
       unitOfMeasure: 'unit',
       imageUrl: item.imageUrl,
+      imageThumbUrl: item.imageThumbUrl,
       variationsCount: 0,
       category: null,
       stock: null,
@@ -47,10 +51,10 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
     return (
       <TouchableOpacity
         style={styles.card}
-        activeOpacity={0.85}
+        activeOpacity={ROW_PRESS_OPACITY}
         onPress={() => openProduct(item)}
       >
-        <ProductImage uri={item.imageUrl} style={styles.thumb} iconSize={20} />
+        <ProductImage uri={item.imageThumbUrl} style={styles.thumb} iconSize={20} />
         <View style={styles.info}>
           <Text style={styles.name} numberOfLines={2}>
             {item.productName}
@@ -74,13 +78,7 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Stock bajo</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title="Stock bajo" onBack={() => navigation.goBack()} />
 
       <FlatList
         data={items}
@@ -101,11 +99,11 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
           ) : null
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="checkmark-circle-outline" size={64} color={colors.border} />
-            <Text style={styles.emptyTitle}>Sin stock crítico</Text>
-            <Text style={styles.caption}>Todos los productos están por encima del umbral.</Text>
-          </View>
+          <EmptyState
+            icon="checkmark-circle-outline"
+            title="Sin stock crítico"
+            message="Todos los productos están por encima del umbral."
+          />
         }
       />
     </View>
@@ -114,18 +112,9 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
   list: { paddingHorizontal: 20, paddingTop: 4, gap: 12, flexGrow: 1 },
-  caption: { fontSize: 13, color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 4 },
-  footer: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 14 },
+  caption: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 4 },
+  footer: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: 14 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -138,12 +127,10 @@ const styles = StyleSheet.create({
   },
   thumb: { width: 52, height: 52, borderRadius: 12 },
   info: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  code: { fontSize: 12, color: colors.textSecondary },
+  name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  code: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
   branchRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  branch: { fontSize: 12, color: colors.textSecondary, flex: 1 },
+  branch: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, flex: 1 },
   stockPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-  stockText: { fontSize: 14, fontWeight: '700' },
-  empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: 8 },
+  stockText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
 });

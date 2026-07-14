@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +12,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_WEIGHT } from '../theme/tokens';
+import ScreenHeader from '../components/ScreenHeader';
 import { formatDate, formatPrice } from '../utils/format';
 import { paymentMethodLabel } from '../utils/payment';
 import {
@@ -21,6 +22,7 @@ import {
   fetchAdminTrashDetail,
 } from '../api/admin/sales';
 import { downloadAndShareAdminBoleta } from '../api/admin/boleta';
+import Button from '../components/Button';
 import type { AdminSaleDetail } from '../types';
 import type { AdminSalesStackParamList } from '../navigation/types';
 
@@ -103,13 +105,7 @@ export default function AdminSaleDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Venta #{sale.id}</Text>
-        <View style={styles.backBtn} />
-      </View>
+      <ScreenHeader title={`Venta #${sale.id}`} onBack={() => navigation.goBack()} />
 
       <ScrollView
         contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
@@ -174,40 +170,26 @@ export default function AdminSaleDetailScreen({ route, navigation }: Props) {
           <Line label="Total" value={formatPrice(v.total)} big />
         </View>
 
-        {/* Boleta */}
-        <TouchableOpacity
-          style={[styles.boletaBtn, busy && styles.btnDisabled]}
+        <Button
+          label="Descargar boleta (PDF)"
+          icon="download-outline"
           onPress={handleDownload}
+          loading={downloading}
           disabled={busy}
-          activeOpacity={0.9}
-        >
-          {downloading ? (
-            <ActivityIndicator color={colors.textOnPrimary} />
-          ) : (
-            <>
-              <Ionicons name="download-outline" size={20} color={colors.textOnPrimary} />
-              <Text style={styles.boletaText}>Descargar boleta (PDF)</Text>
-            </>
-          )}
-        </TouchableOpacity>
+          style={styles.actionTop}
+        />
 
         {/* Cancel — only for active sales */}
         {!isCancelled && (
-          <TouchableOpacity
-            style={[styles.cancelBtn, busy && styles.btnDisabled]}
+          <Button
+            label="Anular venta"
+            icon="trash-outline"
+            variant="danger"
             onPress={confirmCancel}
+            loading={cancelling}
             disabled={busy}
-            activeOpacity={0.9}
-          >
-            {cancelling ? (
-              <ActivityIndicator color={colors.error} />
-            ) : (
-              <>
-                <Ionicons name="trash-outline" size={20} color={colors.error} />
-                <Text style={styles.cancelText}>Anular venta</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            style={styles.actionNext}
+          />
         )}
 
         <Text style={styles.hint}>La boleta es el recibo interno (no es comprobante SUNAT).</Text>
@@ -250,15 +232,6 @@ function Line({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
   cancelledBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -270,7 +243,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
   },
-  cancelledText: { color: colors.error, fontSize: 14, fontWeight: '700', flex: 1 },
+  cancelledText: { color: colors.error, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, flex: 1 },
   metaCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -280,9 +253,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  metaText: { fontSize: 14, color: colors.textPrimary, flex: 1 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginTop: 22, marginBottom: 10 },
-  itemsError: { fontSize: 14, color: colors.textSecondary },
+  metaText: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, flex: 1 },
+  sectionTitle: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 22, marginBottom: 10 },
+  itemsError: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
   itemsBox: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -301,11 +274,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 6,
   },
-  qtyText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+  qtyText: { color: colors.primary, fontWeight: FONT_WEIGHT.bold, fontSize: FONT_SIZE.bodySm },
   itemInfo: { flex: 1, gap: 2 },
-  itemName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  itemMeta: { fontSize: 13, color: colors.textSecondary },
-  itemTotal: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  itemName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  itemMeta: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
+  itemTotal: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   totalsBox: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -315,34 +288,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   totalLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: 14, color: colors.textSecondary },
-  totalValue: { fontSize: 14, color: colors.textPrimary, fontWeight: '600' },
-  grandLabel: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
-  grandValue: { fontSize: 22, fontWeight: '700', color: colors.primary },
+  totalLabel: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
+  totalValue: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
+  grandLabel: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  grandValue: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
-  boletaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    height: 54,
-    borderRadius: 14,
-    marginTop: 24,
-  },
-  boletaText: { color: colors.textOnPrimary, fontSize: 16, fontWeight: '700' },
-  cancelBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 54,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: colors.error,
-    marginTop: 12,
-  },
-  cancelText: { color: colors.error, fontSize: 16, fontWeight: '700' },
-  btnDisabled: { opacity: 0.6 },
-  hint: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', marginTop: 12 },
+  actionTop: { marginTop: 24 },
+  actionNext: { marginTop: 12 },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: 12 },
 });
