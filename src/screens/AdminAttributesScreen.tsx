@@ -20,7 +20,7 @@ import {
   updateAttribute,
 } from '../api/admin/attributes';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import Field from '../components/Field';
 import LoadingState from '../components/LoadingState';
@@ -165,7 +165,6 @@ export default function AdminAttributesScreen({ navigation }: Props) {
           </View>
           <TouchableOpacity
             onPress={() => openEdit(item)}
-            hitSlop={HIT_SLOP}
             style={styles.rowBtn}
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
@@ -175,7 +174,6 @@ export default function AdminAttributesScreen({ navigation }: Props) {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => confirmDelete(item)}
-            hitSlop={HIT_SLOP}
             style={styles.rowBtn}
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
@@ -264,7 +262,6 @@ export default function AdminAttributesScreen({ navigation }: Props) {
               />
               <TouchableOpacity
                 onPress={() => removeValueRow(i)}
-                hitSlop={HIT_SLOP}
                 style={styles.rowBtn}
                 activeOpacity={ROW_PRESS_OPACITY}
                 accessibilityRole="button"
@@ -305,49 +302,43 @@ export default function AdminAttributesScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: 20, gap: 14, flexGrow: 1 },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-  },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  card: { backgroundColor: colors.surface, borderRadius: RADIUS.card, borderWidth: 1, borderColor: colors.border, padding: SPACING.md },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  cardMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
-  rowBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  valueChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+  cardMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
+  valueChips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.md },
   valueChip: {
     backgroundColor: colors.primarySoft,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.badge,
   },
   valueChipText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.medium, color: colors.primary },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: 8, marginBottom: 6 },
-  valueRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
+  valueRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
   // The row owns the vertical rhythm here, so the field must not add its own.
   valueInput: { flex: 1, marginBottom: 0 },
   addValueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: SPACING.sm,
     height: 44,
-    borderRadius: 12,
+    borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
-    marginTop: 4,
+    marginTop: SPACING.xs,
   },
   addValueText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 14, lineHeight: 17 },
-  saveBtn: { marginTop: 20, marginBottom: 8 },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  saveBtn: { marginTop: SPACING['2xl'] },
 });

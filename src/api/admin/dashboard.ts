@@ -10,8 +10,13 @@ type RawAdminDashboard = {
     items_sold: number;
     average_ticket: string;
   };
+  // Grouped by (product_id, product_variation_id): a variable product that sold
+  // two combinations ranks as two rows, not one. `name` is the parent's clean
+  // name and the images point at the variation when it has its own.
   top_products: {
     product_id: number;
+    product_variation_id: number | null; // null = simple product
+    variation_label: string | null; // "Blanco · M", null for a simple product
     name: string;
     quantity_sold: number;
     total: string;
@@ -81,6 +86,8 @@ export async function fetchAdminDashboard(
     },
     topProducts: (res.top_products ?? []).map((p) => ({
       productId: p.product_id,
+      variationId: p.product_variation_id,
+      variationLabel: p.variation_label,
       name: p.name,
       quantitySold: p.quantity_sold,
       total: parseFloat(p.total),

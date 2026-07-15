@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     backgroundColor: colors.primarySoft,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.control,
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.input,
     // Transparent until focused, so gaining the border doesn't shift the layout.

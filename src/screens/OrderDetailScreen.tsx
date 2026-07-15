@@ -8,14 +8,15 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
 import { formatDate, formatPrice } from '../utils/format';
 import { paymentMethodLabel } from '../utils/payment';
 import { cancelSale, fetchSaleDetail } from '../api/sales';
 import { downloadAndShareBoleta } from '../api/boleta';
+import { MetaRow } from '../components/Row';
+import SaleTotals from '../components/SaleTotals';
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
 import type { SaleDetail } from '../types';
@@ -83,8 +84,10 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
         res.skipped > 0
           ? `\n\n${res.skipped} artículo(s) no se pudieron restaurar (producto eliminado del catálogo).`
           : '';
+      // Back to whichever list opened this — the history or Inicio. Both re-fetch
+      // on focus, so the anulled sale is gone by the time it is on screen again.
       Alert.alert('Venta anulada', `${res.message}${warning}`, [
-        { text: 'Aceptar', onPress: () => navigation.navigate('Orders') },
+        { text: 'Aceptar', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
       Alert.alert('No se pudo anular', e?.message ?? 'Inténtalo de nuevo.');
@@ -97,10 +100,10 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={`Venta #${sale.id}`} onBack={() => navigation.navigate('Orders')} />
+      <ScreenHeader title={`Venta #${sale.id}`} onBack={() => navigation.goBack()} />
 
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
         showsVerticalScrollIndicator={false}
       >
         {/* Meta */}
@@ -114,7 +117,7 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
         {/* Items */}
         <Text style={styles.sectionTitle}>Productos</Text>
         {loadingItems ? (
-          <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
+          <ActivityIndicator color={colors.primary} style={{ marginVertical: SPACING.lg }} />
         ) : items && items.length > 0 ? (
           <View style={styles.itemsBox}>
             {items.map((item, idx) => (
@@ -141,14 +144,7 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
         )}
 
         {/* Totals */}
-        <View style={styles.totalsBox}>
-          <Line label="Subtotal" value={formatPrice(v.subtotal)} />
-          {v.discount > 0 && (
-            <Line label="Descuento" value={`- ${formatPrice(v.discount)}`} discount />
-          )}
-          <View style={styles.divider} />
-          <Line label="Total" value={formatPrice(v.total)} big />
-        </View>
+        <SaleTotals subtotal={v.subtotal} discount={v.discount} total={v.total} />
 
         <Button
           label="Descargar boleta (PDF)"
@@ -175,90 +171,44 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
   );
 }
 
-function MetaRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  return (
-    <View style={styles.metaRow}>
-      <Ionicons name={icon} size={18} color={colors.textSecondary} />
-      <Text style={styles.metaText}>{text}</Text>
-    </View>
-  );
-}
 
-function Line({
-  label,
-  value,
-  big,
-  discount,
-}: {
-  label: string;
-  value: string;
-  big?: boolean;
-  discount?: boolean;
-}) {
-  return (
-    <View style={styles.totalLine}>
-      <Text style={[styles.totalLabel, big && styles.grandLabel]}>{label}</Text>
-      <Text
-        style={[styles.totalValue, big && styles.grandValue, discount && { color: colors.success }]}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   metaCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14,
-    gap: 10,
+    padding: SPACING.lg,
+    gap: SPACING.md,
   },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  metaText: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, flex: 1 },
-  sectionTitle: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 22, marginBottom: 10 },
+  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
   itemsError: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
   itemsBox: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 14,
+    paddingHorizontal: SPACING.lg,
   },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.lg },
   itemBorder: { borderTopWidth: 1, borderTopColor: colors.border },
   qtyBadge: {
     minWidth: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: RADIUS.badge,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: SPACING.sm,
   },
   qtyText: { color: colors.primary, fontWeight: FONT_WEIGHT.bold, fontSize: FONT_SIZE.bodySm },
-  itemInfo: { flex: 1, gap: 2 },
+  itemInfo: { flex: 1, gap: SPACING.hairline },
   itemName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
   itemMeta: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
   itemTotal: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  totalsBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    marginTop: 16,
-  },
-  totalLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
-  totalValue: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
-  grandLabel: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  grandValue: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
-  actionTop: { marginTop: 24 },
-  actionNext: { marginTop: 12 },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: 12 },
+  actionTop: { marginTop: SPACING['2xl'] },
+  actionNext: { marginTop: SPACING.md },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.sm, lineHeight: 17 },
 });

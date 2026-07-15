@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     backgroundColor: colors.primarySoft,
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.control,
     paddingHorizontal: SPACING.md,
     height: 48,
   },

@@ -1,27 +1,24 @@
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
-import { formatPrice, formatRelative } from '../utils/format';
+import { SPACING } from '../theme/tokens';
+import { formatPrice } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fetchStatistics } from '../api/sales';
 import { fetchProduct } from '../api/products';
 import { ApiError } from '../api/client';
+import Avatar from '../components/Avatar';
+import KpiCard, { KpiGrid } from '../components/KpiCard';
+import SaleRow from '../components/SaleRow';
+import TopProductRow, { topProductKey } from '../components/TopProductRow';
+import ScreenTitle from '../components/ScreenTitle';
+import SectionHeader from '../components/SectionHeader';
+import Card from '../components/Card';
+import Segmented from '../components/Segmented';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
-import ProductImage from '../components/ProductImage';
 import type { DashboardRecentSale, DashboardStats, DashboardTopProduct, StatsPeriod } from '../types';
 
 const PERIODS: { value: StatsPeriod; label: string }[] = [
@@ -31,7 +28,6 @@ const PERIODS: { value: StatsPeriod; label: string }[] = [
 ];
 
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -41,7 +37,9 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [openingId, setOpeningId] = useState<number | null>(null);
+  // Which best-seller row is being opened. A variable product ranks once per
+  // variation, so several rows share a productId — the key has to include it.
+  const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   const load = useCallback(
     async (isRefresh = false) => {
@@ -70,15 +68,13 @@ export default function DashboardScreen() {
   // Open a top product's detail. Fetch the full product by id first; a 404 means
   // it was removed / is no longer visible, so we let the seller know.
   async function openProduct(tp: DashboardTopProduct) {
-    if (openingId) return;
-    setOpeningId(tp.productId);
+    if (openingKey) return;
+    setOpeningKey(topProductKey(tp));
     try {
       const product = await fetchProduct(tp.productId);
-      navigation.navigate('CatalogTab', {
-        screen: 'ProductDetail',
-        initial: false,
-        params: { product },
-      });
+      // Pushed on Inicio's own stack — see DashboardStack. Carry the variation
+      // through, so the detail opens on the one that actually sold.
+      navigation.navigate('ProductDetail', { product, variationId: tp.variationId ?? undefined });
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
         showToast('Este producto ya no está disponible', 'alert-circle');
@@ -86,40 +82,56 @@ export default function DashboardScreen() {
         showToast('No se pudo abrir el producto', 'alert-circle');
       }
     } finally {
-      setOpeningId(null);
+      setOpeningKey(null);
     }
   }
 
   // Open the full sale detail (which re-fetches complete data + line items). The
   // dashboard row is partial, so we pass what we have as a fallback.
   function openSale(sale: DashboardRecentSale) {
-    navigation.navigate('OrdersTab', {
-      screen: 'OrderDetail',
-      initial: false,
-      params: {
-        sale: {
-          id: sale.id,
-          customerName: sale.customerName,
-          subtotal: sale.total,
-          discount: 0,
-          total: sale.total,
-          paymentMethod: sale.paymentMethod,
-          notes: null,
-          itemsCount: sale.itemsCount,
-          createdAt: sale.createdAt,
-        },
+    navigation.navigate('OrderDetail', {
+      sale: {
+        id: sale.id,
+        customerName: sale.customerName,
+        subtotal: sale.total,
+        discount: 0,
+        total: sale.total,
+        paymentMethod: sale.paymentMethod,
+        notes: null,
+        itemsCount: sale.itemsCount,
+        createdAt: sale.createdAt,
       },
     });
   }
 
+  const firstName = user?.name?.split(' ')[0];
   const summary = stats?.summary;
 
   return (
     <View style={styles.container}>
+      {/* Fixed: the period has to stay in sight, or you scroll down to a number
+          and no longer know which period it belongs to. It sits OUTSIDE the
+          ScrollView rather than using `stickyHeaderIndices`, because a sticky
+          header on Android is only translated into view — it is still hit-tested
+          where it was laid out, so its buttons stop responding as soon as you
+          scroll away from the top. */}
+      <View>
+        <ScreenTitle
+          overline={firstName ? `Hola, ${firstName} 👋` : 'Hola 👋'}
+          title="Mis ventas"
+          actions={
+            <Avatar
+              name={user?.name}
+              onPress={() => navigation.navigate('Profile')}
+              accessibilityLabel="Perfil"
+            />
+          }
+        />
+        <Segmented options={PERIODS} value={period} onChange={setPeriod} />
+      </View>
+
       <ScrollView
-        // The bottom tab bar already reserves the safe-area inset, so only a
-        // small visual gap is needed here (adding insets.bottom double-counts it).
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -130,41 +142,6 @@ export default function DashboardScreen() {
           />
         }
       >
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.headerTexts}>
-            <Text style={styles.hello}>Hola, {user?.name?.split(' ')[0]} 👋</Text>
-            <Text style={styles.headerTitle}>Mis ventas</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.profileBtn}
-            activeOpacity={ROW_PRESS_OPACITY}
-            onPress={() => navigation.navigate('Profile')}
-            accessibilityLabel="Perfil"
-          >
-            <Text style={styles.profileInitial}>
-              {user?.name?.charAt(0).toUpperCase() ?? '?'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Period selector */}
-        <View style={styles.periodRow}>
-          {PERIODS.map((p) => {
-            const active = period === p.value;
-            return (
-              <TouchableOpacity
-                key={p.value}
-                style={[styles.periodPill, active && styles.periodPillActive]}
-                onPress={() => setPeriod(p.value)}
-                activeOpacity={ROW_PRESS_OPACITY}
-              >
-                <Text style={[styles.periodText, active && styles.periodTextActive]}>{p.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
         {loading ? (
           <LoadingState />
         ) : error ? (
@@ -176,7 +153,7 @@ export default function DashboardScreen() {
         ) : (
           <>
             {/* KPI cards */}
-            <View style={styles.kpiGrid}>
+            <KpiGrid>
               <KpiCard
                 icon="cash-outline"
                 label="Ventas totales"
@@ -194,92 +171,71 @@ export default function DashboardScreen() {
                 label="Ticket promedio"
                 value={formatPrice(summary?.averageTicket ?? 0)}
               />
-            </View>
+            </KpiGrid>
 
             {/* Top products */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Más vendidos</Text>
-            </View>
+            <SectionHeader icon="trophy-outline" title="Más vendidos" />
             {!stats || stats.topProducts.length === 0 ? (
-              <Text style={styles.emptyText}>Sin ventas en este período.</Text>
+              <EmptyState
+                compact
+                icon="trophy-outline"
+                message="Aún no vendes nada en este período."
+              />
             ) : (
-              <View style={styles.card}>
+              <Card inset>
                 {stats.topProducts.map((tp, index) => (
-                  <TouchableOpacity
-                    key={tp.productId}
-                    style={[styles.topRow, index > 0 && styles.rowBorder]}
-                    activeOpacity={ROW_PRESS_OPACITY}
+                  <TopProductRow
+                    key={topProductKey(tp)}
+                    rank={index + 1}
+                    name={tp.name}
+                    variationLabel={tp.variationLabel}
+                    imageUri={tp.imageThumbUrl}
+                    quantitySold={tp.quantitySold}
+                    total={tp.total}
                     onPress={() => openProduct(tp)}
-                    disabled={openingId !== null}
-                  >
-                    <View style={styles.topThumbWrap}>
-                      <ProductImage uri={tp.imageThumbUrl} style={styles.topThumb} iconSize={18} />
-                      <View style={styles.rankBadge}>
-                        <Text style={styles.rankText}>{index + 1}</Text>
-                      </View>
-                      {openingId === tp.productId && (
-                        <View style={styles.thumbSpinner}>
-                          <ActivityIndicator size="small" color={colors.primary} />
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.topInfo}>
-                      <Text style={styles.topName} numberOfLines={1}>
-                        {tp.name}
-                      </Text>
-                      <Text style={styles.topCategory}>{formatPrice(tp.total)}</Text>
-                    </View>
-                    <Text style={styles.topQty}>{tp.quantitySold} uds.</Text>
-                  </TouchableOpacity>
+                    loading={openingKey === topProductKey(tp)}
+                    disabled={openingKey !== null}
+                    divided={index > 0}
+                  />
                 ))}
-              </View>
+              </Card>
             )}
 
             {/* Recent sales */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Ventas recientes</Text>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('OrdersTab', { screen: 'Orders' })}
-                activeOpacity={ROW_PRESS_OPACITY}
-                hitSlop={HIT_SLOP}
-                accessibilityRole="button"
-              >
-                <Text style={styles.link}>Ver todas</Text>
-              </TouchableOpacity>
-            </View>
+            <SectionHeader
+              icon="receipt-outline"
+              title="Ventas recientes"
+              action={{
+                label: 'Ver todas',
+                onPress: () => navigation.navigate('OrdersTab', { screen: 'Orders' }),
+              }}
+            />
             {!stats || stats.recentSales.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Ionicons name="bag-handle-outline" size={40} color={colors.border} />
-                <Text style={styles.emptyText}>Aún no registras ventas en este período.</Text>
-                <TouchableOpacity
-                  style={styles.cta}
-                  onPress={() => navigation.navigate('CatalogTab')}
-                  activeOpacity={ROW_PRESS_OPACITY}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.ctaText}>Ir al catálogo</Text>
-                </TouchableOpacity>
-              </View>
+              <EmptyState
+                compact
+                icon="receipt-outline"
+                message="Aún no registras ventas en este período."
+                action={{
+                  label: 'Ir al catálogo',
+                  icon: 'cube-outline',
+                  onPress: () => navigation.navigate('CatalogTab'),
+                }}
+              />
             ) : (
-              <View style={styles.card}>
+              <Card inset>
                 {stats.recentSales.map((sale, index) => (
-                  <TouchableOpacity
+                  <SaleRow
                     key={sale.id}
-                    style={[styles.orderRow, index > 0 && styles.rowBorder]}
-                    activeOpacity={ROW_PRESS_OPACITY}
+                    id={sale.id}
+                    relativeDate
+                    total={sale.total}
+                    paymentMethod={sale.paymentMethod}
+                    createdAt={sale.createdAt}
                     onPress={() => openSale(sale)}
-                  >
-                    <View style={styles.iconBox}>
-                      <Ionicons name="receipt-outline" size={20} color={colors.primary} />
-                    </View>
-                    <View style={styles.topInfo}>
-                      <Text style={styles.topName}>Venta #{sale.id}</Text>
-                      <Text style={styles.topCategory}>{formatRelative(sale.createdAt)}</Text>
-                    </View>
-                    <Text style={styles.orderTotal}>{formatPrice(sale.total)}</Text>
-                  </TouchableOpacity>
+                    divided={index > 0}
+                  />
                 ))}
-              </View>
+              </Card>
             )}
           </>
         )}
@@ -288,167 +244,12 @@ export default function DashboardScreen() {
   );
 }
 
-function KpiCard({
-  icon,
-  label,
-  value,
-  highlight,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <View style={[styles.kpiCard, highlight && styles.kpiCardHighlight]}>
-      <View style={[styles.kpiIcon, highlight && styles.kpiIconHighlight]}>
-        <Ionicons name={icon} size={20} color={highlight ? colors.textOnPrimary : colors.primary} />
-      </View>
-      <Text style={[styles.kpiValue, highlight && styles.kpiTextOnPrimary]}>{value}</Text>
-      <Text style={[styles.kpiLabel, highlight && styles.kpiTextOnPrimarySoft]}>{label}</Text>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  headerTexts: { flex: 1 },
-  hello: { fontSize: FONT_SIZE.body, color: colors.textSecondary },
-  headerTitle: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 2 },
-  profileBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileInitial: { color: colors.textOnPrimary, fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold },
-  periodRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 14 },
-  periodPill: {
-    flex: 1,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  periodPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  periodText: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  periodTextActive: { color: colors.textOnPrimary },
-  kpiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    gap: 12,
-  },
-  kpiCard: {
-    width: '47%',
-    flexGrow: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  kpiCardHighlight: { backgroundColor: colors.primary, borderColor: colors.primary },
-  kpiIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  kpiIconHighlight: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  kpiValue: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  kpiLabel: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 2 },
-  kpiTextOnPrimary: { color: colors.textOnPrimary },
-  kpiTextOnPrimarySoft: { color: 'rgba(255,255,255,0.85)' },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginTop: 26,
-    marginBottom: 12,
-  },
-  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  link: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.primary },
-  card: {
-    marginHorizontal: 20,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-  },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  topThumbWrap: { width: 48, height: 48 },
-  topThumb: { width: 48, height: 48, borderRadius: 12 },
-  rankBadge: {
-    position: 'absolute',
-    top: -6,
-    left: -6,
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 5,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  rankText: { color: colors.textOnPrimary, fontWeight: FONT_WEIGHT.bold, fontSize: FONT_SIZE.badge },
-  thumbSpinner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderRadius: 12,
-  },
-  topInfo: { flex: 1 },
-  topName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  topCategory: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 1 },
-  topQty: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  orderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  orderTotal: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  emptyBox: { alignItems: 'center', paddingVertical: 24, gap: 10, marginHorizontal: 20 },
-  emptyText: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
-  cta: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    height: 46,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-  },
-  ctaText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold },
+  // flexGrow lets the loading / error state fill the space left under the header
+  // and centre itself in it; without it they collapse to their own height and sit
+  // right below the period selector. The bottom tab bar already reserves the
+  // safe-area inset, so only a small visual gap is needed here.
+  scroll: { flexGrow: 1, paddingBottom: SPACING['2xl'] },
 });

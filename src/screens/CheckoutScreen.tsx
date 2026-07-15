@@ -14,8 +14,8 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, ROW_PRESS_OPACITY } from '../theme/tokens';
-import { formatPrice } from '../utils/format';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { formatPrice, roundMoney, toCents } from '../utils/format';
 import { linePrice, variationLabel } from '../utils/cart';
 import { PAYMENT_METHODS } from '../utils/payment';
 import { useCart } from '../context/CartContext';
@@ -24,6 +24,8 @@ import { createSale, type CreateSaleItem } from '../api/sales';
 import { lookupByCode } from '../api/products';
 import { ApiError, TIMEOUT_STATUS } from '../api/client';
 import { hapticSuccess } from '../utils/haptics';
+import SaleTotals from '../components/SaleTotals';
+import Card from '../components/Card';
 import Field from '../components/Field';
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
@@ -78,9 +80,11 @@ export default function CheckoutScreen({ navigation }: Props) {
   const [submitting, setSubmitting] = useState(false);
 
   const subtotal = totalPrice;
-  const discount = Math.max(0, parseFloat(discountText.replace(',', '.')) || 0);
-  const discountInvalid = discount > subtotal;
-  const total = Math.max(0, subtotal - discount);
+  const discount = roundMoney(Math.max(0, parseFloat(discountText.replace(',', '.')) || 0));
+  // Compared in cents: a 100% discount typed as the exact subtotal would fail a
+  // plain `>` on floats (119.7 > 119.69999999999999).
+  const discountInvalid = toCents(discount) > toCents(subtotal);
+  const total = roundMoney(Math.max(0, subtotal - discount));
 
   async function handleSubmit() {
     if (submitting || items.length === 0) return;
@@ -162,7 +166,7 @@ export default function CheckoutScreen({ navigation }: Props) {
       if (e.status === TIMEOUT_STATUS) {
         Alert.alert(
           'Estado desconocido',
-          'No se recibió confirmación del servidor. Verifica en el historial antes de volver a cobrar para no duplicar la venta.'
+          'No se recibió confirmación del servidor. Revisa la pestaña Ventas antes de volver a cobrar para no duplicar la venta.'
         );
         return;
       }
@@ -186,16 +190,18 @@ export default function CheckoutScreen({ navigation }: Props) {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top + 44}
+        // Lift the form by exactly what ScreenHeader occupies above it, so the
+        // keyboard doesn't cover the field being typed into.
+        keyboardVerticalOffset={insets.top + TOUCH_MIN}
       >
         <ScrollView
-          contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+          contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           {/* Items summary */}
           <Text style={styles.sectionTitle}>Resumen ({items.length})</Text>
-          <View style={styles.card}>
+          <Card>
             {items.map((i, idx) => (
               <View key={i.key} style={[styles.summaryRow, idx > 0 && styles.rowBorder]}>
                 <Text style={styles.summaryQty}>{i.quantity}×</Text>
@@ -210,7 +216,7 @@ export default function CheckoutScreen({ navigation }: Props) {
                 <Text style={styles.summaryPrice}>{formatPrice(linePrice(i) * i.quantity)}</Text>
               </View>
             ))}
-          </View>
+          </Card>
 
           {/* Customer */}
           <Text style={styles.sectionTitle}>Cliente</Text>
@@ -267,18 +273,11 @@ export default function CheckoutScreen({ navigation }: Props) {
           />
 
           {/* Totals */}
-          <View style={styles.totalsBox}>
-            <Row label="Subtotal" value={formatPrice(subtotal)} />
-            {discount > 0 && (
-              <Row label="Descuento" value={`- ${formatPrice(discount)}`} highlight />
-            )}
-            <View style={styles.divider} />
-            <Row label="Total" value={formatPrice(total)} big />
-          </View>
+          <SaleTotals subtotal={subtotal} discount={discount} total={total} />
         </ScrollView>
 
         {/* Submit */}
-        <View style={[styles.footer, { paddingBottom: 16 }]}>
+        <View style={[styles.footer, { paddingBottom: SPACING.lg }]}>
           <Button
             label={`Cobrar ${formatPrice(total)}`}
             onPress={handleSubmit}
@@ -291,64 +290,25 @@ export default function CheckoutScreen({ navigation }: Props) {
   );
 }
 
-function Row({
-  label,
-  value,
-  big,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  big?: boolean;
-  highlight?: boolean;
-}) {
-  return (
-    <View style={styles.totalLine}>
-      <Text style={[styles.totalLabel, big && styles.totalLabelBig]}>{label}</Text>
-      <Text
-        style={[
-          styles.totalValue,
-          big && styles.totalValueBig,
-          highlight && { color: colors.success },
-        ]}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  sectionTitle: {
-    fontSize: FONT_SIZE.bodySm,
-    fontWeight: FONT_WEIGHT.bold,
-    color: colors.textPrimary,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-  },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
   summaryQty: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.primary, minWidth: 28 },
   summaryName: { fontSize: FONT_SIZE.body, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
-  summaryVariation: { fontSize: FONT_SIZE.micro, color: colors.primary, fontWeight: FONT_WEIGHT.medium, marginTop: 1 },
+  summaryVariation: { fontSize: FONT_SIZE.micro, color: colors.primary, fontWeight: FONT_WEIGHT.medium, marginTop: SPACING.hairline },
   summaryPrice: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  payGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  payGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
   payPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
     height: 46,
-    borderRadius: 14,
+    borderRadius: RADIUS.control,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -356,23 +316,9 @@ const styles = StyleSheet.create({
   payPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   payText: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   payTextActive: { color: colors.textOnPrimary },
-  totalsBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    marginTop: 24,
-  },
-  totalLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
-  totalLabelBig: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  totalValue: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  totalValueBig: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,

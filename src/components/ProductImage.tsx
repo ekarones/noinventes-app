@@ -28,6 +28,8 @@ export default function ProductImage({ uri, style, iconSize = 28 }: Props) {
   }
   return (
     <View style={[style, styles.placeholder]}>
+      {/* Muted, like the fill behind it: "no image" is an absence, and colouring it
+          would draw the eye to the one thing on the row with nothing to say. */}
       <Ionicons name="image-outline" size={iconSize} color={colors.textSecondary} />
     </View>
   );
@@ -35,7 +37,10 @@ export default function ProductImage({ uri, style, iconSize = 28 }: Props) {
 
 const styles = StyleSheet.create({
   placeholder: {
-    backgroundColor: colors.primarySoft,
+    // Neutral, not the brand tint: "no image" is an absence, not something worth
+    // colouring. In `primarySoft` a catalogue of products without photos read as a
+    // column of pink blocks.
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -19,7 +19,7 @@ import {
   updateBranch,
 } from '../api/admin/branches';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import Field from '../components/Field';
 import LoadingState from '../components/LoadingState';
@@ -162,7 +162,6 @@ export default function AdminBranchesScreen({ navigation }: Props) {
         </View>
         <TouchableOpacity
           onPress={() => openEdit(item)}
-          hitSlop={HIT_SLOP}
           style={styles.rowBtn}
           activeOpacity={ROW_PRESS_OPACITY}
           accessibilityRole="button"
@@ -172,7 +171,6 @@ export default function AdminBranchesScreen({ navigation }: Props) {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => confirmDelete(item)}
-          hitSlop={HIT_SLOP}
           style={styles.rowBtn}
           activeOpacity={ROW_PRESS_OPACITY}
           accessibilityRole="button"
@@ -278,29 +276,29 @@ export default function AdminBranchesScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { paddingHorizontal: 20, paddingBottom: 24, flexGrow: 1 },
+  list: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING['2xl'], flexGrow: 1 },
   sep: { height: 1, backgroundColor: colors.border },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   iconBox: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconBoxOff: { backgroundColor: colors.border },
   rowInfo: { flex: 1 },
-  nameLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nameLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   rowName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, flexShrink: 1 },
-  inactiveBadge: { backgroundColor: colors.border, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+  inactiveBadge: { backgroundColor: colors.border, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.hairline, borderRadius: RADIUS.badge },
   inactiveText: { fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold, color: colors.textSecondary },
-  rowAddress: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
-  rowMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
-  rowBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 18 },
+  rowAddress: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  rowMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginTop: SPACING.xl },
   switchLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  switchHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 14, lineHeight: 17 },
-  saveBtn: { marginTop: 20 },
+  switchHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  saveBtn: { marginTop: SPACING['2xl'] },
 });

@@ -1,10 +1,8 @@
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import { stockColor } from '../utils/stock';
@@ -15,13 +13,9 @@ import type { AdminHomeStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<AdminHomeStackParamList, 'AdminLowStock'>;
 
 export default function AdminLowStockScreen({ route, navigation }: Props) {
-  const insets = useSafeAreaInsets();
-  // Cross-tab navigation (to the Products tab) isn't expressible through the
-  // stack's typed navigation, so use an untyped handle for that hop.
-  const rootNav = useNavigation<any>();
   const { items, threshold, hasMore } = route.params;
 
-  // Jump to the product detail (in the Products tab) to fix its stock. The
+  // Jump to the product detail to fix its stock. The
   // detail refetches everything from its id, so a minimal row is enough — the
   // other fields are placeholders that are never displayed before the reload.
   function openProduct(item: LowStockItem) {
@@ -33,6 +27,7 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
       status: 'published',
       unitValue: 0,
       finalPrice: 0,
+      finalPriceMax: null,
       unitOfMeasure: 'unit',
       imageUrl: item.imageUrl,
       imageThumbUrl: item.imageThumbUrl,
@@ -40,11 +35,10 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
       category: null,
       stock: null,
     };
-    rootNav.navigate('AdminProductsTab', {
-      screen: 'AdminProductDetail',
-      initial: false,
-      params: { product },
-    });
+    // Pushed on Inicio's own stack — this screen lives there, and so does the
+    // product detail. Sending it to the Catálogo tab instead would mean going
+    // back from the product lands on that tab's list, not on this alert.
+    navigation.navigate('AdminProductDetail', { product });
   }
 
   function renderItem({ item }: { item: LowStockItem }) {
@@ -84,7 +78,7 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
         data={items}
         keyExtractor={(i) => `${i.productId}-${i.branchId}`}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: SPACING['2xl'] }]}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <Text style={styles.caption}>
@@ -112,25 +106,16 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { paddingHorizontal: 20, paddingTop: 4, gap: 12, flexGrow: 1 },
-  caption: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: 8, paddingHorizontal: 4 },
-  footer: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: 14 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 12,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  thumb: { width: 52, height: 52, borderRadius: 12 },
-  info: { flex: 1, gap: 2 },
+  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  caption: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: SPACING.sm, paddingHorizontal: SPACING.xs },
+  footer: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.lg },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md, borderWidth: 1, borderColor: colors.border },
+  thumb: { width: 52, height: 52, borderRadius: RADIUS.control },
+  info: { flex: 1, gap: SPACING.hairline },
   name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
   code: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
-  branchRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  branchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginTop: SPACING.hairline },
   branch: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, flex: 1 },
-  stockPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  stockPill: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.badge },
   stockText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
 });

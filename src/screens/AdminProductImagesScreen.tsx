@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -21,7 +20,7 @@ import {
 } from '../api/admin/productImages';
 import { pickImages } from '../utils/imagePicker';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
@@ -35,7 +34,6 @@ type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminProductIm
 const MAX_IMAGES = 10;
 
 export default function AdminProductImagesScreen({ route, navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const { productId, productName } = route.params;
 
@@ -136,7 +134,7 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
         />
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.productName}>{productName}</Text>
@@ -229,45 +227,45 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   muted: { fontSize: FONT_SIZE.body, color: colors.textSecondary, textAlign: 'center' },
   productName: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  counter: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 2, marginBottom: 16 },
-  emptyBox: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  counter: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline, marginBottom: SPACING.lg },
+  emptyBox: { alignItems: 'center', paddingVertical: SPACING['3xl'], gap: SPACING.sm },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
   tile: {
     width: '47%',
     flexGrow: 1,
-    borderRadius: 14,
+    borderRadius: RADIUS.card,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  tileImg: { width: '100%', height: 140, backgroundColor: colors.primarySoft },
+  tileImg: { width: '100%', height: 140, backgroundColor: colors.surfaceMuted },
   featuredBadge: {
     position: 'absolute',
     top: 8,
     left: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.xs,
     backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.badge,
   },
   featuredText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold },
-  tileActions: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 6 },
+  tileActions: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: SPACING.sm },
   tileBtn: { width: 40, height: 34, alignItems: 'center', justifyContent: 'center' },
   uploadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: SPACING.sm,
     backgroundColor: colors.primary,
     height: 54,
-    borderRadius: 14,
-    marginTop: 24,
+    borderRadius: RADIUS.control,
+    marginTop: SPACING['2xl'],
   },
   uploadBtnDisabled: { opacity: 0.5 },
   uploadText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: 12, lineHeight: 17 },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.sm, lineHeight: 17 },
 });

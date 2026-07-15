@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -80,9 +80,8 @@ export default function QRScannerModal({ visible, onClose, onScanned }: Props) {
 
         {/* Close button */}
         <TouchableOpacity
-          style={[styles.close, { top: insets.top + 12 }]}
+          style={[styles.close, { top: insets.top + SPACING.sm }]}
           onPress={onClose}
-          hitSlop={HIT_SLOP}
           activeOpacity={ROW_PRESS_OPACITY}
           accessibilityRole="button"
           accessibilityLabel="Cerrar el escáner"
@@ -108,7 +107,7 @@ const styles = StyleSheet.create({
   frame: {
     width: 240,
     height: 240,
-    borderRadius: 24,
+    borderRadius: RADIUS.sheet,
     borderWidth: 3,
     borderColor: colors.primary,
     backgroundColor: 'transparent',
@@ -117,7 +116,7 @@ const styles = StyleSheet.create({
     color: colors.textOnPrimary,
     fontSize: FONT_SIZE.body,
     fontWeight: FONT_WEIGHT.medium,
-    marginTop: 24,
+    marginTop: SPACING['2xl'],
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
   },
@@ -131,17 +130,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  permission: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  permissionTitle: { color: colors.textOnPrimary, fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, marginTop: 8 },
+  permission: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING['3xl'], gap: SPACING.md },
+  permissionTitle: { color: colors.textOnPrimary, fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, marginTop: SPACING.sm },
   permissionText: { color: '#d1d5db', fontSize: FONT_SIZE.body, textAlign: 'center', lineHeight: 22 },
   permissionBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 28,
+    paddingHorizontal: SPACING['3xl'],
     height: 50,
-    borderRadius: 14,
+    borderRadius: RADIUS.control,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: SPACING.md,
   },
   permissionBtnText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
 });

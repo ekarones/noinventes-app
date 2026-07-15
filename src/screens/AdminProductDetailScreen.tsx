@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,7 +17,7 @@ import {
   fetchAdminProductVariations,
 } from '../api/admin/products';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
@@ -26,6 +25,7 @@ import { formatPrice } from '../utils/format';
 import { stockColor } from '../utils/stock';
 import { useToast } from '../context/ToastContext';
 import ProductImage from '../components/ProductImage';
+import IconLabel from '../components/IconLabel';
 import type { AdminProductDetail, AdminVariation, StockByBranch } from '../types';
 import type { AdminProductsStackParamList } from '../navigation/types';
 
@@ -38,7 +38,6 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function AdminProductDetailScreen({ route, navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const { product } = route.params;
   const [detail, setDetail] = useState<AdminProductDetail | null>(null);
@@ -106,7 +105,9 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
     try {
       await deleteProduct(product.id);
       showToast('Producto movido a la papelera', 'checkmark-circle');
-      navigation.navigate('AdminProducts');
+      // Back to whichever list opened this — Catálogo or Inicio. Both re-fetch on
+      // focus, so the deleted product is gone by the time it is on screen again.
+      navigation.goBack();
     } catch (e: any) {
       Alert.alert('No se pudo eliminar', e?.message ?? 'Inténtalo de nuevo.');
     }
@@ -160,7 +161,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
         />
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
           showsVerticalScrollIndicator={false}
         >
           {/* Images */}
@@ -296,40 +297,43 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                 variations.map((v) => (
                   <View key={v.id} style={styles.varCard}>
                     <View style={styles.varHeader}>
-                      <ProductImage uri={v.imageThumbUrl} style={styles.varThumb} iconSize={16} />
-                      <View style={{ flex: 1 }}>
+                      <ProductImage uri={v.imageThumbUrl} style={styles.varThumb} iconSize={32} />
+                      <View style={styles.varInfo}>
+                        <View style={styles.varOverline}>
+                          <IconLabel icon="barcode-outline" text={v.code} />
+                        </View>
                         <Text style={styles.varName}>{variationLabel(v)}</Text>
-                        <Text style={styles.varMeta}>
-                          {v.code} · {formatPrice(v.finalPrice)}
-                        </Text>
+                        <Text style={styles.varPrice}>{formatPrice(v.finalPrice)}</Text>
                       </View>
-                      <TouchableOpacity
-                        onPress={() =>
-                          navigation.navigate('AdminVariationForm', {
-                            productId: d.id,
-                            productName: d.name,
-                            productCode: d.code,
-                            variation: v,
-                          })
-                        }
-                        hitSlop={HIT_SLOP}
-                        style={styles.varIconBtn}
-                        activeOpacity={ROW_PRESS_OPACITY}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Editar variación ${variationLabel(v)}`}
-                      >
-                        <Ionicons name="create-outline" size={20} color={colors.primary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => confirmDeleteVariation(v)}
-                        hitSlop={HIT_SLOP}
-                        style={styles.varIconBtn}
-                        activeOpacity={ROW_PRESS_OPACITY}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Eliminar variación ${variationLabel(v)}`}
-                      >
-                        <Ionicons name="trash-outline" size={20} color={colors.error} />
-                      </TouchableOpacity>
+                      <View style={styles.varActions}>
+                        <TouchableOpacity
+                          onPress={() =>
+                            navigation.navigate('AdminVariationForm', {
+                              productId: d.id,
+                              productName: d.name,
+                              productCode: d.code,
+                              variation: v,
+                            })
+                          }
+                          hitSlop={HIT_SLOP}
+                          style={styles.varIconBtn}
+                          activeOpacity={ROW_PRESS_OPACITY}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Editar variación ${variationLabel(v)}`}
+                        >
+                          <Ionicons name="create-outline" size={20} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => confirmDeleteVariation(v)}
+                          hitSlop={HIT_SLOP}
+                          style={styles.varIconBtn}
+                          activeOpacity={ROW_PRESS_OPACITY}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Eliminar variación ${variationLabel(v)}`}
+                        >
+                          <Ionicons name="trash-outline" size={20} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                     <StockList stock={v.stockByBranch} compact />
                     <TouchableOpacity
@@ -406,9 +410,9 @@ function statusTextStyle(status: string) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  gallery: { gap: 12, paddingRight: 8 },
-  galleryImg: { width: 150, height: 150, borderRadius: 16, backgroundColor: colors.primarySoft },
-  heroPlaceholder: { width: '100%', height: 200, borderRadius: 16 },
+  gallery: { gap: SPACING.md, paddingRight: SPACING.sm },
+  galleryImg: { width: 150, height: 150, borderRadius: RADIUS.card, backgroundColor: colors.surfaceMuted },
+  heroPlaceholder: { width: '100%', height: 200, borderRadius: RADIUS.card },
   featuredBadge: {
     position: 'absolute',
     top: 8,
@@ -420,108 +424,118 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleBlock: { marginTop: 18, gap: 6 },
+  titleBlock: { marginTop: SPACING.xl, gap: SPACING.sm },
   name: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   code: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xs },
+  statusBadge: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, borderRadius: RADIUS.badge },
   statusText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.bold },
   typeBadge: {
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.badge,
   },
   typeText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  price: { fontSize: FONT_SIZE.sectionValue, fontWeight: FONT_WEIGHT.bold, color: colors.primary, marginTop: 6 },
+  price: { fontSize: FONT_SIZE.sectionValue, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 24,
-    marginBottom: 10,
+    marginTop: SPACING['2xl'],
+    marginBottom: SPACING.md,
   },
-  sectionTitle: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 24, marginBottom: 10 },
-  sectionTitleInline: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
+  sectionTitleInline: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   description: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, lineHeight: 20 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.lg },
   tag: {
     backgroundColor: colors.primarySoft,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 16,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.badge,
   },
   tagText: { fontSize: FONT_SIZE.caption, color: colors.primary, fontWeight: FONT_WEIGHT.medium },
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.xs,
     backgroundColor: colors.primarySoft,
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.md,
     height: 34,
-    borderRadius: 17,
+    borderRadius: RADIUS.pill,
   },
   editText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
   manageImagesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: SPACING.sm,
     height: 42,
-    borderRadius: 12,
+    borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
-    marginTop: 14,
+    marginTop: SPACING.lg,
   },
   deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: SPACING.sm,
     height: 54,
-    borderRadius: 14,
+    borderRadius: RADIUS.control,
     borderWidth: 1.5,
     borderColor: colors.error,
-    marginTop: 32,
+    marginTop: SPACING['3xl'],
   },
   deleteText: { color: colors.error, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
-  deleteHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: 10 },
+  deleteHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.md },
   stockBox: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 14,
+    paddingHorizontal: SPACING.lg,
   },
-  stockBoxCompact: { marginTop: 10 },
-  stockRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13 },
+  stockBoxCompact: { marginTop: SPACING.md },
+  stockRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   stockBorder: { borderTopWidth: 1, borderTopColor: colors.border },
   stockBranch: { flex: 1, fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
-  stockPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  stockPill: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, borderRadius: RADIUS.badge },
   stockPillText: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.bold },
   muted: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
   varCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14,
-    marginBottom: 12,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
   },
-  varHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  varThumb: { width: 40, height: 40, borderRadius: 10 },
-  varName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  varMeta: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 1 },
+  // The same anatomy as a catalogue product card: a big thumbnail, then a column
+  // that reads top-down (code → which variation → price), and the actions aside.
+  varHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md },
+  varThumb: { width: 88, height: 88, borderRadius: RADIUS.control },
+  varInfo: { flex: 1 },
+  varOverline: { marginBottom: SPACING.hairline },
+  varName: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  varPrice: {
+    fontSize: FONT_SIZE.subheading,
+    fontWeight: FONT_WEIGHT.bold,
+    color: colors.textPrimary,
+    marginTop: SPACING.xs,
+  },
+  varActions: { flexDirection: 'row', flexShrink: 0 },
   varIconBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   stockEditBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: SPACING.sm,
     height: 40,
-    borderRadius: 12,
+    borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
-    marginTop: 10,
+    marginTop: SPACING.md,
   },
 });

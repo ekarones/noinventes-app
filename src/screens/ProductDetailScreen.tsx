@@ -1,35 +1,32 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { fetchProduct, fetchVariations } from '../api/products';
-import type { ProductImageItem, Variation } from '../types';
+import { fetchVariations } from '../api/products';
+import type { Variation } from '../types';
 import type { CatalogStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
-import { formatPrice } from '../utils/format';
-import { stockColor } from '../utils/stock';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { formatPrice, formatPriceRange } from '../utils/format';
 import { variationLabel } from '../utils/cart';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { hapticAdd } from '../utils/haptics';
 import ProductImage from '../components/ProductImage';
+import StockBadge from '../components/StockBadge';
+import IconLabel from '../components/IconLabel';
 import Button from '../components/Button';
+import QuantityStepper from '../components/QuantityStepper';
 
 type Props = NativeStackScreenProps<CatalogStackParamList, 'ProductDetail'>;
 
+// The header thumbnail — a square, so the carousel pages by exactly its width.
+const IMG_SIZE = 128;
+
 export default function ProductDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
   const { addItem } = useCart();
   const { showToast } = useToast();
   const { product, variationId } = route.params;
@@ -42,18 +39,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [selected, setSelected] = useState<Variation | null>(null);
   const [quantity, setQuantity] = useState(1);
 
-  // The row we got from the catalog has no gallery (the listing only sends the
-  // featured image), so fetch the detail to get `images`. Non-fatal: on failure
-  // we just keep showing the single featured image.
-  const [gallery, setGallery] = useState<ProductImageItem[]>(product.images);
-  const [activeImage, setActiveImage] = useState(0);
-
-  useEffect(() => {
-    if (product.images.length > 0) return;
-    fetchProduct(product.id)
-      .then((full) => setGallery(full.images))
-      .catch(() => {});
-  }, [product.id, product.images.length]);
+  // Tapping the header thumbnail opens the photo full-screen.
+  const [zoomed, setZoomed] = useState(false);
 
   useEffect(() => {
     if (!isVariable) return;
@@ -70,16 +57,14 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       .finally(() => setLoadingVariations(false));
   }, [isVariable, product.id, variationId]);
 
-  // Effective values: a chosen variation overrides the parent product.
+  // Effective values: a chosen variation overrides the parent product, so the
+  // summary at the top always reflects exactly what will go in the cart.
   const price = selected?.finalPrice ?? product.finalPrice;
   const stock = isVariable ? selected?.stock ?? 0 : product.stock;
+  const code = selected?.code ?? product.code;
   // Once a variation is chosen, show ITS image as-is — if it has none, leave it
   // empty (placeholder) rather than falling back to the parent's image.
   const imageUrl = selected ? selected.imageUrl : product.imageUrl;
-
-  // The carousel shows the product's own gallery; a chosen variation replaces it
-  // with that variation's single photo.
-  const showCarousel = !selected && gallery.length > 0;
 
   // Clamp quantity to available stock whenever the selection changes.
   useEffect(() => {
@@ -102,45 +87,13 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Image — a swipeable carousel over the product gallery; a single frame
-          once a variation is chosen (it shows that variation's own photo). */}
-      <View>
-        {showCarousel ? (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) =>
-              setActiveImage(Math.round(e.nativeEvent.contentOffset.x / width))
-            }
-          >
-            {gallery.map((img) => (
-              // Full-width frame → use the original, not the thumb.
-              <ProductImage
-                key={img.id}
-                uri={img.url}
-                style={[styles.image, { width }]}
-                iconSize={48}
-              />
-            ))}
-          </ScrollView>
-        ) : (
-          <ProductImage uri={imageUrl} style={[styles.image, { width }]} iconSize={48} />
-        )}
-
-        {showCarousel && gallery.length > 1 && (
-          <View style={styles.dots} pointerEvents="none">
-            {gallery.map((img, i) => (
-              <View key={img.id} style={[styles.dot, i === activeImage && styles.dotActive]} />
-            ))}
-          </View>
-        )}
-
+      {/* Back bar — the chevron used to float over a full-width hero; the hero is
+          now a thumbnail in the row below, so the button gets its own strip. */}
+      <View style={[styles.topBar, { paddingTop: insets.top + SPACING.sm }]}>
         <TouchableOpacity
-          style={[styles.backBtn, { top: insets.top + 8 }]}
+          style={styles.backBtn}
           onPress={() => navigation.goBack()}
           activeOpacity={ROW_PRESS_OPACITY}
-          hitSlop={HIT_SLOP}
           accessibilityRole="button"
           accessibilityLabel="Volver"
         >
@@ -148,45 +101,63 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Fixed product summary */}
-      <View style={styles.summary}>
-        <Text style={styles.category}>{product.category?.name ?? product.code}</Text>
-        <Text style={styles.name} numberOfLines={2}>
-          {product.name}
-        </Text>
-        <View style={styles.priceRow}>
-          <Text style={styles.price}>
-            {isVariable && !selected ? 'Desde ' : ''}
-            {formatPrice(price)}
+      {/* Header: the image and the summary side by side, so the variants below get
+          the room instead of being squeezed under a full-width image. The summary
+          reflects the chosen variation once one is picked. */}
+      <View style={styles.headerRow}>
+        {/* Tap to see it full-screen — the thumbnail is too small to read detail
+            on. Only tappable when there's actually a photo to expand. */}
+        <TouchableOpacity
+          style={styles.imageBox}
+          activeOpacity={ROW_PRESS_OPACITY}
+          onPress={() => imageUrl && setZoomed(true)}
+          disabled={!imageUrl}
+          accessibilityRole={imageUrl ? 'imagebutton' : undefined}
+          accessibilityLabel={imageUrl ? 'Ampliar imagen' : undefined}
+        >
+          <ProductImage uri={imageUrl} style={styles.image} iconSize={32} />
+          {/* A hint that the thumbnail expands — only when there's a photo to open. */}
+          {!!imageUrl && (
+            <View style={styles.expandHint} pointerEvents="none">
+              <Ionicons name="expand" size={14} color={colors.textOnPrimary} />
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Same reading order and type as a catalogue card: the category over the
+            name in bold near-black, the price under it — still black — and the
+            stock as a badge. */}
+        <View style={styles.summary}>
+          <Text style={styles.overline} numberOfLines={1}>
+            {product.category?.name ?? `#${code}`}
           </Text>
-          <View style={styles.stockInfo}>
-            <Ionicons
-              name="cube-outline"
-              size={15}
-              color={needsVariation ? colors.textSecondary : stockColor(stock)}
-            />
-            <Text
-              style={[
-                styles.stockText,
-                { color: needsVariation ? colors.textSecondary : stockColor(stock) },
-              ]}
-            >
-              {needsVariation ? 'Elige variante' : `${Math.max(0, stock)} disp.`}
-            </Text>
+          <Text style={styles.name} numberOfLines={2}>
+            {product.name}
+          </Text>
+          {/* No variation chosen → the product's full range ("S/ 39.90 – S/ 59.90"
+              when the variations differ). Once one is picked, its exact price. */}
+          <Text style={styles.price} numberOfLines={1}>
+            {formatPriceRange(price, selected ? null : product.finalPriceMax)}
+          </Text>
+          <View style={styles.stockRow}>
+            {needsVariation ? (
+              <IconLabel icon="cube-outline" text="Elige variante" />
+            ) : (
+              <StockBadge stock={stock} />
+            )}
           </View>
         </View>
-        <Text style={styles.code}>Código: {product.code}</Text>
       </View>
 
       {/* Variants — the ONLY scrollable region, so a long list never pushes the
           summary or the add-to-cart bar off screen. */}
       {isVariable ? (
         <View style={styles.variantsSection}>
-          <Text style={styles.sectionTitle}>
+          <Text style={[styles.sectionTitle, styles.sectionTitleInset]}>
             Variantes{variations.length > 0 ? ` (${variations.length})` : ''}
           </Text>
           {loadingVariations ? (
-            <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+            <ActivityIndicator color={colors.primary} style={{ marginTop: SPACING['2xl'] }} />
           ) : variationsError ? (
             <Text style={styles.errorText}>{variationsError}</Text>
           ) : (
@@ -215,19 +186,27 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
                     <ProductImage
                       uri={v.imageThumbUrl ?? product.imageThumbUrl}
                       style={styles.variationThumb}
-                      iconSize={16}
+                      iconSize={22}
                     />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.variationLabel}>{variationLabel(v)}</Text>
-                      <Text style={styles.variationMeta}>
-                        {v.code} ·{' '}
-                        <Text style={{ color: stockColor(v.stock), fontWeight: FONT_WEIGHT.medium }}>
-                          {Math.max(0, v.stock)} disp.
-                        </Text>
+                    <View style={styles.variationInfo}>
+                      <Text style={styles.variationLabel} numberOfLines={1}>
+                        {variationLabel(v)}
                       </Text>
+                      <View style={styles.variationMetaRow}>
+                        <StockBadge stock={v.stock} />
+                      </View>
                     </View>
-                    <Text style={styles.variationPrice}>{formatPrice(v.finalPrice)}</Text>
-                    {active && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
+                    <View style={styles.variationRight}>
+                      <Text style={styles.variationPrice}>{formatPrice(v.finalPrice)}</Text>
+                      {/* Always rendered, so selecting a variation reveals the check
+                          in place instead of pushing the price up as it appears. */}
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={22}
+                        color={colors.primary}
+                        style={!active && styles.checkHidden}
+                      />
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -240,33 +219,17 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
       {/* Fixed footer: quantity + total + add. The bottom tab bar already
           reserves the safe-area inset, so we don't add insets.bottom here. */}
-      <View style={[styles.footer, { paddingBottom: 16 }]}>
+      <View style={[styles.footer, { paddingBottom: SPACING.lg }]}>
         {canAdd && (
           <View style={styles.qtyRow}>
             <Text style={styles.qtyLabel}>Cantidad</Text>
-            <View style={styles.qtyStepper}>
-              <TouchableOpacity
-                style={[styles.qtyBtn, !canDecrease && styles.qtyBtnDisabled]}
-                onPress={() => canDecrease && setQuantity((q) => q - 1)}
-                disabled={!canDecrease}
-                activeOpacity={ROW_PRESS_OPACITY}
-                accessibilityRole="button"
-                accessibilityLabel="Quitar una unidad"
-              >
-                <Ionicons name="remove" size={22} color={colors.textPrimary} />
-              </TouchableOpacity>
-              <Text style={styles.qtyValue}>{quantity}</Text>
-              <TouchableOpacity
-                style={[styles.qtyBtn, !canIncrease && styles.qtyBtnDisabled]}
-                onPress={() => canIncrease && setQuantity((q) => q + 1)}
-                disabled={!canIncrease}
-                activeOpacity={ROW_PRESS_OPACITY}
-                accessibilityRole="button"
-                accessibilityLabel="Agregar una unidad"
-              >
-                <Ionicons name="add" size={22} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
+            <QuantityStepper
+              value={quantity}
+              onDecrement={() => setQuantity((q) => q - 1)}
+              onIncrement={() => setQuantity((q) => q + 1)}
+              canDecrement={canDecrease}
+              canIncrement={canIncrease}
+            />
           </View>
         )}
         <View style={styles.footerBottom}>
@@ -285,89 +248,146 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           />
         </View>
       </View>
+
+      {/* Full-screen photo. Tap anywhere (or the ✕) to dismiss. */}
+      <Modal
+        visible={zoomed}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setZoomed(false)}
+      >
+        <TouchableOpacity
+          style={styles.zoomBackdrop}
+          activeOpacity={1}
+          onPress={() => setZoomed(false)}
+        >
+          <Image source={imageUrl} style={styles.zoomImage} contentFit="contain" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.zoomClose, { top: insets.top + SPACING.sm }]}
+          onPress={() => setZoomed(false)}
+          activeOpacity={ROW_PRESS_OPACITY}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar"
+        >
+          <Ionicons name="close" size={26} color="#fff" />
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  image: { height: 220 },
-  dots: {
-    position: 'absolute',
-    bottom: 10,
-    left: 0,
-    right: 0,
+  topBar: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.sm },
+  // The image and the summary share a row, so the variants below get real room.
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
+    gap: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.md,
   },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+  imageBox: {
+    width: IMG_SIZE,
+    height: IMG_SIZE,
+    borderRadius: RADIUS.card,
+    overflow: 'hidden',
   },
-  dotActive: { backgroundColor: colors.primary, width: 18 },
-  backBtn: {
+  image: { width: IMG_SIZE, height: IMG_SIZE },
+  // A small dark chip in the corner of the thumbnail, so the tap-to-zoom is
+  // discoverable without a caption.
+  expandHint: {
     position: 'absolute',
-    left: 16,
-    width: 40,
-    height: 40,
+    right: SPACING.xs,
+    bottom: SPACING.xs,
+    width: 24,
+    height: 24,
     borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  summary: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12 },
-  category: {
-    fontSize: FONT_SIZE.micro,
-    fontWeight: FONT_WEIGHT.bold,
-    color: colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  name: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 4 },
-  priceRow: {
-    flexDirection: 'row',
+  zoomBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
+    justifyContent: 'center',
   },
-  price: { fontSize: FONT_SIZE.sectionValue, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
-  stockInfo: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  stockText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium },
-  code: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 6 },
-  variantsSection: { flex: 1 },
-  sectionTitle: {
-    fontSize: FONT_SIZE.body,
+  zoomImage: { width: '100%', height: '100%' },
+  zoomClose: {
+    position: 'absolute',
+    right: SPACING.xl,
+    width: TOUCH_MIN,
+    height: TOUCH_MIN,
+    borderRadius: RADIUS.pill,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backBtn: {
+    width: TOUCH_MIN,
+    height: TOUCH_MIN,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // The text column beside the image. Tight vertical rhythm: the four lines are
+  // one identity block, so they sit close (a 2pt grid step apart); centred so they
+  // balance against the square thumbnail.
+  // No blanket gap: the category hugs the name (as on a catalogue card), and the
+  // lines below carry their own spacing.
+  summary: { flex: 1, justifyContent: 'center' },
+  // Matches the catalogue card exactly: a bold near-black code overline, the name
+  // under it, and the price as the biggest thing — all black, no accent colour.
+  overline: {
+    fontSize: FONT_SIZE.caption,
     fontWeight: FONT_WEIGHT.bold,
     color: colors.textPrimary,
-    paddingHorizontal: 20,
-    marginTop: 6,
-    marginBottom: 8,
   },
+  name: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  price: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING.xs },
+  // A row so the badge sizes to its content instead of stretching the column.
+  // Fixed height so the block doesn't re-centre when the badge (tall) swaps with
+  // the "Elige variante" hint (short) — otherwise picking a variation nudges the
+  // whole summary up or down. 24 is the stock badge's own height.
+  stockRow: { flexDirection: 'row', alignItems: 'center', minHeight: 24, marginTop: SPACING.sm },
+  // The variants list below scrolls horizontally and bleeds to the screen edge,
+  // so its section can't be padded — the title carries the inset instead. Same
+  // type as the admin's section title, just placed by hand.
+  sectionTitleInset: { paddingHorizontal: SPACING.xl },
+  variantsSection: { flex: 1 },
+  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING.md, marginBottom: SPACING.md },
   variantsScroll: { flex: 1 },
-  variantsList: { paddingHorizontal: 20, paddingBottom: 16, gap: 10 },
-  errorText: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, paddingHorizontal: 20 },
+  variantsList: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg, gap: SPACING.md },
+  errorText: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, paddingHorizontal: SPACING.xl },
+  // A compact picker card: a small thumbnail, the variation and its code+stock in
+  // one column, the price and the selected check aside. Smaller than a catalogue
+  // card because the list is a chooser you scroll, not a shelf you browse.
   variationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
+    gap: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: RADIUS.card,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   variationRowActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   variationRowDisabled: { opacity: 0.5 },
-  variationThumb: { width: 44, height: 44, borderRadius: 10 },
-  variationLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  variationMeta: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 2 },
+  variationThumb: { width: 56, height: 56, borderRadius: RADIUS.control },
+  variationInfo: { flex: 1, gap: SPACING.xs },
+  variationLabel: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  variationMetaRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' },
+  variationRight: { alignItems: 'flex-end', gap: SPACING.sm, flexShrink: 0 },
   variationPrice: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  // Keeps the check's slot so the price never jumps; invisible until selected.
+  checkHidden: { opacity: 0 },
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
@@ -376,26 +396,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   qtyLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  qtyBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyBtnDisabled: { opacity: 0.4 },
-  qtyValue: {
-    fontSize: FONT_SIZE.titleSm,
-    fontWeight: FONT_WEIGHT.bold,
-    color: colors.textPrimary,
-    minWidth: 24,
-    textAlign: 'center',
-  },
   footerBottom: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -9,13 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createUser, updateUser } from '../api/admin/users';
 import { fetchAdminBranches } from '../api/admin/branches';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import Field from '../components/Field';
 import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
@@ -32,7 +31,6 @@ const ROLES: { value: AdminUserRole; label: string; hint: string }[] = [
 ];
 
 export default function AdminUserFormScreen({ route, navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const editing = route.params?.user;
 
@@ -106,7 +104,7 @@ export default function AdminUserFormScreen({ route, navigation }: Props) {
       />
 
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -232,32 +230,32 @@ export default function AdminUserFormScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: 18, marginBottom: 6 },
+  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.md,
     borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: RADIUS.card,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   roleCardActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   roleLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
   roleLabelActive: { color: colors.primary },
-  roleHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
+  roleHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primarySoft,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 50,
+    borderRadius: RADIUS.control,
+    paddingHorizontal: SPACING.md,
+    height: CONTROL_HEIGHT.input,
   },
   selectText: { flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   selectPlaceholder: { color: colors.textSecondary },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 8, lineHeight: 17 },
-  saveBtn: { marginTop: 28 },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  saveBtn: { marginTop: SPACING['2xl'] },
 });

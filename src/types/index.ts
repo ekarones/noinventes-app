@@ -33,7 +33,11 @@ export type Product = {
   type: ProductType;
   status: ProductStatus;
   unitValue: number;
+  // For a variable product this is the cheapest variation ("desde"); for a simple
+  // one it's the price. `finalPriceMax` is the dearest variation, or null when the
+  // product is simple (no range) — together they bound the price range.
   finalPrice: number;
+  finalPriceMax: number | null;
   unitOfMeasure: string;
   imageUrl: string | null;
   // ~600px version of imageUrl. Use it in lists and cards; keep imageUrl for the
@@ -128,8 +132,18 @@ export type DashboardSummary = {
   averageTicket: number;
 };
 
+// One line of the best-sellers ranking. The API groups by
+// (product_id, product_variation_id), so a variable product that sold two
+// combinations ranks as two rows — the catalogue, the cart and the receipt all
+// treat a variation as its own sellable thing, and the dashboard now does too.
+//
+// `variationId` / `variationLabel` are null for a simple product. `name` is the
+// parent's clean name; the UI joins it with the label ("Polo básico · Rojo · M").
+// The images already point at the variation when it has its own.
 export type DashboardTopProduct = {
   productId: number;
+  variationId: number | null;
+  variationLabel: string | null;
   name: string;
   quantitySold: number;
   total: number;
@@ -260,7 +274,10 @@ export type AdminProductRow = {
   type: ProductType;
   status: AdminProductStatus;
   unitValue: number;
+  // "desde" for variable products; the price for simple ones. `finalPriceMax` is
+  // the top of the range, or null for simple products.
   finalPrice: number;
+  finalPriceMax: number | null;
   unitOfMeasure: string;
   imageUrl: string | null;
   imageThumbUrl: string | null;
@@ -290,7 +307,10 @@ export type AdminProductDetail = {
   type: ProductType;
   status: AdminProductStatus;
   unitValue: number;
+  // "desde" for variable products; the price for simple ones. `finalPriceMax` is
+  // the top of the range, or null for simple products.
   finalPrice: number;
+  finalPriceMax: number | null;
   unitOfMeasure: string;
   variationsCount: number;
   category: CategoryRef | null;

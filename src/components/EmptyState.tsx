@@ -14,16 +14,22 @@ type Props = {
     onPress: () => void;
     icon?: keyof typeof Ionicons.glyphMap;
   };
+  /**
+   * For an empty SECTION rather than an empty screen. Drops the `flex: 1` — which
+   * would otherwise swallow all the room left and shove the sections below it off
+   * the page — and scales everything down to fit inside the block.
+   */
+  compact?: boolean;
 };
 
 // The placeholder shown when a list is empty or a request failed. Centralised so
 // "nothing here" and "it broke" always read the same way: a muted icon, a short
 // title, one line of explanation, and — when the user can do something about it —
 // a single action.
-export default function EmptyState({ icon, title, message, action }: Props) {
+export default function EmptyState({ icon, title, message, action, compact }: Props) {
   return (
-    <View style={styles.container}>
-      <Ionicons name={icon} size={56} color={colors.border} />
+    <View style={[styles.container, compact && styles.compact]}>
+      <Ionicons name={icon} size={compact ? 36 : 56} color={colors.border} />
       {!!title && <Text style={styles.title}>{title}</Text>}
       {!!message && <Text style={styles.message}>{message}</Text>}
       {action && (
@@ -47,6 +53,7 @@ const styles = StyleSheet.create({
     paddingTop: SPACING['3xl'],
     paddingHorizontal: SPACING['3xl'],
   },
+  compact: { flex: 0, paddingTop: SPACING.md, paddingBottom: SPACING.md },
   title: {
     fontSize: FONT_SIZE.heading,
     fontWeight: FONT_WEIGHT.bold,

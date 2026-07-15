@@ -5,16 +5,20 @@
 // ---- Interactive controls ----
 //
 // Heights respect the 44dp minimum touch target from the iOS HIG / Material
-// guidelines. Anything visually smaller than that (icon buttons, pills) must
-// pass `HIT_SLOP` so the *tappable* area still clears the minimum.
+// guidelines. Prefer sizing a control to `TOUCH_MIN` over padding it out with
+// `HIT_SLOP`: a slop makes the tappable area bigger than the thing you can see,
+// which looks like a stray margin and lets neighbouring buttons steal taps.
+export const TOUCH_MIN = 44;
+
 export const CONTROL_HEIGHT = {
-  pill: 40, // header controls: sort, clear, QR
+  pill: TOUCH_MIN, // header controls: sort, clear, QR
   md: 46, // secondary actions inside a card/sheet
   lg: 54, // the main call to action of a screen
   input: 50, // text fields
 } as const;
 
-// Expands the touch area of small controls to a comfortable ~56dp.
+// For taps that genuinely can't be sized up — an "✕" living inside a chip, an
+// icon inside a text field. Everything else should just be `TOUCH_MIN` tall.
 export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 } as const;
 
 // Press feedback for tappable rows/cards. Buttons use a pressed-background
@@ -23,17 +27,25 @@ export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 } as const;
 export const ROW_PRESS_OPACITY = 0.75;
 
 // ---- Shape ----
+// Four steps, one per role — a rule you can say out loud instead of six numbers
+// picked by eye. There used to be 8, 10, 12, 14, 16 and 18 all doing the same job
+// (rounding a box), and nobody can see the difference between 10 and 12.
 export const RADIUS = {
-  sm: 8, // badges, small chips
-  md: 12, // inputs, secondary buttons
-  lg: 14, // primary buttons
-  xl: 16, // cards
+  badge: 8, // badges, counters, chips — anything that wraps a word
+  control: 12, // inputs, buttons, icon boxes, thumbnails
+  card: 16, // cards, panels, image frames
   sheet: 22, // bottom sheets
-  pill: 999, // fully rounded
+  pill: 999, // fully rounded — a pill or a circle, whatever its size
 } as const;
 
 // ---- Rhythm (4pt grid) ----
+//
+// `hairline` is the one step off the grid, and it is deliberate: 2px is an
+// optical nudge (the subtitle sitting under a title), not a layout decision.
+// Everything that separates or pads real blocks uses the grid — the app had
+// drifted to 14 padding values, 12 margins and 10 gaps, including 3, 5, 6 and 7.
 export const SPACING = {
+  hairline: 2,
   xs: 4,
   sm: 8,
   md: 12,

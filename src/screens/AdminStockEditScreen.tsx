@@ -9,12 +9,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { updateProductStock, updateVariationStock } from '../api/admin/products';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
 import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
 import Button from '../components/Button';
@@ -23,7 +22,6 @@ import type { AdminProductsStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminStockEdit'>;
 
 export default function AdminStockEditScreen({ route, navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const { kind, id, title, subtitle, stock } = route.params;
 
@@ -79,7 +77,7 @@ export default function AdminStockEditScreen({ route, navigation }: Props) {
       <ScreenHeader title="Editar stock" onBack={() => navigation.goBack()} />
 
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING.xl }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -132,24 +130,24 @@ export default function AdminStockEditScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   productName: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  productSub: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
-  muted: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 20 },
+  productSub: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
+  muted: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.xl },
   box: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 14,
-    marginTop: 18,
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.xl,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  branchInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  branchInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   branchName: { flex: 1, fontSize: FONT_SIZE.body, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
   input: {
     width: 84,
     height: 46,
-    borderRadius: 12,
+    borderRadius: RADIUS.control,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.background,
@@ -158,6 +156,6 @@ const styles = StyleSheet.create({
     fontWeight: FONT_WEIGHT.bold,
     color: colors.textPrimary,
   },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 14, lineHeight: 17 },
-  saveBtn: { marginTop: 24 },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  saveBtn: { marginTop: SPACING['2xl'] },
 });

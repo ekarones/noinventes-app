@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import BottomSheet, { SheetOption } from './BottomSheet';
 
 // A sort preset as far as this control is concerned: what the user sees. Callers
@@ -30,7 +30,6 @@ export function SortControl({ options, index, onChange }: SortControlProps) {
       <TouchableOpacity
         style={styles.pill}
         onPress={() => setOpen(true)}
-        hitSlop={HIT_SLOP}
         activeOpacity={ROW_PRESS_OPACITY}
         accessibilityRole="button"
         accessibilityLabel="Ordenar"
@@ -64,7 +63,6 @@ export function ClearFiltersButton({ onPress }: { onPress: () => void }) {
     <TouchableOpacity
       style={styles.pill}
       onPress={onPress}
-      hitSlop={HIT_SLOP}
       activeOpacity={ROW_PRESS_OPACITY}
       accessibilityRole="button"
       accessibilityLabel="Limpiar filtros"

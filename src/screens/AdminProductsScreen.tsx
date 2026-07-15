@@ -1,15 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,16 +7,21 @@ import { fetchAdminProducts } from '../api/admin/products';
 import { fetchAdminCategories } from '../api/admin/categories';
 import type { PaginationMeta } from '../api/products';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { SPACING } from '../theme/tokens';
+import ProductRow from '../components/ProductRow';
+import StockBadge from '../components/StockBadge';
+import IconLabel, { IconLabelRow } from '../components/IconLabel';
+import IconButton from '../components/IconButton';
+import Chip, { ChipRow } from '../components/Chip';
+import Select from '../components/Select';
+import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
 import LoadingState from '../components/LoadingState';
-import BottomSheet, { SheetOption } from '../components/BottomSheet';
 import EmptyState from '../components/EmptyState';
-import { formatPrice } from '../utils/format';
+import { formatPriceRange } from '../utils/format';
 import { useDebounce } from '../hooks/useDebounce';
-import { ADMIN_DEFAULT_SORT, PRODUCT_SORT_OPTIONS } from '../utils/productSort';
+import { ADMIN_DEFAULT_SORT, PRODUCT_SORT_OPTIONS } from '../utils/sortOptions';
 import { SortControl } from '../components/FilterControls';
-import ProductImage from '../components/ProductImage';
 import type { AdminCategory, AdminProductRow, AdminProductStatus } from '../types';
 import type { AdminProductsStackParamList } from '../navigation/types';
 
@@ -49,8 +44,19 @@ const STATUS_LABEL: Record<AdminProductStatus, string> = {
   private: 'Privado',
 };
 
+const STATUS_ICON: Record<AdminProductStatus, keyof typeof Ionicons.glyphMap> = {
+  published: 'checkmark-circle-outline',
+  public: 'eye-outline',
+  private: 'lock-closed-outline',
+};
+
+function statusColor(status: AdminProductStatus) {
+  if (status === 'published') return colors.success;
+  if (status === 'public') return colors.primary;
+  return colors.textSecondary;
+}
+
 export default function AdminProductsScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const [products, setProducts] = useState<AdminProductRow[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,7 +74,6 @@ export default function AdminProductsScreen({ navigation }: Props) {
   // Category scope: null = all. The server includes subcategories.
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
-  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
 
   useEffect(() => {
     fetchAdminCategories()
@@ -87,8 +92,6 @@ export default function AdminProductsScreen({ navigation }: Props) {
   }
 
   const statusParam = useMemo(() => (status === 'all' ? undefined : status), [status]);
-  const categoryName =
-    categoryId == null ? 'Todas las categorías' : categories.find((c) => c.id === categoryId)?.name ?? '—';
 
   const loadFirstPage = useCallback(
     async (isRefresh = false) => {
@@ -148,82 +151,66 @@ export default function AdminProductsScreen({ navigation }: Props) {
 
   function renderItem({ item }: { item: AdminProductRow }) {
     return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={ROW_PRESS_OPACITY}
+      <ProductRow
+        imageUri={item.imageThumbUrl}
+        name={item.name}
+        // The full range when the variations differ; a single price otherwise. If
+        // the API build doesn't send the max yet, it reads as one price.
+        price={formatPriceRange(item.finalPrice, item.finalPriceMax)}
         onPress={() => navigation.navigate('AdminProductDetail', { product: item })}
-      >
-        <ProductImage uri={item.imageThumbUrl} style={styles.thumb} iconSize={22} />
-        <View style={styles.cardInfo}>
-          <Text style={styles.name} numberOfLines={2}>
-            {item.name}
-          </Text>
-          <Text style={styles.code}>{item.code}</Text>
-          <View style={styles.badges}>
-            <View style={[styles.statusBadge, statusStyle(item.status)]}>
-              <Text style={[styles.statusText, statusTextStyle(item.status)]}>
-                {STATUS_LABEL[item.status]}
-              </Text>
-            </View>
+        overline={item.category?.name ?? `#${item.code}`}
+        meta={
+          <>
+            <IconLabelRow>
+              <IconLabel
+                icon={STATUS_ICON[item.status]}
+                text={STATUS_LABEL[item.status]}
+                tint={statusColor(item.status)}
+              />
+            </IconLabelRow>
             {item.type === 'variable' && (
-              <View style={styles.varBadge}>
-                <Ionicons name="git-branch-outline" size={11} color={colors.textSecondary} />
-                <Text style={styles.varText}>{item.variationsCount} var.</Text>
-              </View>
+              <IconLabelRow>
+                <IconLabel icon="git-branch-outline" text={`${item.variationsCount} var.`} />
+              </IconLabelRow>
             )}
-          </View>
-        </View>
-        <View style={styles.cardRight}>
-          <Text style={styles.price}>
-            {formatPrice(item.finalPrice)}
-            {item.type === 'variable' ? '+' : ''}
-          </Text>
-          {item.stock != null && <Text style={styles.stock}>{item.stock} uds.</Text>}
-        </View>
-      </TouchableOpacity>
+          </>
+        }
+        // Null for a variable product: its stock lives on the variations.
+        stat={item.stock != null ? <StockBadge stock={item.stock} /> : undefined}
+      />
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.titleRow}>
-          <View style={styles.titleTexts}>
-            <Text style={styles.title}>Productos</Text>
-            {meta && (
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {meta.total} en el catálogo · {sort.label}
-              </Text>
-            )}
-          </View>
-          <View style={styles.titleActions}>
+      <ScreenTitle
+        title="Catálogo"
+        subtitle={
+          meta
+            ? `${meta.total} ${hasFilters ? 'coinciden' : 'productos'} · ${sort.label}`
+            : undefined
+        }
+        actions={
+          <>
             <SortControl
               options={PRODUCT_SORT_OPTIONS}
               index={sortIndex}
               onChange={setSortIndex}
             />
-            <TouchableOpacity
-              style={styles.iconBtn}
+            <IconButton
+              icon="trash-outline"
               onPress={() => navigation.navigate('AdminProductsTrash')}
-              hitSlop={8}
               accessibilityLabel="Papelera"
-              activeOpacity={ROW_PRESS_OPACITY}
-            >
-              <Ionicons name="trash-outline" size={18} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.addBtn}
+            />
+            <IconButton
+              icon="add"
+              primary
               onPress={() => navigation.navigate('AdminProductForm', {})}
-              hitSlop={8}
               accessibilityLabel="Nuevo producto"
-              activeOpacity={ROW_PRESS_OPACITY}
-            >
-              <Ionicons name="add" size={22} color={colors.textOnPrimary} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Search */}
+            />
+          </>
+        }
+      >
         <SearchBar
           value={searchText}
           onChangeText={setSearchText}
@@ -231,47 +218,26 @@ export default function AdminProductsScreen({ navigation }: Props) {
         />
 
         {/* Status filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        <ChipRow>
           {STATUS_FILTERS.map((s) => (
-            <TouchableOpacity
+            <Chip
               key={s.value}
-              style={[styles.chip, status === s.value && styles.chipActive]}
+              label={s.label}
+              active={status === s.value}
               onPress={() => setStatus(s.value)}
-              activeOpacity={ROW_PRESS_OPACITY}
-            >
-              <Text style={[styles.chipText, status === s.value && styles.chipTextActive]}>
-                {s.label}
-              </Text>
-            </TouchableOpacity>
+            />
           ))}
-        </ScrollView>
+        </ChipRow>
 
         {/* Category scope */}
-        <TouchableOpacity
-          style={[styles.categorySelect, categoryId != null && styles.categorySelectActive]}
-          onPress={() => setCategoryPickerOpen(true)}
-          activeOpacity={ROW_PRESS_OPACITY}
-        >
-          <Ionicons
-            name="folder-outline"
-            size={16}
-            color={categoryId != null ? colors.primary : colors.textSecondary}
-          />
-          <Text
-            style={[styles.categoryText, categoryId != null && styles.categoryTextActive]}
-            numberOfLines={1}
-          >
-            {categoryName}
-          </Text>
-          {categoryId != null ? (
-            <TouchableOpacity onPress={() => setCategoryId(null)} hitSlop={10} activeOpacity={ROW_PRESS_OPACITY}>
-              <Ionicons name="close-circle" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          ) : (
-            <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
-          )}
-        </TouchableOpacity>
-      </View>
+        <Select
+          icon="folder-outline"
+          placeholder="Todas las categorías"
+          value={categoryId}
+          options={categories.map((c) => ({ id: c.id, label: c.name, depth: c.depth }))}
+          onChange={setCategoryId}
+        />
+      </ScreenTitle>
 
       {loading ? (
         <LoadingState />
@@ -286,7 +252,7 @@ export default function AdminProductsScreen({ navigation }: Props) {
           data={products}
           keyExtractor={(p) => String(p.id)}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={products.length ? styles.list : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onEndReached={loadMore}
@@ -301,7 +267,7 @@ export default function AdminProductsScreen({ navigation }: Props) {
           }
           ListFooterComponent={
             loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
+              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
             ) : null
           }
           ListEmptyComponent={
@@ -320,134 +286,16 @@ export default function AdminProductsScreen({ navigation }: Props) {
       )}
 
 
-      {/* Category picker — indented to reflect the tree. */}
-      <BottomSheet
-        visible={categoryPickerOpen}
-        onClose={() => setCategoryPickerOpen(false)}
-        title="Categoría"
-        scrollable
-      >
-        <SheetOption
-          label="Todas las categorías"
-          active={categoryId == null}
-          onPress={() => {
-            setCategoryId(null);
-            setCategoryPickerOpen(false);
-          }}
-        />
-        {categories.map((c) => (
-          <SheetOption
-            key={c.id}
-            label={c.name}
-            depth={c.depth}
-            active={categoryId === c.id}
-            onPress={() => {
-              setCategoryId(c.id);
-              setCategoryPickerOpen(false);
-            }}
-          />
-        ))}
-      </BottomSheet>
     </View>
   );
 }
 
-function statusStyle(status: AdminProductStatus) {
-  if (status === 'published') return { backgroundColor: '#dcfce7' };
-  if (status === 'public') return { backgroundColor: colors.primarySoft };
-  return { backgroundColor: colors.border };
-}
 
-function statusTextStyle(status: AdminProductStatus) {
-  if (status === 'published') return { color: colors.success };
-  if (status === 'public') return { color: colors.primary };
-  return { color: colors.textSecondary };
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingBottom: 4 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
-  titleTexts: { flex: 1 },
-  titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  subtitle: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
-  chips: { gap: 8, paddingVertical: 10, paddingRight: 8 },
-  chip: {
-    paddingHorizontal: 16,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  chipTextActive: { color: colors.textOnPrimary },
-  categorySelect: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    marginBottom: 10,
-  },
-  categorySelectActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  categoryText: { flex: 1, fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  categoryTextActive: { color: colors.primary },
-  list: { padding: 20, paddingTop: 4, gap: 14, flexGrow: 1 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 12,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  thumb: { width: 56, height: 56, borderRadius: 12 },
-  cardInfo: { flex: 1, gap: 3 },
-  name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  code: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-  statusText: { fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold },
-  varBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  varText: { fontSize: FONT_SIZE.badge, color: colors.textSecondary, fontWeight: FONT_WEIGHT.medium },
-  cardRight: { alignItems: 'flex-end', gap: 4 },
-  price: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  stock: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
+  // Each product is its own card; the list just spaces them and pays the screen
+  // margins. flexGrow lets a short list still fill the page.
+  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  listEmpty: { flexGrow: 1 },
 });

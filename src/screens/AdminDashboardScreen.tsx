@@ -7,20 +7,35 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
-import { formatPrice, formatRelative } from '../utils/format';
-import { paymentMethodLabel } from '../utils/payment';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { formatPrice } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { fetchAdminDashboard } from '../api/admin/dashboard';
+import { fetchAdminProductDetail } from '../api/admin/products';
+import { ApiError } from '../api/client';
 import { fetchAdminBranches } from '../api/admin/branches';
+import Avatar from '../components/Avatar';
+import KpiCard, { KpiGrid } from '../components/KpiCard';
+import TopProductRow, { topProductKey } from '../components/TopProductRow';
+import SaleRow from '../components/SaleRow';
+import ScreenTitle from '../components/ScreenTitle';
+import SectionHeader from '../components/SectionHeader';
+import Card from '../components/Card';
+import EmptyState from '../components/EmptyState';
+import Segmented from '../components/Segmented';
 import LoadingState from '../components/LoadingState';
 import BottomSheet, { SheetOption } from '../components/BottomSheet';
-import ProductImage from '../components/ProductImage';
-import type { AdminBranch, AdminDashboard, StatsPeriod } from '../types';
+import type {
+  AdminBranch,
+  AdminDashboard,
+  AdminRecentSale,
+  DashboardTopProduct,
+  StatsPeriod,
+} from '../types';
 
 const PERIODS: { value: StatsPeriod; label: string }[] = [
   { value: 'today', label: 'Hoy' },
@@ -29,9 +44,9 @@ const PERIODS: { value: StatsPeriod; label: string }[] = [
 ];
 
 export default function AdminDashboardScreen() {
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   const [period, setPeriod] = useState<StatsPeriod>('today');
   const [data, setData] = useState<AdminDashboard | null>(null);
@@ -44,6 +59,9 @@ export default function AdminDashboardScreen() {
   const [branches, setBranches] = useState<AdminBranch[]>([]);
   const [branchId, setBranchId] = useState<number | null>(null);
   const [branchPickerOpen, setBranchPickerOpen] = useState(false);
+  // Which best-seller row is being opened. A variable product ranks once per
+  // variation, so several rows share a productId — the key has to include it.
+  const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAdminBranches()
@@ -76,14 +94,77 @@ export default function AdminDashboardScreen() {
     }, [load])
   );
 
+  // Open a top product's detail. The dashboard row only carries the id, so fetch
+  // the full product first; a 404 means it was deleted from the catalogue.
+  async function openProduct(tp: DashboardTopProduct) {
+    if (openingKey) return;
+    setOpeningKey(topProductKey(tp));
+    try {
+      const product = await fetchAdminProductDetail(tp.productId);
+      // Pushed on Inicio's own stack — see HomeStack.
+      navigation.navigate('AdminProductDetail', { product });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) {
+        showToast('Este producto ya no existe', 'alert-circle');
+      } else {
+        showToast('No se pudo abrir el producto', 'alert-circle');
+      }
+    } finally {
+      setOpeningKey(null);
+    }
+  }
+
+  // Open the full sale detail (which re-fetches complete data + line items). The
+  // dashboard row is partial, so we pass what we have as a fallback — same trick
+  // the seller's dashboard uses.
+  function openSale(sale: AdminRecentSale) {
+    navigation.navigate('AdminSaleDetail', {
+      sale: {
+        id: sale.id,
+        customerName: sale.customerName,
+        subtotal: sale.total,
+        discount: 0,
+        total: sale.total,
+        paymentMethod: sale.paymentMethod,
+        notes: null,
+        itemsCount: sale.itemsCount,
+        createdAt: sale.createdAt,
+        seller: sale.seller,
+        branch: sale.branch,
+      },
+    });
+  }
+
+  const firstName = user?.name?.split(' ')[0];
   const summary = data?.summary;
   const branchName =
     branchId == null ? 'Todas las sucursales' : branches.find((b) => b.id === branchId)?.name ?? '—';
 
   return (
     <View style={styles.container}>
+      {/* Fixed: the period has to stay in sight, or you scroll down to a number
+          and no longer know which period it belongs to. It sits OUTSIDE the
+          ScrollView rather than using `stickyHeaderIndices`, because a sticky
+          header on Android is only translated into view — it is still hit-tested
+          where it was laid out, so its buttons stop responding as soon as you
+          scroll away from the top. */}
+      <View>
+        <ScreenTitle
+          overline={firstName ? `Hola, ${firstName} 👋` : 'Hola 👋'}
+          title="Panel general"
+          actions={
+            <Avatar
+              name={user?.name}
+              onPress={() => navigation.navigate('AdminProfile')}
+              accessibilityLabel="Perfil"
+            />
+          }
+        />
+        <Segmented options={PERIODS} value={period} onChange={setPeriod} />
+      </View>
+
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -94,39 +175,6 @@ export default function AdminDashboardScreen() {
           />
         }
       >
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.headerTexts}>
-            <Text style={styles.hello}>Hola, {user?.name?.split(' ')[0]} 👋</Text>
-            <Text style={styles.headerTitle}>Panel general</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.profileBtn}
-            activeOpacity={ROW_PRESS_OPACITY}
-            onPress={() => navigation.navigate('AdminProfile')}
-            accessibilityLabel="Perfil"
-          >
-            <Text style={styles.profileInitial}>{user?.name?.charAt(0).toUpperCase() ?? '?'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Period selector */}
-        <View style={styles.periodRow}>
-          {PERIODS.map((p) => {
-            const active = period === p.value;
-            return (
-              <TouchableOpacity
-                key={p.value}
-                style={[styles.periodPill, active && styles.periodPillActive]}
-                onPress={() => setPeriod(p.value)}
-                activeOpacity={ROW_PRESS_OPACITY}
-              >
-                <Text style={[styles.periodText, active && styles.periodTextActive]}>{p.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
         {/* Branch scope */}
         <TouchableOpacity
           style={[styles.branchSelect, branchId != null && styles.branchSelectActive]}
@@ -145,7 +193,14 @@ export default function AdminDashboardScreen() {
             {branchName}
           </Text>
           {branchId != null ? (
-            <TouchableOpacity onPress={() => setBranchId(null)} hitSlop={10} activeOpacity={ROW_PRESS_OPACITY}>
+            // Can't grow to the touch minimum — it lives inside the row it clears —
+            // so it borrows the room around it.
+            <TouchableOpacity
+              onPress={() => setBranchId(null)}
+              hitSlop={HIT_SLOP}
+              activeOpacity={ROW_PRESS_OPACITY}
+              accessibilityLabel="Ver todas las sucursales"
+            >
               <Ionicons name="close-circle" size={18} color={colors.primary} />
             </TouchableOpacity>
           ) : (
@@ -156,17 +211,15 @@ export default function AdminDashboardScreen() {
         {loading ? (
           <LoadingState />
         ) : error ? (
-          <View style={styles.centerPad}>
-            <Ionicons name="cloud-offline-outline" size={44} color={colors.border} />
-            <Text style={styles.emptyText}>{error}</Text>
-            <TouchableOpacity style={styles.cta} onPress={() => load()} activeOpacity={ROW_PRESS_OPACITY}>
-              <Text style={styles.ctaText}>Reintentar</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="cloud-offline-outline"
+            message={error}
+            action={{ label: 'Reintentar', onPress: () => load() }}
+          />
         ) : (
           <>
             {/* KPI cards */}
-            <View style={styles.kpiGrid}>
+            <KpiGrid>
               <KpiCard
                 icon="cash-outline"
                 label="Ventas totales"
@@ -184,7 +237,7 @@ export default function AdminDashboardScreen() {
                 label="Ticket promedio"
                 value={formatPrice(summary?.averageTicket ?? 0)}
               />
-            </View>
+            </KpiGrid>
 
             {/* Low stock alert — tap to see the critical products */}
             {data && data.lowStock.count > 0 && (
@@ -212,43 +265,38 @@ export default function AdminDashboardScreen() {
             )}
 
             {/* Top products */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Más vendidos</Text>
-            </View>
+            <SectionHeader icon="trophy-outline" title="Más vendidos" />
             {!data || data.topProducts.length === 0 ? (
-              <Text style={styles.emptyText}>Sin ventas en este período.</Text>
+              <EmptyState
+                compact
+                icon="trophy-outline"
+                message="Nadie vendió nada en este período."
+              />
             ) : (
-              <View style={styles.card}>
+              <Card inset>
                 {data.topProducts.map((tp, index) => (
-                  <View
-                    key={tp.productId}
-                    style={[styles.topRow, index > 0 && styles.rowBorder]}
-                  >
-                    <View style={styles.topThumbWrap}>
-                      <ProductImage uri={tp.imageThumbUrl} style={styles.topThumb} iconSize={18} />
-                      <View style={styles.rankBadge}>
-                        <Text style={styles.rankText}>{index + 1}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.topInfo}>
-                      <Text style={styles.topName} numberOfLines={1}>
-                        {tp.name}
-                      </Text>
-                      <Text style={styles.topCategory}>{formatPrice(tp.total)}</Text>
-                    </View>
-                    <Text style={styles.topQty}>{tp.quantitySold} uds.</Text>
-                  </View>
+                  <TopProductRow
+                    key={topProductKey(tp)}
+                    rank={index + 1}
+                    name={tp.name}
+                    variationLabel={tp.variationLabel}
+                    imageUri={tp.imageThumbUrl}
+                    quantitySold={tp.quantitySold}
+                    total={tp.total}
+                    onPress={() => openProduct(tp)}
+                    loading={openingKey === topProductKey(tp)}
+                    disabled={openingKey !== null}
+                    divided={index > 0}
+                  />
                 ))}
-              </View>
+              </Card>
             )}
 
             {/* Sales by branch */}
             {data && data.salesByBranch.length > 0 && (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Por sucursal</Text>
-                </View>
-                <View style={styles.card}>
+                <SectionHeader icon="storefront-outline" title="Por sucursal" />
+                <Card inset>
                   {data.salesByBranch.map((b, index) => (
                     <View key={b.branchId} style={[styles.breakRow, index > 0 && styles.rowBorder]}>
                       <View style={styles.iconBox}>
@@ -265,24 +313,18 @@ export default function AdminDashboardScreen() {
                       <Text style={styles.orderTotal}>{formatPrice(b.total)}</Text>
                     </View>
                   ))}
-                </View>
+                </Card>
               </>
             )}
 
             {/* Sales by seller */}
             {data && data.salesBySeller.length > 0 && (
               <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Por vendedor</Text>
-                </View>
-                <View style={styles.card}>
+                <SectionHeader icon="person-outline" title="Por vendedor" />
+                <Card inset>
                   {data.salesBySeller.map((s, index) => (
                     <View key={s.sellerId} style={[styles.breakRow, index > 0 && styles.rowBorder]}>
-                      <View style={styles.avatarSm}>
-                        <Text style={styles.avatarSmText}>
-                          {s.sellerName?.charAt(0).toUpperCase() ?? '?'}
-                        </Text>
-                      </View>
+                      <Avatar name={s.sellerName} size="sm" />
                       <View style={styles.topInfo}>
                         <Text style={styles.topName} numberOfLines={1}>
                           {s.sellerName}
@@ -294,48 +336,44 @@ export default function AdminDashboardScreen() {
                       <Text style={styles.orderTotal}>{formatPrice(s.total)}</Text>
                     </View>
                   ))}
-                </View>
+                </Card>
               </>
             )}
 
             {/* Recent sales */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Ventas recientes</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('AdminSalesTab')} activeOpacity={ROW_PRESS_OPACITY}>
-                <Text style={styles.link}>Ver todas</Text>
-              </TouchableOpacity>
-            </View>
+            <SectionHeader
+              icon="receipt-outline"
+              title="Ventas recientes"
+              action={{ label: 'Ver todas', onPress: () => navigation.navigate('AdminSalesTab') }}
+            />
             {!data || data.recentSales.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Ionicons name="bag-handle-outline" size={40} color={colors.border} />
-                <Text style={styles.emptyText}>Sin ventas en este período.</Text>
-              </View>
+              <EmptyState
+                compact
+                icon="receipt-outline"
+                message="Ningún vendedor registró ventas en este período."
+                action={{
+                  label: 'Ver todas las ventas',
+                  icon: 'receipt-outline',
+                  onPress: () => navigation.navigate('AdminSalesTab'),
+                }}
+              />
             ) : (
-              <View style={styles.card}>
+              <Card inset>
                 {data.recentSales.map((sale, index) => (
-                  <View key={sale.id} style={[styles.orderRow, index > 0 && styles.rowBorder]}>
-                    <View style={styles.iconBox}>
-                      <Ionicons name="receipt-outline" size={20} color={colors.primary} />
-                    </View>
-                    <View style={styles.topInfo}>
-                      <Text style={styles.topName} numberOfLines={1}>
-                        Venta #{sale.id}
-                        {sale.seller ? ` · ${sale.seller.name}` : ''}
-                      </Text>
-                      <Text style={styles.topCategory}>
-                        {sale.branch ? `${sale.branch.name} · ` : ''}
-                        {formatRelative(sale.createdAt)}
-                      </Text>
-                    </View>
-                    <View style={styles.orderRight}>
-                      <Text style={styles.orderTotal}>{formatPrice(sale.total)}</Text>
-                      <View style={styles.payBadge}>
-                        <Text style={styles.payText}>{paymentMethodLabel(sale.paymentMethod)}</Text>
-                      </View>
-                    </View>
-                  </View>
+                  <SaleRow
+                    key={sale.id}
+                    id={sale.id}
+                    relativeDate
+                    total={sale.total}
+                    paymentMethod={sale.paymentMethod}
+                    createdAt={sale.createdAt}
+                    seller={sale.seller?.name}
+                    branch={sale.branch?.name}
+                    onPress={() => openSale(sale)}
+                    divided={index > 0}
+                  />
                 ))}
-              </View>
+              </Card>
             )}
           </>
         )}
@@ -372,73 +410,25 @@ export default function AdminDashboardScreen() {
   );
 }
 
-function KpiCard({
-  icon,
-  label,
-  value,
-  highlight,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <View style={[styles.kpiCard, highlight && styles.kpiCardHighlight]}>
-      <View style={[styles.kpiIcon, highlight && styles.kpiIconHighlight]}>
-        <Ionicons name={icon} size={20} color={highlight ? colors.textOnPrimary : colors.primary} />
-      </View>
-      <Text style={[styles.kpiValue, highlight && styles.kpiTextOnPrimary]}>{value}</Text>
-      <Text style={[styles.kpiLabel, highlight && styles.kpiTextOnPrimarySoft]}>{label}</Text>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  headerTexts: { flex: 1 },
-  hello: { fontSize: FONT_SIZE.body, color: colors.textSecondary },
-  headerTitle: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 2 },
-  profileBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileInitial: { color: colors.textOnPrimary, fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold },
-  periodRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 14 },
-  periodPill: {
-    flex: 1,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  periodPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  periodText: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  periodTextActive: { color: colors.textOnPrimary },
+  // flexGrow lets the loading / error state fill the space left under the header
+  // and centre itself in it; without it they collapse to their own height and sit
+  // right below the period selector. The bottom tab bar already reserves the
+  // safe-area inset, so only a small visual gap is needed here.
+  scroll: { flexGrow: 1, paddingBottom: SPACING['2xl'] },
   branchSelect: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 20,
-    marginTop: 10,
-    paddingHorizontal: 14,
-    height: 44,
-    borderRadius: 12,
+    gap: SPACING.sm,
+    marginHorizontal: SPACING.xl,
+    // It sits between the pinned period bar and the KPIs, and owns the gap below
+    // it — the grid no longer pads its own top now that the bar pads its bottom.
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    height: CONTROL_HEIGHT.pill,
+    borderRadius: RADIUS.control,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -446,40 +436,14 @@ const styles = StyleSheet.create({
   branchSelectActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   branchSelectText: { flex: 1, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   branchSelectTextActive: { color: colors.primary },
-  centerPad: { alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12, paddingHorizontal: 32 },
-  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingTop: 16, gap: 12 },
-  kpiCard: {
-    width: '47%',
-    flexGrow: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  kpiCardHighlight: { backgroundColor: colors.primary, borderColor: colors.primary },
-  kpiIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  kpiIconHighlight: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  kpiValue: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  kpiLabel: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 2 },
-  kpiTextOnPrimary: { color: colors.textOnPrimary },
-  kpiTextOnPrimarySoft: { color: 'rgba(255,255,255,0.85)' },
   lowStock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 20,
-    marginTop: 16,
-    padding: 14,
-    borderRadius: 14,
+    gap: SPACING.md,
+    marginHorizontal: SPACING.xl,
+    marginTop: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.card,
     backgroundColor: '#fffaf0',
     borderWidth: 1,
     borderColor: '#fde68a',
@@ -487,92 +451,25 @@ const styles = StyleSheet.create({
   lowStockIcon: {
     width: 38,
     height: 38,
-    borderRadius: 10,
+    borderRadius: RADIUS.control,
     backgroundColor: '#fef3c7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   lowStockText: { flex: 1, fontSize: FONT_SIZE.caption, lineHeight: 18, color: colors.textPrimary },
   lowStockCount: { fontWeight: FONT_WEIGHT.bold, color: colors.warning },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginTop: 26,
-    marginBottom: 12,
-  },
-  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  link: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.primary },
-  card: {
-    marginHorizontal: 20,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-  },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  breakRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
+  breakRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.lg },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  topThumbWrap: { width: 48, height: 48 },
-  topThumb: { width: 48, height: 48, borderRadius: 12 },
-  rankBadge: {
-    position: 'absolute',
-    top: -6,
-    left: -6,
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 5,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  rankText: { color: colors.textOnPrimary, fontWeight: FONT_WEIGHT.bold, fontSize: FONT_SIZE.badge },
   topInfo: { flex: 1 },
   topName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  topCategory: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 1 },
-  topQty: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  topCategory: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
   iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarSm: {
-    width: 38,
-    height: 38,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarSmText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
-  orderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  orderRight: { alignItems: 'flex-end', gap: 4 },
   orderTotal: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  payBadge: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  payText: { color: colors.primary, fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold },
-  emptyBox: { alignItems: 'center', paddingVertical: 24, gap: 10, marginHorizontal: 20 },
-  emptyText: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 20 },
-  cta: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 22,
-    height: 46,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-  },
-  ctaText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold },
 });

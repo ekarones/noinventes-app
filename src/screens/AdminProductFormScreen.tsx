@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createProduct, updateProduct, type ProductPayload } from '../api/admin/products';
@@ -19,7 +18,7 @@ import { fetchAdminTags } from '../api/admin/tags';
 import { fetchAdminAttributes } from '../api/admin/attributes';
 import { pickImages } from '../utils/imagePicker';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import Field from '../components/Field';
 import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
@@ -48,7 +47,6 @@ const TYPES: { value: ProductType; label: string; hint: string }[] = [
 ];
 
 export default function AdminProductFormScreen({ route, navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const product = route.params?.product;
   const editing = !!product;
@@ -190,7 +188,7 @@ export default function AdminProductFormScreen({ route, navigation }: Props) {
       />
 
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -495,16 +493,16 @@ function OptionCard({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  imagePicker: { alignSelf: 'center', width: 150, height: 150, borderRadius: 18 },
-  imagePreview: { width: 150, height: 150, borderRadius: 18 },
+  imagePicker: { alignSelf: 'center', width: 150, height: 150, borderRadius: RADIUS.card },
+  imagePreview: { width: 150, height: 150, borderRadius: RADIUS.card },
   imagePlaceholder: {
     width: 150,
     height: 150,
-    borderRadius: 18,
+    borderRadius: RADIUS.card,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: SPACING.sm,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderStyle: 'dashed',
@@ -523,34 +521,34 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.background,
   },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: 18, marginBottom: 6 },
+  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
   optional: { fontWeight: FONT_WEIGHT.regular, color: colors.textSecondary, fontSize: FONT_SIZE.micro },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.md,
     borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: RADIUS.card,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   optionCardActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   optionLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
   optionLabelActive: { color: colors.primary },
-  optionHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
+  optionHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primarySoft,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 50,
+    borderRadius: RADIUS.control,
+    paddingHorizontal: SPACING.md,
+    height: CONTROL_HEIGHT.input,
   },
   selectText: { flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   selectPlaceholder: { color: colors.textSecondary },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 10, lineHeight: 17 },
-  saveBtn: { marginTop: 28 },
-  doneBtn: { marginTop: 10 },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  saveBtn: { marginTop: SPACING['2xl'] },
+  doneBtn: { marginTop: SPACING.md },
 });

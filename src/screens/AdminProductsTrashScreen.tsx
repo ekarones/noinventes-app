@@ -19,7 +19,7 @@ import {
 } from '../api/admin/products';
 import type { PaginationMeta } from '../api/products';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
@@ -139,7 +139,6 @@ export default function AdminProductsTrashScreen({ navigation }: Props) {
             style={styles.restoreBtn}
             onPress={() => doRestore(item)}
             disabled={busy}
-            hitSlop={HIT_SLOP}
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
             accessibilityLabel={`Restaurar ${item.name}`}
@@ -150,7 +149,6 @@ export default function AdminProductsTrashScreen({ navigation }: Props) {
             style={styles.forceBtn}
             onPress={() => confirmForceDelete(item)}
             disabled={busy}
-            hitSlop={HIT_SLOP}
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
             accessibilityLabel={`Eliminar permanentemente ${item.name}`}
@@ -193,7 +191,7 @@ export default function AdminProductsTrashScreen({ navigation }: Props) {
           }
           ListFooterComponent={
             loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
+              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
             ) : null
           }
           ListEmptyComponent={
@@ -211,35 +209,26 @@ export default function AdminProductsTrashScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: 20, gap: 14, flexGrow: 1 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 12,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  thumb: { width: 52, height: 52, borderRadius: 12, opacity: 0.6 },
-  cardInfo: { flex: 1, gap: 2 },
+  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md, borderWidth: 1, borderColor: colors.border },
+  thumb: { width: 52, height: 52, borderRadius: RADIUS.control, opacity: 0.6 },
+  cardInfo: { flex: 1, gap: SPACING.hairline },
   name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
   code: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
   price: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.bold, color: colors.textSecondary },
-  actions: { flexDirection: 'row', gap: 6 },
+  actions: { flexDirection: 'row', gap: SPACING.sm },
   restoreBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: TOUCH_MIN,
+    height: TOUCH_MIN,
+    borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   forceBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: TOUCH_MIN,
+    height: TOUCH_MIN,
+    borderRadius: RADIUS.control,
     backgroundColor: '#fef2f2',
     alignItems: 'center',
     justifyContent: 'center',

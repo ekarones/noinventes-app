@@ -12,10 +12,13 @@ import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ApiError } from '../api/client';
+import Avatar from '../components/Avatar';
+import { ActionRow, InfoRow } from '../components/Row';
+import Card from '../components/Card';
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
 
@@ -84,9 +87,7 @@ export default function ProfileScreen() {
       >
         {/* Identity */}
         <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() ?? '?'}</Text>
-          </View>
+          <Avatar name={user?.name} size="lg" />
           <Text style={styles.name}>{user?.name}</Text>
           <Text style={styles.email}>{user?.email}</Text>
           <View style={styles.roleBadge}>
@@ -96,8 +97,8 @@ export default function ProfileScreen() {
         </View>
 
         {/* Account data */}
-        <Text style={styles.sectionTitle}>Datos de la cuenta</Text>
-        <View style={styles.card}>
+        <Text style={styles.overline}>Datos de la cuenta</Text>
+        <Card inset>
           <InfoRow icon="person-outline" label="Nombre" value={user?.name ?? '—'} />
           <InfoRow icon="mail-outline" label="Correo" value={user?.email ?? '—'} />
           <InfoRow
@@ -112,7 +113,7 @@ export default function ProfileScreen() {
             value={user ? `#${user.id}` : '—'}
             last
           />
-        </View>
+        </Card>
 
         <Button
           label={syncing ? 'Sincronizando…' : 'Sincronizar sesión'}
@@ -125,10 +126,10 @@ export default function ProfileScreen() {
         />
 
         {/* Support */}
-        <Text style={styles.sectionTitle}>Ayuda</Text>
-        <View style={styles.card}>
+        <Text style={styles.overline}>Ayuda</Text>
+        <Card inset>
           <ActionRow icon="chatbubble-ellipses-outline" label="Contactar soporte" onPress={openSupport} last />
-        </View>
+        </Card>
 
         {/* Logout */}
         <Button
@@ -155,104 +156,38 @@ export default function ProfileScreen() {
   );
 }
 
-function InfoRow({
-  icon,
-  label,
-  value,
-  last,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-  last?: boolean;
-}) {
-  return (
-    <View style={[styles.row, !last && styles.rowBorder]}>
-      <Ionicons name={icon} size={20} color={colors.textSecondary} />
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
-  );
-}
 
-function ActionRow({
-  icon,
-  label,
-  onPress,
-  last,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  last?: boolean;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.row, !last && styles.rowBorder]}
-      activeOpacity={ROW_PRESS_OPACITY}
-      onPress={onPress}
-    >
-      <Ionicons name={icon} size={20} color={colors.textSecondary} />
-      <Text style={[styles.rowLabel, styles.actionLabel]}>{label}</Text>
-      <Ionicons name="chevron-forward" size={20} color={colors.border} />
-    </TouchableOpacity>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  scroll: { paddingBottom: 24 },
-  profileCard: { alignItems: 'center', paddingVertical: 20 },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.avatar, fontWeight: FONT_WEIGHT.bold },
-  name: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: 12 },
-  email: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
+  scroll: { paddingBottom: SPACING['2xl'] },
+  profileCard: { alignItems: 'center', paddingVertical: SPACING.xl },
+  name: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING.md },
+  email: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
   roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: SPACING.xs,
     backgroundColor: colors.primarySoft,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-    marginTop: 8,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.pill,
+    marginTop: SPACING.sm,
   },
   roleText: { color: colors.primary, fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium },
-  sectionTitle: {
+  overline: {
     fontSize: FONT_SIZE.caption,
     fontWeight: FONT_WEIGHT.bold,
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginTop: 20,
-    marginBottom: 8,
-    marginHorizontal: 20,
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.sm,
+    marginHorizontal: SPACING.xl,
   },
-  card: {
-    marginHorizontal: 20,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15 },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowLabel: { fontSize: FONT_SIZE.body, color: colors.textSecondary },
-  rowValue: { flex: 1, fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, textAlign: 'right' },
-  actionLabel: { flex: 1, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
-  syncBtn: { marginHorizontal: 20, marginTop: 12 },
-  logout: { marginHorizontal: 20, marginTop: 24 },
-  footerCredit: { alignItems: 'center', marginTop: 18, gap: 4 },
+  syncBtn: { marginHorizontal: SPACING.xl, marginTop: SPACING.md },
+  logout: { marginHorizontal: SPACING.xl, marginTop: SPACING['2xl'] },
+  footerCredit: { alignItems: 'center', marginTop: SPACING.xl, gap: SPACING.xs },
   version: { textAlign: 'center', color: colors.textSecondary, fontSize: FONT_SIZE.micro },
   credit: { textAlign: 'center', color: colors.textSecondary, fontSize: FONT_SIZE.micro },
   creditBrand: { color: colors.primary, fontWeight: FONT_WEIGHT.bold },

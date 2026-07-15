@@ -186,5 +186,5 @@ const styles = StyleSheet.create({
   optionTexts: { flex: 1 },
   optionLabel: { fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   optionLabelActive: { fontWeight: FONT_WEIGHT.bold, color: colors.primary },
-  optionHint: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: 2 },
+  optionHint: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
 });

@@ -18,7 +18,7 @@ import {
   updateCategory,
 } from '../api/admin/categories';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import { useDebounce } from '../hooks/useDebounce';
 import SearchBar from '../components/SearchBar';
@@ -160,7 +160,7 @@ export default function AdminCategoriesScreen({ navigation }: Props) {
 
   function renderItem({ item }: { item: AdminCategory }) {
     return (
-      <View style={[styles.row, { paddingLeft: 14 + item.depth * INDENT }]}>
+      <View style={[styles.row, { paddingLeft: SPACING.lg + item.depth * INDENT }]}>
         <Ionicons
           name={item.hasChildren ? 'folder-outline' : 'pricetag-outline'}
           size={18}
@@ -176,7 +176,6 @@ export default function AdminCategoriesScreen({ navigation }: Props) {
         </View>
         <TouchableOpacity
           onPress={() => openEdit(item)}
-          hitSlop={HIT_SLOP}
           style={styles.rowBtn}
           activeOpacity={ROW_PRESS_OPACITY}
           accessibilityRole="button"
@@ -186,7 +185,6 @@ export default function AdminCategoriesScreen({ navigation }: Props) {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => confirmDelete(item)}
-          hitSlop={HIT_SLOP}
           style={styles.rowBtn}
           activeOpacity={ROW_PRESS_OPACITY}
           accessibilityRole="button"
@@ -319,24 +317,24 @@ export default function AdminCategoriesScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  searchWrap: { paddingHorizontal: 20, paddingBottom: 10 },
-  list: { paddingHorizontal: 20, paddingBottom: 24, flexGrow: 1 },
+  searchWrap: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.md },
+  list: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING['2xl'], flexGrow: 1 },
   sep: { height: 1, backgroundColor: colors.border },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingRight: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   rowInfo: { flex: 1 },
   rowName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  rowMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
-  rowBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: 8, marginBottom: 6 },
+  rowMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primarySoft,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 50,
+    borderRadius: RADIUS.control,
+    paddingHorizontal: SPACING.md,
+    height: CONTROL_HEIGHT.input,
   },
   selectText: { flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
-  saveBtn: { marginTop: 20 },
+  saveBtn: { marginTop: SPACING['2xl'] },
 });

@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { tabIcon } from './tabIcon';
 import DashboardScreen from '../screens/DashboardScreen';
 import CatalogScreen from '../screens/CatalogScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
@@ -30,6 +30,12 @@ function DashboardStack() {
     <DashboardStackNav.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStackNav.Screen name="Dashboard" component={DashboardScreen} />
       <DashboardStackNav.Screen name="Profile" component={ProfileScreen} />
+      {/* Also registered in the Catálogo and Ventas stacks. Inicio opens its
+          best-sellers and recent sales HERE, on its own stack, so that going back
+          returns to Inicio — a cross-tab navigate would push them onto the other
+          tab and leave you stranded on that tab's list. */}
+      <DashboardStackNav.Screen name="ProductDetail" component={ProductDetailScreen} />
+      <DashboardStackNav.Screen name="OrderDetail" component={OrderDetailScreen} />
     </DashboardStackNav.Navigator>
   );
 }
@@ -76,44 +82,27 @@ export default function AppNavigator() {
       <Tab.Screen
         name="DashboardTab"
         component={DashboardStack}
-        options={{
-          title: 'Inicio',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Inicio', tabBarIcon: tabIcon('home') }}
       />
       <Tab.Screen
         name="CatalogTab"
         component={CatalogStack}
-        options={{
-          title: 'Catálogo',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Catálogo', tabBarIcon: tabIcon('products') }}
       />
       <Tab.Screen
         name="CartTab"
         component={CartStack}
         options={{
-          title: 'Ventas',
+          title: 'Carrito',
           tabBarBadge: totalItems > 0 ? totalItems : undefined,
           tabBarBadgeStyle: { backgroundColor: colors.primary },
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cart-outline" size={size} color={color} />
-          ),
+          tabBarIcon: tabIcon('cart'),
         }}
       />
       <Tab.Screen
         name="OrdersTab"
         component={OrdersStack}
-        options={{
-          title: 'Historial',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Ventas', tabBarIcon: tabIcon('sales') }}
       />
     </Tab.Navigator>
   );

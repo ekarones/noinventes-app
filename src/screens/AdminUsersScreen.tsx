@@ -4,7 +4,6 @@ import {
   Alert,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,9 +15,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { deleteUser, fetchAdminUsers } from '../api/admin/users';
 import type { PaginationMeta } from '../api/products';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import Avatar from '../components/Avatar';
+import Chip, { ChipRow } from '../components/Chip';
 import SearchBar from '../components/SearchBar';
 import LoadingState from '../components/LoadingState';
 import ScreenHeader from '../components/ScreenHeader';
@@ -128,9 +129,7 @@ export default function AdminUsersScreen({ navigation }: Props) {
     const isMe = me?.id === item.id;
     return (
       <View style={styles.row}>
-        <View style={[styles.avatar, item.role === 'admin' && styles.avatarAdmin]}>
-          <Text style={styles.avatarText}>{item.name?.charAt(0).toUpperCase() ?? '?'}</Text>
-        </View>
+        <Avatar name={item.name} style={item.role === 'admin' && styles.avatarAdmin} />
         <View style={styles.rowInfo}>
           <View style={styles.nameLine}>
             <Text style={styles.rowName} numberOfLines={1}>
@@ -163,7 +162,6 @@ export default function AdminUsersScreen({ navigation }: Props) {
         </View>
         <TouchableOpacity
           onPress={() => navigation.navigate('AdminUserForm', { user: item })}
-          hitSlop={HIT_SLOP}
           style={styles.rowBtn}
           activeOpacity={ROW_PRESS_OPACITY}
           accessibilityRole="button"
@@ -175,7 +173,6 @@ export default function AdminUsersScreen({ navigation }: Props) {
         {!isMe && (
           <TouchableOpacity
             onPress={() => confirmDelete(item)}
-            hitSlop={HIT_SLOP}
             style={styles.rowBtn}
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
@@ -206,20 +203,16 @@ export default function AdminUsersScreen({ navigation }: Props) {
           onChangeText={setSearchText}
           placeholder="Buscar por nombre..."
         />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        <ChipRow>
           {ROLE_FILTERS.map((r) => (
-            <TouchableOpacity
+            <Chip
               key={r.value}
-              style={[styles.chip, role === r.value && styles.chipActive]}
+              label={r.label}
+              active={role === r.value}
               onPress={() => setRole(r.value)}
-              activeOpacity={ROW_PRESS_OPACITY}
-            >
-              <Text style={[styles.chipText, role === r.value && styles.chipTextActive]}>
-                {r.label}
-              </Text>
-            </TouchableOpacity>
+            />
           ))}
-        </ScrollView>
+        </ChipRow>
       </View>
 
       {loading ? (
@@ -250,7 +243,7 @@ export default function AdminUsersScreen({ navigation }: Props) {
           }
           ListFooterComponent={
             loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
+              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
             ) : null
           }
           ListEmptyComponent={
@@ -268,57 +261,34 @@ export default function AdminUsersScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  filters: { paddingHorizontal: 20 },
-  chips: { gap: 8, paddingVertical: 10, paddingRight: 8 },
-  chip: {
-    paddingHorizontal: 16,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  chipTextActive: { color: colors.textOnPrimary },
-  list: { paddingHorizontal: 20, paddingBottom: 24, flexGrow: 1 },
+  filters: { paddingHorizontal: SPACING.xl },
+  list: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING['2xl'], flexGrow: 1 },
   sep: { height: 1, backgroundColor: colors.border },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   avatarAdmin: { backgroundColor: colors.textPrimary },
-  avatarText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold },
   rowInfo: { flex: 1 },
-  nameLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nameLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   rowName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, flexShrink: 1 },
-  meBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+  meBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.hairline, borderRadius: RADIUS.badge },
   meText: { fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
-  rowEmail: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  roleBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  rowEmail: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xs },
+  roleBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.hairline, borderRadius: RADIUS.badge },
   roleBadgeAdmin: { backgroundColor: '#e5e7eb' },
   roleText: { fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
   roleTextAdmin: { color: colors.textPrimary },
   branchBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: SPACING.xs,
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.hairline,
+    borderRadius: RADIUS.badge,
     maxWidth: 140,
   },
   branchText: { fontSize: FONT_SIZE.badge, color: colors.textSecondary, fontWeight: FONT_WEIGHT.medium },
-  rowBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
 });

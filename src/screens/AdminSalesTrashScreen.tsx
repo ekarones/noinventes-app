@@ -14,7 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchAdminSalesTrash } from '../api/admin/sales';
 import type { PaginationMeta } from '../api/products';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
@@ -130,7 +130,7 @@ export default function AdminSalesTrashScreen({ navigation }: Props) {
           }
           ListFooterComponent={
             loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
+              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
             ) : null
           }
           ListEmptyComponent={
@@ -148,26 +148,17 @@ export default function AdminSalesTrashScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: 20, gap: 14, flexGrow: 1 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 14,
-    gap: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
+  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md, borderWidth: 1, borderColor: colors.border },
   iconBox: {
     width: 48,
     height: 48,
-    borderRadius: 12,
+    borderRadius: RADIUS.control,
     backgroundColor: '#fef2f2',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardInfo: { flex: 1, gap: 2 },
+  cardInfo: { flex: 1, gap: SPACING.hairline },
   orderId: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   count: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
   deleted: { fontSize: FONT_SIZE.micro, color: colors.error, fontWeight: FONT_WEIGHT.medium },

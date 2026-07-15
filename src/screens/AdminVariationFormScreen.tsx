@@ -11,13 +11,12 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createVariation, updateVariation } from '../api/admin/products';
 import { fetchAdminAttributes } from '../api/admin/attributes';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import Field from '../components/Field';
 import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
@@ -31,7 +30,6 @@ import type { AdminProductsStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminVariationForm'>;
 
 export default function AdminVariationFormScreen({ route, navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const {
     productId,
@@ -191,7 +189,7 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
       />
 
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -235,7 +233,7 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
           <>
             <Text style={styles.label}>Combinación</Text>
             {loadingAttrs ? (
-              <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: SPACING.md }} />
             ) : attributes.length === 0 ? (
               <Text style={styles.warn}>
                 No hay atributos creados. Créalos primero en Gestión → Atributos.
@@ -396,10 +394,10 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   productName: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  productSub: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: 18, marginBottom: 6 },
-  imagePicker: { alignSelf: 'center', width: 150, height: 150, borderRadius: 18, marginTop: 16 },
-  imagePreview: { width: 150, height: 150, borderRadius: 18 },
+  productSub: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
+  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
+  imagePicker: { alignSelf: 'center', width: 150, height: 150, borderRadius: RADIUS.card, marginTop: SPACING.lg },
+  imagePreview: { width: 150, height: 150, borderRadius: RADIUS.card },
   imageBadge: {
     position: 'absolute',
     right: -4,
@@ -418,31 +416,31 @@ const styles = StyleSheet.create({
     top: -8,
     right: -8,
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: RADIUS.control,
   },
   imagePlaceholder: {
     width: 150,
     height: 150,
-    borderRadius: 18,
+    borderRadius: RADIUS.card,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: SPACING.sm,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderStyle: 'dashed',
   },
   imageHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
-  attrRow: { marginBottom: 10 },
-  attrName: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: 4 },
+  attrRow: { marginBottom: SPACING.md },
+  attrName: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: SPACING.xs },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primarySoft,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 50,
+    borderRadius: RADIUS.control,
+    paddingHorizontal: SPACING.md,
+    height: CONTROL_HEIGHT.input,
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
@@ -450,7 +448,7 @@ const styles = StyleSheet.create({
   selectText: { flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   selectPlaceholder: { color: colors.textSecondary },
   warn: { fontSize: FONT_SIZE.bodySm, color: colors.warning, lineHeight: 20 },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 8, lineHeight: 17 },
-  saveBtn: { marginTop: 28 },
-  doneBtn: { marginTop: 10 },
+  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  saveBtn: { marginTop: SPACING['2xl'] },
+  doneBtn: { marginTop: SPACING.md },
 });

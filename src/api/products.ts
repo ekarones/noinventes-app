@@ -21,6 +21,8 @@ type RawProduct = {
   status: 'public' | 'published';
   unit_value: string;
   final_price: string;
+  // Top of the price range for a variable product ("hasta"); null for simple ones.
+  final_price_max: string | null;
   unit_of_measure: string;
   image_url: string | null;
   image_thumb_url?: string | null;
@@ -67,6 +69,7 @@ function mapProduct(p: RawProduct): Product {
     status: p.status,
     unitValue: parseFloat(p.unit_value),
     finalPrice: parseFloat(p.final_price),
+    finalPriceMax: p.final_price_max != null ? parseFloat(p.final_price_max) : null,
     unitOfMeasure: p.unit_of_measure,
     imageUrl: p.image_url,
     // Fall back to the full image if the server sends no thumb (older build).

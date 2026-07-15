@@ -2,7 +2,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, SPACING, TOUCH_MIN } from '../theme/tokens';
 
 type Action = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -34,7 +34,6 @@ export default function ScreenHeader({ title, onBack, action }: Props) {
         {onBack && (
           <TouchableOpacity
             onPress={onBack}
-            hitSlop={HIT_SLOP}
             style={styles.iconBtn}
             accessibilityRole="button"
             accessibilityLabel="Volver"
@@ -52,7 +51,6 @@ export default function ScreenHeader({ title, onBack, action }: Props) {
         {action && (
           <TouchableOpacity
             onPress={action.onPress}
-            hitSlop={HIT_SLOP}
             style={styles.iconBtn}
             accessibilityRole="button"
             accessibilityLabel={action.label}
@@ -73,8 +71,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   // Fixed-width side slots keep the title centred with or without an action.
-  slot: { width: 40, alignItems: 'center' },
-  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  slot: { width: TOUCH_MIN, alignItems: 'center' },
+  iconBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
   title: {
     flex: 1,
     textAlign: 'center',

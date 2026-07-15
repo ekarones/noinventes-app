@@ -12,7 +12,7 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../api/client';
 import Field from '../components/Field';
@@ -64,7 +64,7 @@ export default function LoginScreen() {
       >
         {/* Branding */}
         <View style={styles.header}>
-          <View style={styles.logoCircle}>
+          <View style={styles.logoTile}>
             <Image
               source={require('../../assets/logo.png')}
               style={styles.logo}
@@ -151,20 +151,20 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: SPACING['2xl'],
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: SPACING['3xl'],
   },
-  logoCircle: {
+  logoTile: {
     width: 104,
     height: 104,
-    borderRadius: 28,
+    borderRadius: RADIUS.sheet,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
   },
   logo: { width: 68, height: 68 },
   title: {
@@ -175,13 +175,13 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: FONT_SIZE.body,
     color: colors.textSecondary,
-    marginTop: 6,
+    marginTop: SPACING.sm,
     textAlign: 'center',
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 22,
+    borderRadius: RADIUS.card,
+    padding: SPACING['2xl'],
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -193,14 +193,14 @@ const styles = StyleSheet.create({
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.sm,
     backgroundColor: '#fef2f2',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 16,
+    borderRadius: RADIUS.card,
+    padding: SPACING.md,
+    marginTop: SPACING.lg,
   },
   errorText: { color: colors.error, fontSize: FONT_SIZE.caption, flex: 1 },
-  button: { marginTop: 22 },
-  demoHint: { alignItems: 'center', marginTop: 24 },
+  button: { marginTop: SPACING['2xl'] },
+  demoHint: { alignItems: 'center', marginTop: SPACING['2xl'] },
   demoHintText: { color: colors.textSecondary, fontSize: FONT_SIZE.micro },
 });

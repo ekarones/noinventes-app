@@ -1,17 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchCategories, fetchProducts, lookupByCode, type PaginationMeta } from '../api/products';
@@ -19,26 +16,31 @@ import { ApiError } from '../api/client';
 import type { Category, Product } from '../types';
 import type { CatalogStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
-import { formatPrice } from '../utils/format';
+import { RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { formatPriceRange } from '../utils/format';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { useDebounce } from '../hooks/useDebounce';
 import { hapticAdd } from '../utils/haptics';
-import { stockColor } from '../utils/stock';
-import { PRODUCT_SORT_OPTIONS, SELLER_DEFAULT_SORT } from '../utils/productSort';
+import { flattenCategoryTree } from '../utils/categoryTree';
+import { PRODUCT_SORT_OPTIONS, SELLER_DEFAULT_SORT } from '../utils/sortOptions';
+import ProductRow from '../components/ProductRow';
+import StockBadge from '../components/StockBadge';
+import IconButton from '../components/IconButton';
+import Select from '../components/Select';
+import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
 import LoadingState from '../components/LoadingState';
-import { ClearFiltersButton, SortControl } from '../components/FilterControls';
+import { SortControl } from '../components/FilterControls';
 import EmptyState from '../components/EmptyState';
-import ProductImage from '../components/ProductImage';
 import QRScannerModal from '../components/QRScannerModal';
 
 type Props = NativeStackScreenProps<CatalogStackParamList, 'Catalog'>;
 
 const PER_PAGE = 30;
 
-// Quick "+" button with a tap pop. Hidden/disabled handling is done by the caller.
+// Quick "+" button with a tap pop. Out of stock it stays put, greyed and inert:
+// the row keeps its shape down the list, and the badge above already says why.
 function AddButton({ onPress, disabled }: { onPress: () => void; disabled?: boolean }) {
   const scale = useRef(new Animated.Value(1)).current;
   function handlePress() {
@@ -55,9 +57,9 @@ function AddButton({ onPress, disabled }: { onPress: () => void; disabled?: bool
         onPress={handlePress}
         disabled={disabled}
         activeOpacity={ROW_PRESS_OPACITY}
-        hitSlop={HIT_SLOP}
         accessibilityRole="button"
-        accessibilityLabel="Agregar al carrito"
+        accessibilityLabel={disabled ? 'Sin stock' : 'Agregar al carrito'}
+        accessibilityState={{ disabled: !!disabled }}
       >
         <Ionicons name="add" size={22} color={colors.textOnPrimary} />
       </TouchableOpacity>
@@ -66,7 +68,6 @@ function AddButton({ onPress, disabled }: { onPress: () => void; disabled?: bool
 }
 
 export default function CatalogScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { addItem } = useCart();
   const { showToast } = useToast();
 
@@ -85,6 +86,12 @@ export default function CatalogScreen({ navigation }: Props) {
 
   const [sortIndex, setSortIndex] = useState(SELLER_DEFAULT_SORT);
   const sort = PRODUCT_SORT_OPTIONS[sortIndex];
+
+  // Flat from the API → tree order + depth, so the picker can indent the hierarchy.
+  const categoryOptions = useMemo(
+    () => flattenCategoryTree(categories).map((c) => ({ id: c.id, label: c.name, depth: c.depth })),
+    [categories]
+  );
 
   const hasFilters = searchText.length > 0 || categoryId !== null;
 
@@ -189,95 +196,59 @@ export default function CatalogScreen({ navigation }: Props) {
 
   function renderItem({ item }: { item: Product }) {
     const outOfStock = item.stock <= 0;
-    const isVariable = item.type === 'variable' || item.variationsCount > 0;
     return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={ROW_PRESS_OPACITY}
+      <ProductRow
+        imageUri={item.imageThumbUrl}
+        name={item.name}
+        // The full range when the variations differ ("S/ 39.90 – S/ 59.90");
+        // a single price otherwise.
+        price={formatPriceRange(item.finalPrice, item.finalPriceMax)}
         onPress={() => navigation.navigate('ProductDetail', { product: item })}
-      >
-        <ProductImage uri={item.imageThumbUrl} style={styles.image} />
-        <View style={styles.info}>
-          <Text style={styles.category}>{item.category?.name ?? item.code}</Text>
-          <Text style={styles.name} numberOfLines={2}>
-            {item.name}
-          </Text>
-          <View style={styles.stockRow}>
-            <Ionicons name="cube-outline" size={13} color={stockColor(item.stock)} />
-            <Text style={[styles.stockText, { color: stockColor(item.stock) }]}>
-              {Math.max(0, item.stock)} disp.
-            </Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.price}>
-              {isVariable ? 'Desde ' : ''}
-              {formatPrice(item.finalPrice)}
-            </Text>
-            {outOfStock ? (
-              <View style={styles.outOfStockBadge}>
-                <Text style={styles.outOfStockText}>Sin stock</Text>
-              </View>
-            ) : (
-              <AddButton onPress={() => handleAdd(item)} />
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
+        overline={item.category?.name ?? `#${item.code}`}
+        stat={<StockBadge stock={item.stock} />}
+        action={<AddButton onPress={() => handleAdd(item)} disabled={outOfStock} />}
+      />
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.titleRow}>
-          <View style={styles.titleTexts}>
-            <Text style={styles.title}>Catálogo</Text>
-            {meta && (
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {meta.total} {hasFilters ? 'coinciden' : 'productos'} · {sort.label}
-              </Text>
-            )}
-          </View>
-          <View style={styles.titleActions}>
+      <ScreenTitle
+        title="Catálogo"
+        subtitle={
+          meta
+            ? `${meta.total} ${hasFilters ? 'coinciden' : 'productos'} · ${sort.label}`
+            : undefined
+        }
+        actions={
+          <>
             <SortControl options={PRODUCT_SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
-            <TouchableOpacity
-              style={styles.scanBtn}
-              activeOpacity={ROW_PRESS_OPACITY}
+            <IconButton
+              icon="qr-code-outline"
+              label="QR"
               onPress={() => setScannerVisible(true)}
-            >
-              <Ionicons name="qr-code-outline" size={18} color={colors.primary} />
-              <Text style={styles.scanBtnText}>QR</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Search */}
+              accessibilityLabel="Escanear código QR"
+            />
+          </>
+        }
+      >
         <SearchBar
           value={searchText}
           onChangeText={setSearchText}
           placeholder="Buscar por nombre o código..."
         />
 
-        {/* Category chips + clear — same layout as the sales history */}
-        <View style={styles.filterRow}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chips}
-          >
-            <Chip label="Todos" active={categoryId === null} onPress={() => setCategoryId(null)} />
-            {categories.map((cat) => (
-              <Chip
-                key={cat.id}
-                label={cat.name}
-                active={categoryId === cat.id}
-                onPress={() => setCategoryId(cat.id)}
-              />
-            ))}
-          </ScrollView>
-          {hasFilters && <ClearFiltersButton onPress={clearFilters} />}
+        {/* A picker, not a chip row: the categories outgrew a line of pills. */}
+        <View style={styles.categoryFilter}>
+          <Select
+            icon="folder-outline"
+            placeholder="Todas las categorías"
+            value={categoryId}
+            options={categoryOptions}
+            onChange={setCategoryId}
+          />
         </View>
-      </View>
+      </ScreenTitle>
 
       {loading ? (
         <LoadingState />
@@ -292,7 +263,7 @@ export default function CatalogScreen({ navigation }: Props) {
           data={products}
           keyExtractor={(p) => String(p.id)}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={products.length ? styles.list : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onEndReached={loadMore}
@@ -307,7 +278,7 @@ export default function CatalogScreen({ navigation }: Props) {
           }
           ListFooterComponent={
             loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
+              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
             ) : null
           }
           ListEmptyComponent={
@@ -334,111 +305,23 @@ export default function CatalogScreen({ navigation }: Props) {
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      style={[styles.chip, active && styles.chipActive]}
-      onPress={onPress}
-      activeOpacity={ROW_PRESS_OPACITY}
-    >
-      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingBottom: 8 },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 10,
-  },
-  titleTexts: { flex: 1 },
-  titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  title: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  subtitle: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  // Matches the pill shape used by SortControl / ClearFiltersButton.
-  scanBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 14,
-    height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.pill,
-  },
-  scanBtnText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
-  chips: { gap: 8, paddingVertical: 12, paddingRight: 8 },
-  chip: {
-    paddingHorizontal: 16,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    maxWidth: 180,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  chipTextActive: { color: colors.textOnPrimary },
-  list: { padding: 20, paddingTop: 4, gap: 16 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    minHeight: 110,
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  // No fixed height: the image stretches to match the card's full height.
-  image: { width: 110, alignSelf: 'stretch' },
-  info: { flex: 1, padding: 14, justifyContent: 'space-between' },
-  category: {
-    fontSize: FONT_SIZE.badge,
-    fontWeight: FONT_WEIGHT.bold,
-    color: colors.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  name: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: 2 },
-  stockRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  stockText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.medium },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  price: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, flexShrink: 1 },
+  // Lifts the category picker off the search bar (there are no chips between them
+  // here as there are on the admin catalogue).
+  categoryFilter: { marginTop: SPACING.md },
+  // Each product is its own card; the list just spaces them and pays the screen
+  // margins. flexGrow lets a short list still fill the page.
+  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  listEmpty: { flexGrow: 1 },
   addBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: TOUCH_MIN,
+    height: TOUCH_MIN,
+    borderRadius: RADIUS.control,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addBtnDisabled: { backgroundColor: colors.primaryLight, opacity: 0.5 },
-  outOfStockBadge: {
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  outOfStockText: { color: colors.error, fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.bold },
 });

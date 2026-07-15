@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createTag, deleteTag, fetchAdminTags, updateTag } from '../api/admin/tags';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import Field from '../components/Field';
 import LoadingState from '../components/LoadingState';
@@ -129,7 +129,6 @@ export default function AdminTagsScreen({ navigation }: Props) {
         </View>
         <TouchableOpacity
           onPress={() => openEdit(item)}
-          hitSlop={HIT_SLOP}
           style={styles.rowBtn}
           activeOpacity={ROW_PRESS_OPACITY}
           accessibilityRole="button"
@@ -139,7 +138,6 @@ export default function AdminTagsScreen({ navigation }: Props) {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => confirmDelete(item)}
-          hitSlop={HIT_SLOP}
           style={styles.rowBtn}
           activeOpacity={ROW_PRESS_OPACITY}
           accessibilityRole="button"
@@ -223,20 +221,20 @@ export default function AdminTagsScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { paddingHorizontal: 20, paddingBottom: 24, flexGrow: 1 },
+  list: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING['2xl'], flexGrow: 1 },
   sep: { height: 1, backgroundColor: colors.border },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowInfo: { flex: 1 },
   rowName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  rowMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: 1 },
-  rowBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  saveBtn: { marginTop: 20 },
+  rowMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
+  saveBtn: { marginTop: SPACING['2xl'] },
 });

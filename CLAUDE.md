@@ -69,14 +69,48 @@ Layered, with a clean split between the network layer and the UI.
   Param lists for both live in `types.ts`.
 - **`src/screens/`** — seller screens (Login, Dashboard, Catalog, ProductDetail, Cart, Checkout,
   Orders, OrderDetail, Profile) and `Admin*` screens for each admin area.
-- **`src/components/`** — reusable UI (`ProductImage`, `QRScannerModal`).
+- **`src/theme/`** — `colors.ts` and **`tokens.ts`**, the single source of truth for size, rhythm
+  and shape. Screens do **not** write raw numbers for type, spacing or radius — they read a token.
+- **`src/components/`** — the UI system. Seller and admin render the *same* components; only the
+  data and the actions differ.
+  - Layout: `ScreenTitle` (tab-root header), `ScreenHeader` (pushed screen, back chevron),
+    `Card` (bordered panel).
+  - Controls: `Button`, `IconButton`, `Field` (label + input + hint/error), `SearchBar`, `Chip`,
+    `Segmented`, `FilterControls` (the sort/clear pills), `BottomSheet` (every picker and inline
+    form in the app).
+  - Content: `ProductCard`, `SaleCard`, `KpiCard`, `SaleTotals`, `Row` (`InfoRow` / `ActionRow` /
+    `MetaRow` — the rows that live inside a `Card`), `ProductImage`, `QRScannerModal`.
+  - States: `LoadingState`, `EmptyState` — between them, every screen's *loading / empty / failed*
+    comes from two files.
 - **`src/utils/`** — pure helpers: `cart` (line key/price/stock), `format`, `stock`, `payment`,
-  `haptics`. **`src/hooks/`** — `useDebounce`.
+  `haptics`, `slug` (mirrors Laravel's `Str::slug` for variation codes), `imagePicker`,
+  `sortOptions` (the sort presets, shared by both roles). **`src/hooks/`** — `useDebounce`.
 - `index.ts` — entry point; `registerRootComponent(App)`. `App.tsx` — providers + auth gate
   (splash while restoring session → LoginScreen if signed out → seller tabs or admin tabs by role).
 
 ### Conventions worth keeping
 
+- **The design system is the rule, not a suggestion.** Never write a raw number for a font size, a
+  spacing or a radius — every one of them lives in `src/theme/tokens.ts`:
+  - Type: `FONT_SIZE` / `FONT_WEIGHT`. There is deliberately no 10 or 17 — a one-point difference is
+    invisible, so it only ever means someone eyeballed it.
+  - Rhythm: `SPACING`, a 4pt grid. `hairline` (2) is the one step off it, for an optical nudge.
+    The screen margin is `SPACING.xl` (20): anything that touches the screen edge uses it.
+  - Shape: `RADIUS`, four roles — `badge`, `control`, `card`, `pill`. A circle or a pill is
+    `RADIUS.pill`, **never** `width / 2`: hard-coding half the height means resizing the box
+    silently un-rounds it.
+  - Touch: size a control to `TOUCH_MIN` (44) rather than padding it out with `HIT_SLOP`. A hit slop
+    makes the tappable area bigger than the thing you can see — it reads as a stray margin and lets
+    neighbouring buttons steal taps. Keep it only for a control that genuinely can't grow (an "✕"
+    living inside a chip or a text field).
+- **Seller and admin render the same components.** They are one product with two scopes, not two
+  apps. If a screen needs something the other role also has, it belongs in `src/components/`, not in
+  a second copy — that is exactly how the app once ended up with two sale cards, five filter chips
+  and ten hand-rolled bottom sheets.
+- **Safe-area insets:** the bottom tab bar already reserves the bottom inset, so a screen inside a
+  navigator must **not** add `insets.bottom` — that double-counts it. Only `LoginScreen` pays it,
+  because it renders outside every navigator. The top is the opposite: navigators run with
+  `headerShown: false`, so each screen (or its `ScreenHeader` / `ScreenTitle`) pays `insets.top`.
 - **Boundary normalization:** keep snake_case/string-decimal parsing inside `src/api/*` mappers; the
   rest of the app only ever sees camelCase + numbers. Add new endpoints the same way.
 - **Errors:** throw/catch `ApiError` — its `message` is already user-friendly (it prefers the

@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_WEIGHT, RADIUS } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
 
 // primary   — the one thing the screen wants you to do (filled brand).
 // secondary — a supporting action (soft tint, no border).
@@ -55,7 +55,7 @@ export default function Button({
         styles.base,
         {
           height: CONTROL_HEIGHT[size],
-          borderRadius: size === 'lg' ? RADIUS.lg : RADIUS.md,
+          borderRadius: size === 'lg' ? RADIUS.control : RADIUS.control,
           backgroundColor: pressed ? v.pressedBg : v.bg,
           borderColor: v.border ?? 'transparent',
           borderWidth: v.border ? 1.5 : 0,
@@ -114,8 +114,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
   },
   label: { fontWeight: FONT_WEIGHT.bold },
   raised: {

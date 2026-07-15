@@ -3,13 +3,11 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,19 +15,22 @@ import {
   fetchAdminSales,
   fetchAdminSaleSummaryById,
 } from '../api/admin/sales';
-import type { SaleSortBy, SortDir } from '../api/sales';
 import { fetchAdminBranches } from '../api/admin/branches';
 import { fetchAdminUsers } from '../api/admin/users';
 import { ApiError } from '../api/client';
 import type { PaginationMeta } from '../api/products';
+import { SALE_DEFAULT_SORT, SALE_SORT_OPTIONS } from '../utils/sortOptions';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import SaleRow from '../components/SaleRow';
+import IconButton from '../components/IconButton';
+import Chip, { ChipRow } from '../components/Chip';
+import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
 import LoadingState from '../components/LoadingState';
 import BottomSheet, { SheetOption } from '../components/BottomSheet';
 import EmptyState from '../components/EmptyState';
-import { formatDate, formatPrice, ymd } from '../utils/format';
-import { paymentMethodLabel } from '../utils/payment';
+import { ymd } from '../utils/format';
 import { useDebounce } from '../hooks/useDebounce';
 import { ClearFiltersButton, SortControl } from '../components/FilterControls';
 import type { AdminBranch, AdminSaleSummary, AdminUser } from '../types';
@@ -48,24 +49,9 @@ const DATE_PRESETS: { value: DatePreset; label: string }[] = [
   { value: '30d', label: '30 días' },
 ];
 
-type SortOption = {
-  key: string;
-  label: string;
-  sortBy: SaleSortBy;
-  sortDir: SortDir;
-  icon: keyof typeof Ionicons.glyphMap;
-};
 
-const SORT_OPTIONS: SortOption[] = [
-  { key: 'recent', label: 'Más recientes', sortBy: 'created_at', sortDir: 'desc', icon: 'arrow-down-outline' },
-  { key: 'oldest', label: 'Más antiguas', sortBy: 'created_at', sortDir: 'asc', icon: 'arrow-up-outline' },
-  { key: 'highest', label: 'Mayor monto', sortBy: 'total', sortDir: 'desc', icon: 'cash-outline' },
-  { key: 'lowest', label: 'Menor monto', sortBy: 'total', sortDir: 'asc', icon: 'cash-outline' },
-  { key: 'customer', label: 'Cliente (A–Z)', sortBy: 'customer_name', sortDir: 'asc', icon: 'person-outline' },
-];
 
 export default function AdminSalesScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const [sales, setSales] = useState<AdminSaleSummary[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,8 +63,8 @@ export default function AdminSalesScreen({ navigation }: Props) {
   const query = useDebounce(searchText, 400);
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
 
-  const [sortIndex, setSortIndex] = useState(0);
-  const sort = SORT_OPTIONS[sortIndex];
+  const [sortIndex, setSortIndex] = useState(SALE_DEFAULT_SORT);
+  const sort = SALE_SORT_OPTIONS[sortIndex];
 
   // Cross-seller scoping. null = no filter.
   const [branches, setBranches] = useState<AdminBranch[]>([]);
@@ -199,72 +185,40 @@ export default function AdminSalesScreen({ navigation }: Props) {
 
   function renderItem({ item }: { item: AdminSaleSummary }) {
     return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={ROW_PRESS_OPACITY}
+      <SaleRow
+        card
+        id={item.id}
+        customerName={item.customerName}
+        itemsCount={item.itemsCount}
+        total={item.total}
+        paymentMethod={item.paymentMethod}
+        createdAt={item.createdAt}
+        // The admin's extra scope: who sold it and where.
+        seller={item.seller?.name}
+        branch={item.branch?.name}
         onPress={() => navigation.navigate('AdminSaleDetail', { sale: item })}
-      >
-        <View style={styles.iconBox}>
-          <Ionicons name="receipt-outline" size={24} color={colors.primary} />
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={styles.orderId}>Venta #{item.id}</Text>
-          <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
-          <Text style={styles.count} numberOfLines={1}>
-            {item.customerName} · {item.itemsCount} {item.itemsCount === 1 ? 'artículo' : 'artículos'}
-          </Text>
-          <View style={styles.tags}>
-            {item.seller && (
-              <View style={styles.tag}>
-                <Ionicons name="person-outline" size={11} color={colors.textSecondary} />
-                <Text style={styles.tagText} numberOfLines={1}>{item.seller.name}</Text>
-              </View>
-            )}
-            {item.branch && (
-              <View style={styles.tag}>
-                <Ionicons name="storefront-outline" size={11} color={colors.textSecondary} />
-                <Text style={styles.tagText} numberOfLines={1}>{item.branch.name}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-        <View style={styles.cardRight}>
-          <Text style={styles.total}>{formatPrice(item.total)}</Text>
-          <View style={styles.payBadge}>
-            <Text style={styles.payText}>{paymentMethodLabel(item.paymentMethod)}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
+      />
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.titleRow}>
-          <View style={styles.titleTexts}>
-            <Text style={styles.title}>Ventas</Text>
-            {meta && (
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {meta.total} {hasFilters ? 'coinciden' : 'en total'} · {sort.label}
-              </Text>
-            )}
-          </View>
-          <View style={styles.titleActions}>
-            <TouchableOpacity
-              style={styles.iconBtn}
+      <ScreenTitle
+        title="Ventas"
+        subtitle={
+          meta ? `${meta.total} ${hasFilters ? 'coinciden' : 'en total'} · ${sort.label}` : undefined
+        }
+        actions={
+          <>
+            <IconButton
+              icon="trash-outline"
               onPress={() => navigation.navigate('AdminSalesTrash')}
-              hitSlop={8}
               accessibilityLabel="Papelera"
-              activeOpacity={ROW_PRESS_OPACITY}
-            >
-              <Ionicons name="trash-outline" size={18} color={colors.primary} />
-            </TouchableOpacity>
-            <SortControl options={SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
-          </View>
-        </View>
-
-        {/* Search */}
+            />
+            <SortControl options={SALE_SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
+          </>
+        }
+      >
         <SearchBar
           value={searchText}
           onChangeText={setSearchText}
@@ -273,11 +227,7 @@ export default function AdminSalesScreen({ navigation }: Props) {
 
         {/* Date range presets */}
         <View style={styles.filterRow}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chips}
-          >
+          <ChipRow>
             {DATE_PRESETS.map((p) => (
               <Chip
                 key={p.value}
@@ -286,7 +236,7 @@ export default function AdminSalesScreen({ navigation }: Props) {
                 onPress={() => setDatePreset(p.value)}
               />
             ))}
-          </ScrollView>
+          </ChipRow>
           {hasFilters && <ClearFiltersButton onPress={clearFilters} />}
         </View>
 
@@ -307,7 +257,7 @@ export default function AdminSalesScreen({ navigation }: Props) {
             onClear={() => setSellerId(null)}
           />
         </View>
-      </View>
+      </ScreenTitle>
 
       {loading ? (
         <LoadingState />
@@ -322,7 +272,7 @@ export default function AdminSalesScreen({ navigation }: Props) {
           data={sales}
           keyExtractor={(s) => String(s.id)}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={sales.length ? styles.list : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onEndReached={loadMore}
@@ -337,7 +287,7 @@ export default function AdminSalesScreen({ navigation }: Props) {
           }
           ListFooterComponent={
             loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
+              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
             ) : null
           }
           ListEmptyComponent={
@@ -432,52 +382,19 @@ function ScopeChip({
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      style={[styles.chip, active && styles.chipActive]}
-      onPress={onPress}
-      activeOpacity={ROW_PRESS_OPACITY}
-    >
-      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingBottom: 4 },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 10,
-  },
-  titleTexts: { flex: 1 },
-  titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  title: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  subtitle: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  scopeRow: { flexDirection: 'row', gap: 8, paddingBottom: 10 },
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  scopeRow: { flexDirection: 'row', gap: SPACING.sm, paddingBottom: SPACING.md },
   scopeChip: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
     height: 38,
-    borderRadius: 12,
+    borderRadius: RADIUS.control,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -485,64 +402,8 @@ const styles = StyleSheet.create({
   scopeChipActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   scopeChipText: { flex: 1, fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
   scopeChipTextActive: { color: colors.primary },
-  chips: { gap: 8, paddingVertical: 10, paddingRight: 8 },
-  chip: {
-    paddingHorizontal: 16,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  chipTextActive: { color: colors.textOnPrimary },
-  list: { padding: 20, paddingTop: 4, gap: 14, flexGrow: 1 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 14,
-    gap: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardInfo: { flex: 1, gap: 2 },
-  orderId: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  date: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
-  count: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
-    maxWidth: 130,
-  },
-  tagText: { fontSize: FONT_SIZE.badge, color: colors.textSecondary, fontWeight: FONT_WEIGHT.medium },
-  cardRight: { alignItems: 'flex-end', gap: 6 },
-  total: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  payBadge: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  payText: { color: colors.primary, fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold },
+  // Each sale is its own card; the list just spaces them and pays the screen
+  // margins. flexGrow lets a short list still fill the page.
+  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  listEmpty: { flexGrow: 1 },
 });

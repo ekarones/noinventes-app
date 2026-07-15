@@ -25,6 +25,9 @@ type RawAdminProductRow = {
   status: AdminProductStatus;
   unit_value: string;
   final_price: string;
+  // Top of the range for a variable product; null for simple. Optional here in
+  // case an older admin build doesn't send it yet — the mapper falls back to null.
+  final_price_max?: string | null;
   unit_of_measure: string;
   image_url: string | null;
   image_thumb_url?: string | null;
@@ -58,6 +61,7 @@ type RawAdminProductDetail = {
   status: AdminProductStatus;
   unit_value: string;
   final_price: string;
+  final_price_max?: string | null;
   unit_of_measure: string;
   variations_count: number;
   category: { id: number; name: string } | null;
@@ -105,6 +109,7 @@ function mapRow(p: RawAdminProductRow): AdminProductRow {
     status: p.status,
     unitValue: parseFloat(p.unit_value),
     finalPrice: parseFloat(p.final_price),
+    finalPriceMax: p.final_price_max != null ? parseFloat(p.final_price_max) : null,
     unitOfMeasure: p.unit_of_measure,
     imageUrl: p.image_url,
     // Fall back to the full image if the server sends no thumb (older build).
@@ -127,6 +132,7 @@ function mapDetail(p: RawAdminProductDetail): AdminProductDetail {
     status: p.status,
     unitValue: parseFloat(p.unit_value),
     finalPrice: parseFloat(p.final_price),
+    finalPriceMax: p.final_price_max != null ? parseFloat(p.final_price_max) : null,
     unitOfMeasure: p.unit_of_measure,
     variationsCount: p.variations_count,
     category: p.category as CategoryRef | null,

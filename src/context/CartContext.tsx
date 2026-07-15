@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CartItem, Product, Variation } from '../types';
+import { toCents } from '../utils/format';
 import { linePrice, lineStock, makeCartKey } from '../utils/cart';
 
 // Bump the suffix if the persisted CartItem shape ever changes.
@@ -84,8 +85,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   const totalItems = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
+
+  // Summed in cents: `39.90 * 3` in floating point is 119.69999999999999, and the
+  // error compounds with every line. The server recomputes the real total anyway
+  // — this is what the seller reads off the screen before charging.
   const totalPrice = useMemo(
-    () => items.reduce((sum, i) => sum + linePrice(i) * i.quantity, 0),
+    () => items.reduce((cents, i) => cents + toCents(linePrice(i)) * i.quantity, 0) / 100,
     [items]
   );
 

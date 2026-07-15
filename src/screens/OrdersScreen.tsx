@@ -3,24 +3,22 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { fetchSales, fetchSaleSummaryById, type SaleSortBy, type SortDir } from '../api/sales';
+import { fetchSales, fetchSaleSummaryById } from '../api/sales';
 import { ApiError } from '../api/client';
 import type { PaginationMeta } from '../api/products';
+import { SALE_DEFAULT_SORT, SALE_SORT_OPTIONS } from '../utils/sortOptions';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, ROW_PRESS_OPACITY } from '../theme/tokens';
-import { formatDate, formatPrice, ymd } from '../utils/format';
-import { paymentMethodLabel } from '../utils/payment';
+import { SPACING } from '../theme/tokens';
+import { ymd } from '../utils/format';
 import { useDebounce } from '../hooks/useDebounce';
+import SaleRow from '../components/SaleRow';
+import Chip, { ChipRow } from '../components/Chip';
+import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
 import LoadingState from '../components/LoadingState';
 import { ClearFiltersButton, SortControl } from '../components/FilterControls';
@@ -41,26 +39,9 @@ const DATE_PRESETS: { value: DatePreset; label: string }[] = [
   { value: '30d', label: '30 días' },
 ];
 
-type SortOption = {
-  key: string;
-  label: string;
-  sortBy: SaleSortBy;
-  sortDir: SortDir;
-  icon: keyof typeof Ionicons.glyphMap;
-};
 
-// User-friendly presets over the API's sort_by/sort_dir. Index 0 is the default
-// (newest first), which matches the previous implicit ordering.
-const SORT_OPTIONS: SortOption[] = [
-  { key: 'recent', label: 'Más recientes', sortBy: 'created_at', sortDir: 'desc', icon: 'arrow-down-outline' },
-  { key: 'oldest', label: 'Más antiguas', sortBy: 'created_at', sortDir: 'asc', icon: 'arrow-up-outline' },
-  { key: 'highest', label: 'Mayor monto', sortBy: 'total', sortDir: 'desc', icon: 'cash-outline' },
-  { key: 'lowest', label: 'Menor monto', sortBy: 'total', sortDir: 'asc', icon: 'cash-outline' },
-  { key: 'customer', label: 'Cliente (A–Z)', sortBy: 'customer_name', sortDir: 'asc', icon: 'person-outline' },
-];
 
 export default function OrdersScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const [sales, setSales] = useState<SaleSummary[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,8 +55,8 @@ export default function OrdersScreen({ navigation }: Props) {
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
 
   // ---- Sort ----
-  const [sortIndex, setSortIndex] = useState(0);
-  const sort = SORT_OPTIONS[sortIndex];
+  const [sortIndex, setSortIndex] = useState(SALE_DEFAULT_SORT);
+  const sort = SALE_SORT_OPTIONS[sortIndex];
 
   const range = useMemo(() => {
     if (datePreset === 'all') return { dateFrom: undefined, dateTo: undefined };
@@ -130,7 +111,7 @@ export default function OrdersScreen({ navigation }: Props) {
         setSales(items);
         setMeta(m);
       } catch (e: any) {
-        setError(e?.message ?? 'No se pudo cargar el historial.');
+        setError(e?.message ?? 'No se pudieron cargar las ventas.');
         setSales([]);
         setMeta(null);
       } finally {
@@ -173,49 +154,28 @@ export default function OrdersScreen({ navigation }: Props) {
 
   function renderItem({ item }: { item: SaleSummary }) {
     return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={ROW_PRESS_OPACITY}
+      <SaleRow
+        card
+        id={item.id}
+        customerName={item.customerName}
+        itemsCount={item.itemsCount}
+        total={item.total}
+        paymentMethod={item.paymentMethod}
+        createdAt={item.createdAt}
         onPress={() => navigation.navigate('OrderDetail', { sale: item })}
-      >
-        <View style={styles.iconBox}>
-          <Ionicons name="receipt-outline" size={24} color={colors.primary} />
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={styles.orderId}>Venta #{item.id}</Text>
-          <Text style={styles.date}>{formatDate(item.createdAt)}</Text>
-          <Text style={styles.count}>
-            {item.itemsCount} {item.itemsCount === 1 ? 'artículo' : 'artículos'} · {item.customerName}
-          </Text>
-        </View>
-        <View style={styles.cardRight}>
-          <Text style={styles.total}>{formatPrice(item.total)}</Text>
-          <View style={styles.payBadge}>
-            <Text style={styles.payText}>{paymentMethodLabel(item.paymentMethod)}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
+      />
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.titleRow}>
-          <View style={styles.titleTexts}>
-            <Text style={styles.title}>Historial de ventas</Text>
-            {meta && (
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {meta.total} {hasFilters ? 'coinciden' : 'en total'} · {sort.label}
-              </Text>
-            )}
-          </View>
-          <View style={styles.titleActions}>
-            <SortControl options={SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
-          </View>
-        </View>
-
-        {/* Search */}
+      <ScreenTitle
+        title="Ventas"
+        subtitle={
+          meta ? `${meta.total} ${hasFilters ? 'coinciden' : 'en total'} · ${sort.label}` : undefined
+        }
+        actions={<SortControl options={SALE_SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />}
+      >
         <SearchBar
           value={searchText}
           onChangeText={setSearchText}
@@ -224,11 +184,7 @@ export default function OrdersScreen({ navigation }: Props) {
 
         {/* Date range presets */}
         <View style={styles.filterRow}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chips}
-          >
+          <ChipRow>
             {DATE_PRESETS.map((p) => (
               <Chip
                 key={p.value}
@@ -237,10 +193,10 @@ export default function OrdersScreen({ navigation }: Props) {
                 onPress={() => setDatePreset(p.value)}
               />
             ))}
-          </ScrollView>
+          </ChipRow>
           {hasFilters && <ClearFiltersButton onPress={clearFilters} />}
         </View>
-      </View>
+      </ScreenTitle>
 
       {loading ? (
         <LoadingState />
@@ -255,7 +211,7 @@ export default function OrdersScreen({ navigation }: Props) {
           data={sales}
           keyExtractor={(s) => String(s.id)}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={sales.length ? styles.list : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onEndReached={loadMore}
@@ -270,7 +226,7 @@ export default function OrdersScreen({ navigation }: Props) {
           }
           ListFooterComponent={
             loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
+              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
             ) : null
           }
           ListEmptyComponent={
@@ -292,79 +248,12 @@ export default function OrdersScreen({ navigation }: Props) {
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      style={[styles.chip, active && styles.chipActive]}
-      onPress={onPress}
-      activeOpacity={ROW_PRESS_OPACITY}
-    >
-      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingBottom: 4 },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 10,
-  },
-  titleTexts: { flex: 1 },
-  titleActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  title: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  subtitle: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: 2 },
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  chips: { gap: 8, paddingVertical: 10, paddingRight: 8 },
-  chip: {
-    paddingHorizontal: 16,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  chipTextActive: { color: colors.textOnPrimary },
-  list: { padding: 20, paddingTop: 4, gap: 14, flexGrow: 1 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 14,
-    gap: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardInfo: { flex: 1, gap: 2 },
-  orderId: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  date: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
-  count: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
-  cardRight: { alignItems: 'flex-end', gap: 6 },
-  total: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  payBadge: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  payText: { color: colors.primary, fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold },
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  // Each sale is its own card; the list just spaces them and pays the screen
+  // margins. flexGrow lets a short list still fill the page.
+  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  listEmpty: { flexGrow: 1 },
 });

@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { tabIcon } from './tabIcon';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminProfileScreen from '../screens/AdminProfileScreen';
 import AdminLowStockScreen from '../screens/AdminLowStockScreen';
@@ -42,6 +42,17 @@ function HomeStack() {
       <HomeStackNav.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <HomeStackNav.Screen name="AdminProfile" component={AdminProfileScreen} />
       <HomeStackNav.Screen name="AdminLowStock" component={AdminLowStockScreen} />
+      {/* Also registered in the Ventas and Catálogo stacks. Inicio opens its
+          best-sellers and recent sales HERE, on its own stack, so that going back
+          returns to Inicio — a cross-tab navigate would push them onto the other
+          tab and leave you stranded on that tab's list. A product detail leads on
+          to the whole edit sub-flow, so that comes along too. */}
+      <HomeStackNav.Screen name="AdminSaleDetail" component={AdminSaleDetailScreen} />
+      <HomeStackNav.Screen name="AdminProductDetail" component={AdminProductDetailScreen} />
+      <HomeStackNav.Screen name="AdminProductForm" component={AdminProductFormScreen} />
+      <HomeStackNav.Screen name="AdminProductImages" component={AdminProductImagesScreen} />
+      <HomeStackNav.Screen name="AdminStockEdit" component={AdminStockEditScreen} />
+      <HomeStackNav.Screen name="AdminVariationForm" component={AdminVariationFormScreen} />
     </HomeStackNav.Navigator>
   );
 }
@@ -99,42 +110,22 @@ export default function AdminNavigator() {
       <Tab.Screen
         name="AdminHomeTab"
         component={HomeStack}
-        options={{
-          title: 'Inicio',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart-outline" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Inicio', tabBarIcon: tabIcon('home') }}
       />
       <Tab.Screen
         name="AdminSalesTab"
         component={SalesStack}
-        options={{
-          title: 'Ventas',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt-outline" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Ventas', tabBarIcon: tabIcon('sales') }}
       />
       <Tab.Screen
         name="AdminProductsTab"
         component={ProductsStack}
-        options={{
-          title: 'Productos',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cube-outline" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Catálogo', tabBarIcon: tabIcon('products') }}
       />
       <Tab.Screen
         name="AdminMoreTab"
         component={MoreStack}
-        options={{
-          title: 'Más',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="ellipsis-horizontal-outline" size={size} color={color} />
-          ),
-        }}
+        options={{ title: 'Más', tabBarIcon: tabIcon('more') }}
       />
     </Tab.Navigator>
   );
