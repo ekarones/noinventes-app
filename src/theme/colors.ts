@@ -6,7 +6,9 @@ export const colors = {
   primarySoft: '#fff1ef', // tint used for input backgrounds / subtle surfaces
   primarySoftPressed: '#ffe3de', // pressed state for soft/outline buttons
 
-  background: '#ffffff',
+  // A soft off-white so the pure-white surfaces (cards, panels, sheets) read as
+  // raised against the page instead of blending into it.
+  background: '#f4f5f7',
   surface: '#ffffff',
   // A neutral fill, for a box that has to read as a container and not as an
   // accent. Sits between `surface` and `border` in the same grey ramp as

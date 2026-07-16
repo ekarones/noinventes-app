@@ -134,6 +134,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           <Text style={styles.name} numberOfLines={2}>
             {product.name}
           </Text>
+          {/* The chosen variation's code once one is picked, else the parent's. */}
+          <IconLabel icon="barcode-outline" text={code} />
           {/* No variation chosen → the product's full range ("S/ 39.90 – S/ 59.90"
               when the variations differ). Once one is picked, its exact price. */}
           <Text style={styles.price} numberOfLines={1}>

@@ -20,8 +20,19 @@ export default function KpiCard({ icon, label, value, highlight }: Props) {
       <View style={[styles.icon, highlight && styles.iconHighlight]}>
         <Ionicons name={icon} size={20} color={highlight ? colors.textOnPrimary : colors.primary} />
       </View>
-      <Text style={[styles.value, highlight && styles.textOnPrimary]}>{value}</Text>
-      <Text style={[styles.label, highlight && styles.textOnPrimarySoft]}>{label}</Text>
+      <View style={styles.texts}>
+        {/* Shrinks to fit rather than truncating a long total in the narrow card. */}
+        <Text
+          style={[styles.value, highlight && styles.textOnPrimary]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          {value}
+        </Text>
+        <Text style={[styles.label, highlight && styles.textOnPrimarySoft]} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -37,12 +48,17 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     paddingHorizontal: SPACING.xl,
     paddingTop: 0,
-    gap: SPACING.md,
+    // `sm`, matching the period pills and the catalogue's card gap.
+    gap: SPACING.sm,
   },
   card: {
     // Just under half, so two fit per row; flexGrow then shares out the remainder.
     width: '47%',
     flexGrow: 1,
+    // Icon on the left, the figure and its label stacked on the right — one row.
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
     padding: SPACING.lg,
@@ -59,11 +75,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconHighlight: { backgroundColor: 'rgba(255, 255, 255, 0.25)' },
+  texts: { flex: 1 },
   value: {
-    fontSize: FONT_SIZE.title,
+    fontSize: FONT_SIZE.heading,
     fontWeight: FONT_WEIGHT.bold,
     color: colors.textPrimary,
-    marginTop: SPACING.sm,
   },
   label: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
   textOnPrimary: { color: colors.textOnPrimary },

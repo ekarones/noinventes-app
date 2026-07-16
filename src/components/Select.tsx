@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import {
@@ -28,13 +28,15 @@ type Props = {
   value: number | null;
   options: SelectOption[];
   onChange: (id: number | null) => void;
+  /** Lets the caller size the pill — e.g. `flex: 1` to fill a filter row. */
+  style?: StyleProp<ViewStyle>;
 };
 
 // A pill that opens a bottom-sheet list to pick one option — the filter control
 // for a set too long to lay out as chips (categories, branches, sellers). Replaces
 // the "select that opens a sheet" that several screens had each hand-rolled, and
 // the seller catalogue's chip row that overflowed once the categories grew.
-export default function Select({ icon, placeholder, value, options, onChange }: Props) {
+export default function Select({ icon, placeholder, value, options, onChange, style }: Props) {
   const [open, setOpen] = useState(false);
   const active = value != null;
   const selected = active ? options.find((o) => o.id === value) : undefined;
@@ -42,7 +44,7 @@ export default function Select({ icon, placeholder, value, options, onChange }: 
   return (
     <>
       <TouchableOpacity
-        style={[styles.pill, active && styles.pillActive]}
+        style={[styles.pill, active && styles.pillActive, style]}
         onPress={() => setOpen(true)}
         activeOpacity={ROW_PRESS_OPACITY}
         accessibilityRole="button"

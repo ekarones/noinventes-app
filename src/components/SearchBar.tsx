@@ -1,7 +1,7 @@
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Props = {
   value: string;
@@ -47,10 +47,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: colors.primarySoft,
+    // Flat: a white field with a border, so it matches the cards and the filter
+    // buttons instead of the old brand-tinted fill.
+    backgroundColor: colors.surface,
     borderRadius: RADIUS.control,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: SPACING.md,
-    height: 48,
+    height: CONTROL_HEIGHT.input,
   },
   input: {
     flex: 1,

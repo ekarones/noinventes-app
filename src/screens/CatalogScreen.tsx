@@ -24,7 +24,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { hapticAdd } from '../utils/haptics';
 import { flattenCategoryTree } from '../utils/categoryTree';
 import { PRODUCT_SORT_OPTIONS, SELLER_DEFAULT_SORT } from '../utils/sortOptions';
-import ProductRow from '../components/ProductRow';
+import ProductGridCard from '../components/ProductGridCard';
 import StockBadge from '../components/StockBadge';
 import IconButton from '../components/IconButton';
 import Select from '../components/Select';
@@ -197,16 +197,17 @@ export default function CatalogScreen({ navigation }: Props) {
   function renderItem({ item }: { item: Product }) {
     const outOfStock = item.stock <= 0;
     return (
-      <ProductRow
+      <ProductGridCard
         imageUri={item.imageThumbUrl}
+        overline={item.category?.name ?? `#${item.code}`}
         name={item.name}
+        code={item.code}
         // The full range when the variations differ ("S/ 39.90 – S/ 59.90");
         // a single price otherwise.
         price={formatPriceRange(item.finalPrice, item.finalPriceMax)}
-        onPress={() => navigation.navigate('ProductDetail', { product: item })}
-        overline={item.category?.name ?? `#${item.code}`}
-        stat={<StockBadge stock={item.stock} />}
+        badge={<StockBadge stock={item.stock} />}
         action={<AddButton onPress={() => handleAdd(item)} disabled={outOfStock} />}
+        onPress={() => navigation.navigate('ProductDetail', { product: item })}
       />
     );
   }
@@ -221,15 +222,12 @@ export default function CatalogScreen({ navigation }: Props) {
             : undefined
         }
         actions={
-          <>
-            <SortControl options={PRODUCT_SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
-            <IconButton
-              icon="qr-code-outline"
-              label="QR"
-              onPress={() => setScannerVisible(true)}
-              accessibilityLabel="Escanear código QR"
-            />
-          </>
+          <IconButton
+            icon="qr-code-outline"
+            label="QR"
+            onPress={() => setScannerVisible(true)}
+            accessibilityLabel="Escanear código QR"
+          />
         }
       >
         <SearchBar
@@ -238,15 +236,18 @@ export default function CatalogScreen({ navigation }: Props) {
           placeholder="Buscar por nombre o código..."
         />
 
-        {/* A picker, not a chip row: the categories outgrew a line of pills. */}
-        <View style={styles.categoryFilter}>
+        {/* Category picker and sort share one line: the category button takes the
+            room, sort sits compact beside it. */}
+        <View style={styles.filterRow}>
           <Select
             icon="folder-outline"
             placeholder="Todas las categorías"
             value={categoryId}
             options={categoryOptions}
             onChange={setCategoryId}
+            style={styles.categorySelect}
           />
+          <SortControl options={PRODUCT_SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
         </View>
       </ScreenTitle>
 
@@ -263,7 +264,9 @@ export default function CatalogScreen({ navigation }: Props) {
           data={products}
           keyExtractor={(p) => String(p.id)}
           renderItem={renderItem}
-          contentContainerStyle={products.length ? styles.list : styles.listEmpty}
+          numColumns={2}
+          columnWrapperStyle={styles.gridRow}
+          contentContainerStyle={products.length ? styles.grid : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onEndReached={loadMore}
@@ -308,17 +311,21 @@ export default function CatalogScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  // Lifts the category picker off the search bar (there are no chips between them
-  // here as there are on the admin catalogue).
-  categoryFilter: { marginTop: SPACING.md },
-  // Each product is its own card; the list just spaces them and pays the screen
-  // margins. flexGrow lets a short list still fill the page.
-  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  // Category picker + sort on one line. The gap between them and the lift off the
+  // search bar both use `sm`, matching the gap between the cards below.
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
+  categorySelect: { flex: 1 },
+  // A 2-column grid. `gap` spaces the rows; the row's own `space-between` (with the
+  // cards at 49%) spaces the two columns. flexGrow lets a short grid fill the page.
+  grid: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
+  gridRow: { justifyContent: 'space-between' },
   listEmpty: { flexGrow: 1 },
+  // A round button beside the price. Circular via RADIUS.pill (never width/2), and
+  // sized to the touch minimum since it sits on its own now, not on the image.
   addBtn: {
     width: TOUCH_MIN,
     height: TOUCH_MIN,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',

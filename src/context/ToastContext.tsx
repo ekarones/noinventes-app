@@ -108,11 +108,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     maxWidth: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
   },
   text: { color: colors.textOnPrimary, fontSize: 15, fontWeight: '600', flexShrink: 1 },
 });

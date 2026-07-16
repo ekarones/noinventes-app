@@ -34,8 +34,9 @@ export function SortControl({ options, index, onChange }: SortControlProps) {
         accessibilityRole="button"
         accessibilityLabel="Ordenar"
       >
-        <Ionicons name="swap-vertical" size={16} color={colors.primary} />
+        <Ionicons name="swap-vertical" size={16} color={colors.textSecondary} />
         <Text style={styles.pillText}>Ordenar</Text>
+        <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
       </TouchableOpacity>
 
       <BottomSheet visible={open} onClose={() => setOpen(false)} title="Ordenar por">
@@ -67,26 +68,29 @@ export function ClearFiltersButton({ onPress }: { onPress: () => void }) {
       accessibilityRole="button"
       accessibilityLabel="Limpiar filtros"
     >
-      <Ionicons name="close" size={16} color={colors.primary} />
+      <Ionicons name="close" size={16} color={colors.textSecondary} />
       <Text style={styles.pillText}>Limpiar</Text>
     </TouchableOpacity>
   );
 }
 
-// One shared pill style, so the two controls cannot drift apart.
+// One shared pill style, so the two controls cannot drift apart. It mirrors the
+// category `Select`: white with a border, rounded to `control`, grey icon + label.
 const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: colors.primarySoft,
+    gap: SPACING.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.pill,
+    borderRadius: RADIUS.control,
   },
   pillText: {
-    color: colors.primary,
+    color: colors.textSecondary,
     fontSize: FONT_SIZE.bodySm,
-    fontWeight: FONT_WEIGHT.bold,
+    fontWeight: FONT_WEIGHT.medium,
   },
 });

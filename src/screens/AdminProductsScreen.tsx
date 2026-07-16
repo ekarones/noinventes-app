@@ -8,7 +8,7 @@ import { fetchAdminCategories } from '../api/admin/categories';
 import type { PaginationMeta } from '../api/products';
 import { colors } from '../theme/colors';
 import { SPACING } from '../theme/tokens';
-import ProductRow from '../components/ProductRow';
+import ProductGridCard from '../components/ProductGridCard';
 import StockBadge from '../components/StockBadge';
 import IconLabel, { IconLabelRow } from '../components/IconLabel';
 import IconButton from '../components/IconButton';
@@ -151,32 +151,29 @@ export default function AdminProductsScreen({ navigation }: Props) {
 
   function renderItem({ item }: { item: AdminProductRow }) {
     return (
-      <ProductRow
+      <ProductGridCard
         imageUri={item.imageThumbUrl}
+        overline={item.category?.name ?? `#${item.code}`}
         name={item.name}
+        code={item.code}
         // The full range when the variations differ; a single price otherwise. If
         // the API build doesn't send the max yet, it reads as one price.
         price={formatPriceRange(item.finalPrice, item.finalPriceMax)}
-        onPress={() => navigation.navigate('AdminProductDetail', { product: item })}
-        overline={item.category?.name ?? `#${item.code}`}
-        meta={
-          <>
-            <IconLabelRow>
-              <IconLabel
-                icon={STATUS_ICON[item.status]}
-                text={STATUS_LABEL[item.status]}
-                tint={statusColor(item.status)}
-              />
-            </IconLabelRow>
-            {item.type === 'variable' && (
-              <IconLabelRow>
-                <IconLabel icon="git-branch-outline" text={`${item.variationsCount} var.`} />
-              </IconLabelRow>
-            )}
-          </>
-        }
         // Null for a variable product: its stock lives on the variations.
-        stat={item.stock != null ? <StockBadge stock={item.stock} /> : undefined}
+        badge={item.stock != null ? <StockBadge stock={item.stock} /> : undefined}
+        meta={
+          <IconLabelRow>
+            <IconLabel
+              icon={STATUS_ICON[item.status]}
+              text={STATUS_LABEL[item.status]}
+              tint={statusColor(item.status)}
+            />
+            {item.type === 'variable' && (
+              <IconLabel icon="git-branch-outline" text={`${item.variationsCount} var.`} />
+            )}
+          </IconLabelRow>
+        }
+        onPress={() => navigation.navigate('AdminProductDetail', { product: item })}
       />
     );
   }
@@ -252,7 +249,9 @@ export default function AdminProductsScreen({ navigation }: Props) {
           data={products}
           keyExtractor={(p) => String(p.id)}
           renderItem={renderItem}
-          contentContainerStyle={products.length ? styles.list : styles.listEmpty}
+          numColumns={2}
+          columnWrapperStyle={styles.gridRow}
+          contentContainerStyle={products.length ? styles.grid : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onEndReached={loadMore}
@@ -294,8 +293,9 @@ export default function AdminProductsScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  // Each product is its own card; the list just spaces them and pays the screen
-  // margins. flexGrow lets a short list still fill the page.
-  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  // A 2-column grid. `gap` spaces the rows; the row's own `space-between` (with the
+  // cards at 49%) spaces the two columns. flexGrow lets a short grid fill the page.
+  grid: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
+  gridRow: { justifyContent: 'space-between' },
   listEmpty: { flexGrow: 1 },
 });

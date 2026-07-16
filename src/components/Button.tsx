@@ -60,9 +60,6 @@ export default function Button({
           borderColor: v.border ?? 'transparent',
           borderWidth: v.border ? 1.5 : 0,
         },
-        // The filled button carries a soft brand shadow; dropping it while
-        // pressed/disabled makes the state change feel physical.
-        variant === 'primary' && !pressed && !isDisabled && styles.raised,
         isDisabled && styles.disabled,
         style,
       ]}
@@ -118,12 +115,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
   },
   label: { fontWeight: FONT_WEIGHT.bold },
-  raised: {
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 4,
-  },
   disabled: { opacity: 0.45 },
 });

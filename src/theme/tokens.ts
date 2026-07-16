@@ -57,8 +57,9 @@ export const SPACING = {
 
 // ---- Type scale ----
 // Sizes step in a readable ratio instead of drifting a point at a time. There is
-// deliberately no 10 or 17: a one-point difference is invisible, so those only
-// ever meant "someone eyeballed it". They snap to `badge` and `heading`.
+// deliberately no 17 (it snaps to `heading`). `nano` (10) is the one below-11 step,
+// kept for the densest secondary labels — the category/code inside a compact grid
+// card — where even `badge` reads a touch large.
 export const FONT_SIZE = {
   avatar: 36, // the initial inside a profile avatar
   display: 28, // the login title
@@ -73,6 +74,7 @@ export const FONT_SIZE = {
   caption: 13, // hints, labels
   micro: 12, // footnotes
   badge: 11, // pills and counters
+  nano: 10, // the densest secondary labels in a grid card
 } as const;
 
 export const FONT_WEIGHT = {
