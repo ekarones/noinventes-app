@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { ReactNode } from 'react';
 import { colors } from '../theme/colors';
 import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
@@ -30,38 +30,55 @@ export default function Chip({
   );
 }
 
-// The horizontal strip the chips live in.
+// The horizontal strip the chips live in: a white track holding them, so the
+// muted chips have something to sit on and the selected one reads as lifted out
+// of the row rather than tinted in place.
 export function ChipRow({ children }: { children: ReactNode }) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
-    >
-      {children}
-    </ScrollView>
+    <View style={styles.rowBox}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.row}
+      >
+        {children}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { gap: SPACING.sm, paddingVertical: SPACING.sm, paddingRight: SPACING.sm },
+  // The track. `marginVertical` replaces the padding the strip used to carry, so
+  // the gap to the search bar above and the filters below is unchanged.
+  rowBox: {
+    backgroundColor: colors.surface,
+    // RADIUS.card, same as the dashboard panels — the track is a panel holding
+    // controls, not a control itself.
+    borderRadius: RADIUS.card,
+    // Same padding as the dashboard cards (SPACING.sm).
+    padding: SPACING.sm,
+    marginVertical: SPACING.sm,
+  },
+  row: { gap: SPACING.sm },
   chip: {
     // Same height as the sort/clear pills it sits under, and clears the 44dp
     // minimum on its own — no hit slop reaching outside the chip.
     height: CONTROL_HEIGHT.pill,
     paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.pill,
+    // Muted at rest so the chips read as one row of options on the white track;
+    // the selected one turns white with a primary frame, lifting out of the row.
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: 'transparent',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipActive: { backgroundColor: colors.surface, borderColor: colors.primary },
   text: {
     fontSize: FONT_SIZE.bodySm,
     fontWeight: FONT_WEIGHT.medium,
     color: colors.textSecondary,
   },
-  textActive: { color: colors.textOnPrimary },
+  textActive: { color: colors.primary },
 });

@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: SPACING.sm,
     paddingTop: 0,
     // `sm`, matching the period pills and the catalogue's card gap.
     gap: SPACING.sm,
@@ -61,9 +61,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    padding: SPACING.sm,
   },
   cardHighlight: { backgroundColor: colors.primary, borderColor: colors.primary },
   icon: {

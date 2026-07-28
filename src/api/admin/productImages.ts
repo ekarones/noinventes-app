@@ -5,7 +5,7 @@ import type { AdminProductImage } from '../../types';
 type RawAdminImage = {
   id: number;
   url: string;
-  thumb_url?: string | null;
+  thumb_url: string;
   is_featured: boolean;
   sort_order: number;
 };
@@ -14,8 +14,7 @@ function mapImage(i: RawAdminImage): AdminProductImage {
   return {
     id: i.id,
     url: i.url,
-    // Falls back to the full image when the server has no thumb.
-    thumbUrl: i.thumb_url ?? i.url,
+    thumbUrl: i.thumb_url,
     isFeatured: i.is_featured,
     sortOrder: i.sort_order,
   };

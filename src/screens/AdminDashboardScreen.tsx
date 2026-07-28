@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { AdminHomeNavigation } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
@@ -44,7 +45,7 @@ const PERIODS: { value: StatsPeriod; label: string }[] = [
 ];
 
 export default function AdminDashboardScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<AdminHomeNavigation>();
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -265,7 +266,16 @@ export default function AdminDashboardScreen() {
             )}
 
             {/* Top products */}
-            <SectionHeader icon="trophy-outline" title="Más vendidos" />
+            <SectionHeader
+              icon="trophy-outline"
+              title="Más vendidos"
+              // Always offered, like the seller's. Carries the branch scope so
+              // the list matches what the dashboard is showing.
+              action={{
+                label: 'Ver todas',
+                onPress: () => navigation.navigate('AdminTopProducts', { period, branchId }),
+              }}
+            />
             {!data || data.topProducts.length === 0 ? (
               <EmptyState
                 compact
@@ -422,15 +432,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    marginHorizontal: SPACING.xl,
+    marginHorizontal: SPACING.sm,
     // It sits between the pinned period bar and the KPIs, and owns the gap below
     // it — the grid no longer pads its own top now that the bar pads its bottom.
     marginBottom: SPACING.md,
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     backgroundColor: colors.surface,
   },
   branchSelectActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
@@ -440,9 +450,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    marginHorizontal: SPACING.xl,
+    marginHorizontal: SPACING.sm,
     marginTop: SPACING.lg,
-    padding: SPACING.lg,
+    padding: SPACING.sm,
     borderRadius: RADIUS.card,
     backgroundColor: '#fffaf0',
     borderWidth: 1,

@@ -55,7 +55,7 @@ export default function Button({
         styles.base,
         {
           height: CONTROL_HEIGHT[size],
-          borderRadius: size === 'lg' ? RADIUS.control : RADIUS.control,
+          borderRadius: RADIUS.pill,
           backgroundColor: pressed ? v.pressedBg : v.bg,
           borderColor: v.border ?? 'transparent',
           borderWidth: v.border ? 1.5 : 0,

@@ -15,9 +15,9 @@ type Props = {
   onChangeText?: (text: string) => void;
 };
 
-// One control, not two floating buttons around a number: a bordered pill with the
-// count walled off in the middle by dividers. The cart and the product detail had
-// each rolled their own — one with 40px buttons and a typed field, the other with
+// One control, not two floating buttons around a number: a soft pill holding a
+// muted "−", the count, and a muted "+". The cart and the product detail had each
+// rolled their own — one with 40px buttons and a typed field, the other with
 // bigger buttons and plain text — so a "− 4 +" looked like two different controls
 // depending on where you met it.
 export default function QuantityStepper({
@@ -38,7 +38,9 @@ export default function QuantityStepper({
         accessibilityRole="button"
         accessibilityLabel="Quitar una unidad"
       >
-        <Ionicons name="remove" size={18} color={colors.textPrimary} />
+        <View style={styles.circle}>
+          <Ionicons name="remove" size={18} color={colors.textSecondary} />
+        </View>
       </TouchableOpacity>
 
       {onChangeText ? (
@@ -62,39 +64,50 @@ export default function QuantityStepper({
         accessibilityRole="button"
         accessibilityLabel="Agregar una unidad"
       >
-        <Ionicons name="add" size={18} color={colors.textPrimary} />
+        <View style={styles.circle}>
+          <Ionicons name="add" size={18} color={colors.textSecondary} />
+        </View>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // overflow:hidden keeps the buttons inside the rounded corners.
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
     height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.control,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
+    borderRadius: RADIUS.pill,
+    // A muted fill instead of a border, so the stepper reads as a control even
+    // sitting on a white card — and so the white discs inside it read as buttons.
+    backgroundColor: colors.surfaceMuted,
+    // Keeps the discs off the pill's edge.
+    paddingHorizontal: SPACING.xs,
   },
+  // The tappable area stays the full 44 tall (TOUCH_MIN); the disc inside it is
+  // just what you see. Shrinking the button to the disc would put the target
+  // under the minimum, and this one gets hammered at the till.
   btn: { width: 40, height: '100%', alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.35 },
+  circle: {
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // No dividers walling it in: the muted signs on either side already read as the
+  // buttons, and the count is the only dark thing in the pill.
   count: {
-    minWidth: 44,
+    minWidth: 32,
     height: '100%',
     textAlign: 'center',
     textAlignVertical: 'center',
-    fontSize: FONT_SIZE.subheading,
-    fontWeight: FONT_WEIGHT.bold,
+    fontSize: FONT_SIZE.body,
+    fontWeight: FONT_WEIGHT.medium,
     color: colors.textPrimary,
     paddingVertical: 0,
     paddingHorizontal: SPACING.xs,
-    // The count reads as part of the pill, divided from the buttons.
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: colors.border,
   },
 });

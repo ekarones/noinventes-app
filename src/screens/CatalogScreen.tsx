@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   FlatList,
@@ -11,7 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { fetchCategories, fetchProducts, lookupByCode, type PaginationMeta } from '../api/products';
+import { fetchCategories, fetchProducts, lookupByCode } from '../api/products';
+import { usePagedList } from '../hooks/usePagedList';
 import { ApiError } from '../api/client';
 import type { Category, Product } from '../types';
 import type { CatalogStackParamList } from '../navigation/types';
@@ -22,8 +22,8 @@ import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { useDebounce } from '../hooks/useDebounce';
 import { hapticAdd } from '../utils/haptics';
-import { flattenCategoryTree } from '../utils/categoryTree';
 import { PRODUCT_SORT_OPTIONS, SELLER_DEFAULT_SORT } from '../utils/sortOptions';
+import Pagination from '../components/Pagination';
 import ProductGridCard from '../components/ProductGridCard';
 import StockBadge from '../components/StockBadge';
 import IconButton from '../components/IconButton';
@@ -37,7 +37,7 @@ import QRScannerModal from '../components/QRScannerModal';
 
 type Props = NativeStackScreenProps<CatalogStackParamList, 'Catalog'>;
 
-const PER_PAGE = 30;
+const PER_PAGE = 20;
 
 // Quick "+" button with a tap pop. Out of stock it stays put, greyed and inert:
 // the row keeps its shape down the list, and the badge above already says why.
@@ -76,20 +76,14 @@ export default function CatalogScreen({ navigation }: Props) {
   const [searchText, setSearchText] = useState('');
   const query = useDebounce(searchText, 400);
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [scannerVisible, setScannerVisible] = useState(false);
 
   const [sortIndex, setSortIndex] = useState(SELLER_DEFAULT_SORT);
   const sort = PRODUCT_SORT_OPTIONS[sortIndex];
 
-  // Flat from the API → tree order + depth, so the picker can indent the hierarchy.
+  // Already depth-first and depth-tagged by the server — just relabel for the picker.
   const categoryOptions = useMemo(
-    () => flattenCategoryTree(categories).map((c) => ({ id: c.id, label: c.name, depth: c.depth })),
+    () => categories.map((c) => ({ id: c.id, label: c.name, depth: c.depth })),
     [categories]
   );
 
@@ -109,58 +103,33 @@ export default function CatalogScreen({ navigation }: Props) {
       });
   }, []);
 
-  const loadFirstPage = useCallback(
-    async (isRefresh = false) => {
-      isRefresh ? setRefreshing(true) : setLoading(true);
-      setError(null);
-      try {
-        const { items, meta: m } = await fetchProducts({
-          search: query,
-          categoryId,
-          sortBy: sort.sortBy,
-          sortDir: sort.sortDir,
-          page: 1,
-          perPage: PER_PAGE,
-        });
-        setProducts(items);
-        setMeta(m);
-      } catch (e: any) {
-        setError(e?.message ?? 'No se pudieron cargar los productos.');
-        setProducts([]);
-        setMeta(null);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [query, categoryId, sort]
-  );
-
-  // Reload whenever the (debounced) search, category or sort changes.
-  useEffect(() => {
-    loadFirstPage();
-  }, [loadFirstPage]);
-
-  async function loadMore() {
-    if (!meta || loadingMore || meta.currentPage >= meta.lastPage) return;
-    setLoadingMore(true);
-    try {
-      const { items, meta: m } = await fetchProducts({
+  const fetchPage = useCallback(
+    (page: number) =>
+      fetchProducts({
         search: query,
         categoryId,
         sortBy: sort.sortBy,
         sortDir: sort.sortDir,
-        page: meta.currentPage + 1,
+        page,
         perPage: PER_PAGE,
-      });
-      setProducts((prev) => [...prev, ...items]);
-      setMeta(m);
-    } catch {
-      /* keep what we have; user can pull to refresh */
-    } finally {
-      setLoadingMore(false);
-    }
-  }
+      }),
+    [query, categoryId, sort]
+  );
+  const {
+    items: products,
+    meta,
+    page,
+    loading,
+    refreshing,
+    error,
+    listRef,
+    loadPage,
+  } = usePagedList<Product>(fetchPage, 'No se pudieron cargar los productos.');
+
+  // A changed search, category or sort is a different result set — back to page 1.
+  useEffect(() => {
+    loadPage(1);
+  }, [loadPage]);
 
   // Resolve a scanned QR via GET /lookup and open the product's detail. If the
   // code is a specific variation, it's preselected on the detail screen.
@@ -245,22 +214,31 @@ export default function CatalogScreen({ navigation }: Props) {
             value={categoryId}
             options={categoryOptions}
             onChange={setCategoryId}
-            style={styles.categorySelect}
+            style={styles.filterItem}
           />
-          <SortControl options={PRODUCT_SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
+          <SortControl
+            options={PRODUCT_SORT_OPTIONS}
+            index={sortIndex}
+            onChange={setSortIndex}
+            showSelection
+            style={styles.filterItem}
+          />
         </View>
       </ScreenTitle>
 
-      {loading ? (
+      {/* Only the very first load takes over the screen. Once there's a grid,
+          changing page keeps it on screen and just disables the controls. */}
+      {loading && products.length === 0 ? (
         <LoadingState />
       ) : error ? (
         <EmptyState
           icon="cloud-offline-outline"
           message={error}
-          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
         />
       ) : (
         <FlatList
+          ref={listRef}
           data={products}
           keyExtractor={(p) => String(p.id)}
           renderItem={renderItem}
@@ -269,20 +247,21 @@ export default function CatalogScreen({ navigation }: Props) {
           contentContainerStyle={products.length ? styles.grid : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => loadFirstPage(true)}
+              onRefresh={() => loadPage(page, true)}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
           ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
-            ) : null
+            <Pagination
+              page={page}
+              lastPage={meta?.lastPage ?? 1}
+              onChange={loadPage}
+              loading={loading}
+            />
           }
           ListEmptyComponent={
             <EmptyState
@@ -314,11 +293,13 @@ const styles = StyleSheet.create({
   // Category picker + sort on one line. The gap between them and the lift off the
   // search bar both use `sm`, matching the gap between the cards below.
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
-  categorySelect: { flex: 1 },
-  // A 2-column grid. `gap` spaces the rows; the row's own `space-between` (with the
-  // cards at 49%) spaces the two columns. flexGrow lets a short grid fill the page.
-  grid: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
-  gridRow: { justifyContent: 'space-between' },
+  // Category picker and sort share the row equally, with a `sm` (10) gap between.
+  filterItem: { flex: 1 },
+  // A 2-column grid. The container `gap` spaces the rows; the row's `gap` spaces the
+  // two columns (a fixed SPACING.sm). flexGrow lets a short grid fill the page.
+  // paddingTop is a 5px optical nudge below the header — off the grid on purpose.
+  grid: { padding: SPACING.sm, paddingTop: 5, gap: SPACING.sm, flexGrow: 1 },
+  gridRow: { gap: SPACING.sm },
   listEmpty: { flexGrow: 1 },
   // A round button beside the price. Circular via RADIUS.pill (never width/2), and
   // sized to the touch minimum since it sits on its own now, not on the image.

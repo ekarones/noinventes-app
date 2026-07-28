@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
 import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
-import { formatPrice, roundMoney, toCents } from '../utils/format';
+import { formatPrice } from '../utils/format';
 import { linePrice, variationLabel } from '../utils/cart';
 import { PAYMENT_METHODS } from '../utils/payment';
 import { useCart } from '../context/CartContext';
@@ -30,7 +30,7 @@ import Field from '../components/Field';
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
 import type { CartItem, PaymentMethod } from '../types';
-import type { CartStackParamList } from '../navigation/types';
+import type { CartStackParamList, RootTabNavigation } from '../navigation/types';
 
 type Props = NativeStackScreenProps<CartStackParamList, 'Checkout'>;
 
@@ -69,29 +69,20 @@ async function verifyStock(items: CartItem[]): Promise<StockIssue[]> {
 
 export default function CheckoutScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const rootNav = useNavigation<any>();
-  const { items, totalPrice, clear, updateQuantity, removeItem } = useCart();
+  const rootNav = useNavigation<RootTabNavigation>();
+  // Subtotal, discount and total all come from the cart now — the discount is set
+  // there, beside the lines it applies to, and arrives here already clamped.
+  const { items, totalPrice: subtotal, discount, total, clear, updateQuantity, removeItem } =
+    useCart();
   const { showToast } = useToast();
 
   const [customerName, setCustomerName] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
-  const [discountText, setDiscountText] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const subtotal = totalPrice;
-  const discount = roundMoney(Math.max(0, parseFloat(discountText.replace(',', '.')) || 0));
-  // Compared in cents: a 100% discount typed as the exact subtotal would fail a
-  // plain `>` on floats (119.7 > 119.69999999999999).
-  const discountInvalid = toCents(discount) > toCents(subtotal);
-  const total = roundMoney(Math.max(0, subtotal - discount));
-
   async function handleSubmit() {
     if (submitting || items.length === 0) return;
-    if (discountInvalid) {
-      Alert.alert('Descuento inválido', 'El descuento no puede ser mayor al subtotal.');
-      return;
-    }
 
     const payloadItems: CreateSaleItem[] = items.map((i) => ({
       product_id: i.product.id,
@@ -195,7 +186,7 @@ export default function CheckoutScreen({ navigation }: Props) {
         keyboardVerticalOffset={insets.top + TOUCH_MIN}
       >
         <ScrollView
-          contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
+          contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -243,24 +234,13 @@ export default function CheckoutScreen({ navigation }: Props) {
                   <Ionicons
                     name={m.icon}
                     size={18}
-                    color={active ? colors.textOnPrimary : colors.textSecondary}
+                    color={active ? colors.primary : colors.textSecondary}
                   />
                   <Text style={[styles.payText, active && styles.payTextActive]}>{m.label}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-
-          {/* Discount */}
-          <Text style={styles.sectionTitle}>Descuento (opcional)</Text>
-          <Field
-            icon="pricetag-outline"
-            placeholder="0"
-            keyboardType="decimal-pad"
-            value={discountText}
-            onChangeText={setDiscountText}
-            error={discountInvalid ? 'El descuento no puede ser mayor al subtotal.' : undefined}
-          />
 
           {/* Notes */}
           <Text style={styles.sectionTitle}>Notas (opcional)</Text>
@@ -282,7 +262,6 @@ export default function CheckoutScreen({ navigation }: Props) {
             label={`Cobrar ${formatPrice(total)}`}
             onPress={handleSubmit}
             loading={submitting}
-            disabled={discountInvalid}
           />
         </View>
       </KeyboardAvoidingView>
@@ -301,23 +280,31 @@ const styles = StyleSheet.create({
   summaryName: { fontSize: FONT_SIZE.body, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
   summaryVariation: { fontSize: FONT_SIZE.micro, color: colors.primary, fontWeight: FONT_WEIGHT.medium, marginTop: SPACING.hairline },
   summaryPrice: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  payGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
+  // Same white track as the chip rows and the dashboard period selector.
+  payGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.card,
+    padding: SPACING.sm,
+  },
   payPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
     paddingHorizontal: SPACING.lg,
     height: 46,
-    borderRadius: RADIUS.control,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    backgroundColor: colors.surfaceMuted,
   },
-  payPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  payPillActive: { backgroundColor: colors.surface, borderColor: colors.primary },
   payText: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  payTextActive: { color: colors.textOnPrimary },
+  payTextActive: { color: colors.primary },
   footer: {
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: SPACING.sm,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,

@@ -22,8 +22,10 @@ import {
   fetchAdminSaleDetail,
   fetchAdminTrashDetail,
 } from '../api/admin/sales';
-import { downloadAndShareAdminBoleta } from '../api/admin/boleta';
+import { downloadAndShareAdminBoleta, fetchAdminReceiptPayload } from '../api/admin/boleta';
 import Button from '../components/Button';
+import PrinterSheet from '../components/PrinterSheet';
+import { usePrinter } from '../context/PrinterContext';
 import type { AdminSaleDetail } from '../types';
 import type { AdminSalesStackParamList } from '../navigation/types';
 
@@ -35,6 +37,9 @@ export default function AdminSaleDetailScreen({ route, navigation }: Props) {
   const [loadingItems, setLoadingItems] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [printerOpen, setPrinterOpen] = useState(false);
+  const printer = usePrinter();
 
   useFocusEffect(
     useCallback(() => {
@@ -102,7 +107,23 @@ export default function AdminSaleDetailScreen({ route, navigation }: Props) {
     }
   }
 
-  const busy = downloading || cancelling;
+  const busy = downloading || cancelling || printing;
+
+  async function handlePrint() {
+    if (printing) return;
+    setPrinting(true);
+    try {
+      const { payload, encoding } = await fetchAdminReceiptPayload(sale.id);
+      await printer.printPayload(payload, encoding);
+    } catch (e: any) {
+      Alert.alert(
+        'No se pudo imprimir',
+        e?.message ?? 'Revisa que la impresora esté encendida y en rango.'
+      );
+    } finally {
+      setPrinting(false);
+    }
+  }
   const deletedAt = detail?.deletedAt ?? sale.deletedAt ?? null;
 
   return (
@@ -110,7 +131,7 @@ export default function AdminSaleDetailScreen({ route, navigation }: Props) {
       <ScreenHeader title={`Venta #${sale.id}`} onBack={() => navigation.goBack()} />
 
       <ScrollView
-        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
+        contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
         showsVerticalScrollIndicator={false}
       >
         {/* Cancelled banner */}
@@ -174,6 +195,21 @@ export default function AdminSaleDetailScreen({ route, navigation }: Props) {
           style={styles.actionTop}
         />
 
+        {/* Unlike the seller — who connects from the Ventas header — the admin
+            has no other way in, so the button stays visible and opens the
+            picker when there's nothing connected yet. */}
+        {printer.supported && (
+          <Button
+            label={printer.connected ? 'Imprimir boleta' : 'Conectar impresora'}
+            icon={printer.connected ? 'print-outline' : 'bluetooth-outline'}
+            variant="secondary"
+            onPress={printer.connected ? handlePrint : () => setPrinterOpen(true)}
+            loading={printing}
+            disabled={busy}
+            style={styles.actionNext}
+          />
+        )}
+
         {/* Cancel — only for active sales */}
         {!isCancelled && (
           <Button
@@ -189,6 +225,8 @@ export default function AdminSaleDetailScreen({ route, navigation }: Props) {
 
         <Text style={styles.hint}>La boleta es el recibo interno (no es comprobante SUNAT).</Text>
       </ScrollView>
+
+      <PrinterSheet visible={printerOpen} onClose={() => setPrinterOpen(false)} />
     </View>
   );
 }
@@ -212,9 +250,7 @@ const styles = StyleSheet.create({
   metaCard: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: SPACING.lg,
+    padding: SPACING.sm,
     gap: SPACING.md,
   },
   sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
@@ -222,9 +258,7 @@ const styles = StyleSheet.create({
   itemsBox: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
   },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.lg },
   itemBorder: { borderTopWidth: 1, borderTopColor: colors.border },

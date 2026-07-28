@@ -47,6 +47,8 @@ type RawAdminSaleDetail = {
   total: string;
   payment_method: PaymentMethod;
   notes: string | null;
+  // Σ of the item quantities, served — same shape as in the list row.
+  items_count: number;
   created_at: string;
   deleted_at?: string | null;
   seller: RawUserRef;
@@ -95,6 +97,7 @@ function mapDetail(s: RawAdminSaleDetail): AdminSaleDetail {
     total: parseFloat(s.total),
     paymentMethod: s.payment_method,
     notes: s.notes,
+    itemsCount: s.items_count,
     createdAt: s.created_at,
     deletedAt: s.deleted_at ?? null,
     seller: s.seller ?? null,
@@ -171,7 +174,7 @@ export async function fetchAdminSaleSummaryById(id: number): Promise<AdminSaleSu
     total: d.total,
     paymentMethod: d.paymentMethod,
     notes: d.notes,
-    itemsCount: d.items.reduce((n, i) => n + i.quantity, 0),
+    itemsCount: d.itemsCount,
     createdAt: d.createdAt,
     deletedAt: d.deletedAt,
     seller: d.seller,

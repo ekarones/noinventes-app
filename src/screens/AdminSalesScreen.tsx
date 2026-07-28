@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,50 +19,60 @@ import {
 import { fetchAdminBranches } from '../api/admin/branches';
 import { fetchAdminUsers } from '../api/admin/users';
 import { ApiError } from '../api/client';
-import type { PaginationMeta } from '../api/products';
+import { usePagedList } from '../hooks/usePagedList';
 import { SALE_DEFAULT_SORT, SALE_SORT_OPTIONS } from '../utils/sortOptions';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import {
+  CONTROL_HEIGHT,
+  FONT_SIZE,
+  FONT_WEIGHT,
+  HIT_SLOP,
+  RADIUS,
+  ROW_PRESS_OPACITY,
+  SPACING,
+} from '../theme/tokens';
 import SaleRow from '../components/SaleRow';
 import IconButton from '../components/IconButton';
-import Chip, { ChipRow } from '../components/Chip';
 import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
+import Pagination from '../components/Pagination';
 import LoadingState from '../components/LoadingState';
 import BottomSheet, { SheetOption } from '../components/BottomSheet';
 import EmptyState from '../components/EmptyState';
+import Select from '../components/Select';
 import { ymd } from '../utils/format';
+import { PAYMENT_METHODS } from '../utils/payment';
 import { useDebounce } from '../hooks/useDebounce';
-import { ClearFiltersButton, SortControl } from '../components/FilterControls';
-import type { AdminBranch, AdminSaleSummary, AdminUser } from '../types';
+import { SortControl } from '../components/FilterControls';
+import type { AdminBranch, AdminSaleSummary, AdminUser, PaymentMethod } from '../types';
 import type { AdminSalesStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AdminSalesStackParamList, 'AdminSales'>;
 
 const PER_PAGE = 20;
 
-type DatePreset = 'all' | 'today' | '7d' | '30d';
-
-const DATE_PRESETS: { value: DatePreset; label: string }[] = [
-  { value: 'all', label: 'Todas' },
-  { value: 'today', label: 'Hoy' },
-  { value: '7d', label: '7 días' },
-  { value: '30d', label: '30 días' },
-];
+// "5 jul" — short enough for two of them to share a row.
+function shortDate(d: Date): string {
+  return d.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
+}
 
 
 
 export default function AdminSalesScreen({ navigation }: Props) {
-  const [sales, setSales] = useState<AdminSaleSummary[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [searchText, setSearchText] = useState('');
   const query = useDebounce(searchText, 400);
-  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  // Same filters as the seller's history: an explicit date range and a payment
+  // method, instead of the fixed period chips this screen used to carry.
+  const [dateFrom, setDateFrom] = useState<Date | null>(null);
+  const [dateTo, setDateTo] = useState<Date | null>(null);
+  const [iosPicking, setIosPicking] = useState<'from' | 'to' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+
+  const paymentOptions = useMemo(
+    () => PAYMENT_METHODS.map((m) => ({ id: m.value, label: m.label, icon: m.icon })),
+    []
+  );
 
   const [sortIndex, setSortIndex] = useState(SALE_DEFAULT_SORT);
   const sort = SALE_SORT_OPTIONS[sortIndex];
@@ -86,102 +97,102 @@ export default function AdminSalesScreen({ navigation }: Props) {
   const branchName = branches.find((b) => b.id === branchId)?.name ?? 'Sucursal';
   const sellerName = sellers.find((s) => s.id === sellerId)?.name ?? 'Vendedor';
 
-  const range = useMemo(() => {
-    if (datePreset === 'all') return { dateFrom: undefined, dateTo: undefined };
-    const now = new Date();
-    const from = new Date(now);
-    if (datePreset === '7d') from.setDate(from.getDate() - 6);
-    else if (datePreset === '30d') from.setDate(from.getDate() - 29);
-    return { dateFrom: ymd(from), dateTo: ymd(now) };
-  }, [datePreset]);
+  const range = useMemo(
+    () => ({ dateFrom: dateFrom ? ymd(dateFrom) : undefined, dateTo: dateTo ? ymd(dateTo) : undefined }),
+    [dateFrom, dateTo]
+  );
 
   const hasFilters =
-    query.length > 0 || datePreset !== 'all' || branchId != null || sellerId != null;
+    query.length > 0 ||
+    dateFrom != null ||
+    dateTo != null ||
+    paymentMethod != null ||
+    branchId != null ||
+    sellerId != null;
 
+  // Clears everything — used by the "no results" empty state. Each control also
+  // clears itself in place (the dates and the payment pill each carry an "×").
   function clearFilters() {
     setSearchText('');
-    setDatePreset('all');
+    setDateFrom(null);
+    setDateTo(null);
+    setPaymentMethod(null);
     setBranchId(null);
     setSellerId(null);
   }
 
-  const loadFirstPage = useCallback(
-    async (isRefresh = false) => {
-      isRefresh ? setRefreshing(true) : setLoading(true);
-      setError(null);
-      try {
-        const trimmed = query.trim();
-        // Numeric query = exact sale-number lookup (list search only matches
-        // customer names) → hit GET /admin/sales/{id}.
-        if (/^\d+$/.test(trimmed)) {
-          try {
-            const sale = await fetchAdminSaleSummaryById(Number(trimmed));
-            setSales([sale]);
-            setMeta({ currentPage: 1, lastPage: 1, perPage: 1, total: 1 });
-          } catch (e) {
-            if (e instanceof ApiError && (e.status === 404 || e.status === 403)) {
-              setSales([]);
-              setMeta({ currentPage: 1, lastPage: 1, perPage: PER_PAGE, total: 0 });
-            } else {
-              throw e;
-            }
+  function applyDate(which: 'from' | 'to', d: Date) {
+    if (which === 'from') setDateFrom(d);
+    else setDateTo(d);
+  }
+
+  // Android shows the native dialog imperatively; iOS renders a picker inline.
+  function pickDate(which: 'from' | 'to') {
+    const value = (which === 'from' ? dateFrom : dateTo) ?? new Date();
+    const min = which === 'to' ? dateFrom ?? undefined : undefined;
+    const max = which === 'from' ? dateTo ?? new Date() : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value,
+        mode: 'date',
+        minimumDate: min,
+        maximumDate: max,
+        onValueChange: (_e, d) => applyDate(which, d),
+      });
+    } else {
+      setIosPicking(which);
+    }
+  }
+
+  const fetchPage = useCallback(
+    async (page: number) => {
+      const trimmed = query.trim();
+      // Numeric query = exact sale-number lookup (list search only matches
+      // customer names) → hit GET /admin/sales/{id}. One result, nothing to page.
+      if (/^\d+$/.test(trimmed)) {
+        try {
+          const sale = await fetchAdminSaleSummaryById(Number(trimmed));
+          return { items: [sale], meta: { currentPage: 1, lastPage: 1, perPage: 1, total: 1 } };
+        } catch (e) {
+          if (e instanceof ApiError && (e.status === 404 || e.status === 403)) {
+            return { items: [], meta: { currentPage: 1, lastPage: 1, perPage: PER_PAGE, total: 0 } };
           }
-          return;
+          throw e;
         }
-        const { items, meta: m } = await fetchAdminSales({
-          search: query || undefined,
-          dateFrom: range.dateFrom,
-          dateTo: range.dateTo,
-          branchId: branchId ?? undefined,
-          sellerId: sellerId ?? undefined,
-          sortBy: sort.sortBy,
-          sortDir: sort.sortDir,
-          page: 1,
-          perPage: PER_PAGE,
-        });
-        setSales(items);
-        setMeta(m);
-      } catch (e: any) {
-        setError(e?.message ?? 'No se pudieron cargar las ventas.');
-        setSales([]);
-        setMeta(null);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
       }
-    },
-    [query, range, sort, branchId, sellerId]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      loadFirstPage();
-    }, [loadFirstPage])
-  );
-
-  async function loadMore() {
-    if (!meta || loadingMore || meta.currentPage >= meta.lastPage) return;
-    setLoadingMore(true);
-    try {
-      const { items, meta: m } = await fetchAdminSales({
+      return fetchAdminSales({
         search: query || undefined,
+        paymentMethod: paymentMethod ?? undefined,
         dateFrom: range.dateFrom,
         dateTo: range.dateTo,
         branchId: branchId ?? undefined,
         sellerId: sellerId ?? undefined,
         sortBy: sort.sortBy,
         sortDir: sort.sortDir,
-        page: meta.currentPage + 1,
+        page,
         perPage: PER_PAGE,
       });
-      setSales((prev) => [...prev, ...items]);
-      setMeta(m);
-    } catch {
-      /* keep what we have */
-    } finally {
-      setLoadingMore(false);
-    }
-  }
+    },
+    [query, paymentMethod, range, sort, branchId, sellerId]
+  );
+  const {
+    items: sales,
+    meta,
+    page,
+    loading,
+    refreshing,
+    error,
+    listRef,
+    loadPage,
+  } = usePagedList<AdminSaleSummary>(fetchPage, 'No se pudieron cargar las ventas.');
+
+  // Runs on focus and whenever a filter changes — either way the result set is
+  // new, so it starts at page 1.
+  useFocusEffect(
+    useCallback(() => {
+      loadPage(1);
+    }, [loadPage])
+  );
 
   function renderItem({ item }: { item: AdminSaleSummary }) {
     return (
@@ -215,7 +226,6 @@ export default function AdminSalesScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('AdminSalesTrash')}
               accessibilityLabel="Papelera"
             />
-            <SortControl options={SALE_SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />
           </>
         }
       >
@@ -225,20 +235,98 @@ export default function AdminSalesScreen({ navigation }: Props) {
           placeholder="Buscar por cliente o N° de venta..."
         />
 
-        {/* Date range presets */}
+        {/* Rows 1 and 2 mirror the seller's history exactly, so both roles read
+            the same header; the scope row below is the admin's only extra. */}
         <View style={styles.filterRow}>
-          <ChipRow>
-            {DATE_PRESETS.map((p) => (
-              <Chip
-                key={p.value}
-                label={p.label}
-                active={datePreset === p.value}
-                onPress={() => setDatePreset(p.value)}
-              />
-            ))}
-          </ChipRow>
-          {hasFilters && <ClearFiltersButton onPress={clearFilters} />}
+          <Select
+            icon="card-outline"
+            placeholder="Todos los métodos"
+            value={paymentMethod}
+            options={paymentOptions}
+            onChange={setPaymentMethod}
+            style={styles.filterItem}
+          />
+          <SortControl
+            options={SALE_SORT_OPTIONS}
+            index={sortIndex}
+            onChange={setSortIndex}
+            showSelection
+            style={styles.filterItem}
+          />
         </View>
+
+        <View style={styles.filterRow}>
+          <TouchableOpacity
+            style={[styles.dateBtn, !!dateFrom && styles.dateBtnActive]}
+            onPress={() => pickDate('from')}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel="Fecha desde"
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={16}
+              color={dateFrom ? colors.primary : colors.textSecondary}
+            />
+            <Text
+              style={[styles.dateBtnText, !!dateFrom && styles.dateBtnTextActive]}
+              numberOfLines={1}
+            >
+              {dateFrom ? shortDate(dateFrom) : 'Desde'}
+            </Text>
+            {!!dateFrom && (
+              <TouchableOpacity
+                onPress={() => setDateFrom(null)}
+                hitSlop={HIT_SLOP}
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityLabel="Quitar fecha desde"
+              >
+                <Ionicons name="close-circle" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dateBtn, !!dateTo && styles.dateBtnActive]}
+            onPress={() => pickDate('to')}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel="Fecha hasta"
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={16}
+              color={dateTo ? colors.primary : colors.textSecondary}
+            />
+            <Text style={[styles.dateBtnText, !!dateTo && styles.dateBtnTextActive]} numberOfLines={1}>
+              {dateTo ? shortDate(dateTo) : 'Hasta'}
+            </Text>
+            {!!dateTo && (
+              <TouchableOpacity
+                onPress={() => setDateTo(null)}
+                hitSlop={HIT_SLOP}
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityLabel="Quitar fecha hasta"
+              >
+                <Ionicons name="close-circle" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {iosPicking && (
+          <DateTimePicker
+            value={(iosPicking === 'from' ? dateFrom : dateTo) ?? new Date()}
+            mode="date"
+            minimumDate={iosPicking === 'to' ? dateFrom ?? undefined : undefined}
+            maximumDate={iosPicking === 'from' ? dateTo ?? new Date() : new Date()}
+            onValueChange={(_e, d) => {
+              setIosPicking(null);
+              applyDate(iosPicking, d);
+            }}
+            onDismiss={() => setIosPicking(null)}
+          />
+        )}
 
         {/* Branch / seller scope */}
         <View style={styles.scopeRow}>
@@ -259,36 +347,38 @@ export default function AdminSalesScreen({ navigation }: Props) {
         </View>
       </ScreenTitle>
 
-      {loading ? (
+      {loading && sales.length === 0 ? (
         <LoadingState />
       ) : error ? (
         <EmptyState
           icon="cloud-offline-outline"
           message={error}
-          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
         />
       ) : (
         <FlatList
+          ref={listRef}
           data={sales}
           keyExtractor={(s) => String(s.id)}
           renderItem={renderItem}
           contentContainerStyle={sales.length ? styles.list : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => loadFirstPage(true)}
+              onRefresh={() => loadPage(page, true)}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
           ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
-            ) : null
+            <Pagination
+              page={page}
+              lastPage={meta?.lastPage ?? 1}
+              onChange={loadPage}
+              loading={loading}
+            />
           }
           ListEmptyComponent={
             <EmptyState
@@ -385,7 +475,24 @@ function ScopeChip({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
+  filterItem: { flex: 1 },
+  // A flat pill, like the seller's history. flex:1 so the two dates split the row.
+  dateBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    height: CONTROL_HEIGHT.pill,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    backgroundColor: colors.surface,
+  },
+  dateBtnActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  dateBtnText: { flex: 1, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
+  dateBtnTextActive: { color: colors.primary },
   scopeRow: { flexDirection: 'row', gap: SPACING.sm, paddingBottom: SPACING.md },
   scopeChip: {
     flex: 1,
@@ -394,9 +501,9 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     paddingHorizontal: SPACING.md,
     height: 38,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     backgroundColor: colors.surface,
   },
   scopeChipActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
@@ -404,6 +511,6 @@ const styles = StyleSheet.create({
   scopeChipTextActive: { color: colors.primary },
   // Each sale is its own card; the list just spaces them and pays the screen
   // margins. flexGrow lets a short list still fill the page.
-  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
   listEmpty: { flexGrow: 1 },
 });

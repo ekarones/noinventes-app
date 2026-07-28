@@ -30,7 +30,7 @@ type RawAdminProductRow = {
   final_price_max?: string | null;
   unit_of_measure: string;
   image_url: string | null;
-  image_thumb_url?: string | null;
+  image_thumb_url: string | null;
   variations_count: number;
   category: { id: number; name: string } | null;
   stock?: number | null;
@@ -39,7 +39,7 @@ type RawAdminProductRow = {
 type RawAdminImage = {
   id: number;
   url: string;
-  thumb_url?: string | null;
+  thumb_url: string;
   is_featured: boolean;
   sort_order: number;
 };
@@ -79,7 +79,7 @@ type RawAdminVariation = {
   // Returned by index/store/update (shared shape). Optional + defensive in case
   // an older server build omits it; `null` when the variation has no image.
   image_url?: string | null;
-  image_thumb_url?: string | null;
+  image_thumb_url: string | null;
   attribute_values?: AttributeValue[];
   stock_by_branch?: RawStockByBranch[];
 };
@@ -94,7 +94,7 @@ function mapImage(i: RawAdminImage): AdminProductImage {
   return {
     id: i.id,
     url: i.url,
-    thumbUrl: i.thumb_url ?? i.url,
+    thumbUrl: i.thumb_url,
     isFeatured: i.is_featured,
     sortOrder: i.sort_order,
   };
@@ -112,8 +112,7 @@ function mapRow(p: RawAdminProductRow): AdminProductRow {
     finalPriceMax: p.final_price_max != null ? parseFloat(p.final_price_max) : null,
     unitOfMeasure: p.unit_of_measure,
     imageUrl: p.image_url,
-    // Fall back to the full image if the server sends no thumb (older build).
-    imageThumbUrl: p.image_thumb_url ?? p.image_url,
+    imageThumbUrl: p.image_thumb_url,
     variationsCount: p.variations_count,
     category: p.category as CategoryRef | null,
     stock: p.stock ?? null,
@@ -154,7 +153,7 @@ function mapVariation(v: RawAdminVariation): AdminVariation {
     unitValue: parseFloat(v.unit_value),
     finalPrice: parseFloat(v.final_price),
     imageUrl: v.image_url ?? null,
-    imageThumbUrl: v.image_thumb_url ?? v.image_url ?? null,
+    imageThumbUrl: v.image_thumb_url,
     attributeValues: v.attribute_values ?? [],
     stockByBranch: (v.stock_by_branch ?? []).map(mapStock),
   };
@@ -367,7 +366,9 @@ export async function forceDeleteProduct(id: number): Promise<void> {
 // ---- Variation mutations ----
 
 export type CreateVariationPayload = {
-  code: string;
+  // Optional: omit it and the server builds it from the product code + the
+  // chosen values (the app used to mirror that rule itself).
+  code?: string;
   unitValue: number;
   finalPrice: number;
   // One value id per attribute. Must cover EXACTLY the attribute set the
@@ -388,7 +389,9 @@ export async function createVariation(
 
   if (imageUri) {
     const form = new FormData();
-    form.append('code', payload.code);
+    // Only send `code` when the admin typed one — an empty field would be a
+    // duplicate-blank code rather than "generate it for me".
+    if (payload.code) form.append('code', payload.code);
     form.append('unit_value', String(payload.unitValue));
     form.append('final_price', String(payload.finalPrice));
     for (const id of payload.attributeValueIds) form.append('attribute_values[]', String(id));
@@ -400,7 +403,7 @@ export async function createVariation(
   await apiRequest(path, {
     method: 'POST',
     body: {
-      code: payload.code,
+      ...(payload.code ? { code: payload.code } : null),
       unit_value: payload.unitValue,
       final_price: payload.finalPrice,
       attribute_values: payload.attributeValueIds,

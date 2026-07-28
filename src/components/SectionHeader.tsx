@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: SPACING.sm,
     marginTop: SPACING['2xl'],
     marginBottom: SPACING.md,
   },

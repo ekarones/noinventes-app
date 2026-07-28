@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,6 +43,18 @@ export default function BottomSheet({
   children,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { height: screenH } = useWindowDimensions();
+  // Measured, not guessed. Three flex/maxHeight approaches failed to bound the
+  // ScrollView on this RN version — it kept its full content height and the
+  // sheet just clipped the tail, showing ~4 rows with no way to scroll. Here the
+  // scroll area gets an explicit pixel height: the sheet's cap (70% of screen)
+  // minus the measured header (handle + title) and footer, minus the padding.
+  // A concrete maxHeight always scrolls; there is nothing for flex to get wrong.
+  const [headerH, setHeaderH] = useState(0);
+  const [footerH, setFooterH] = useState(0);
+  const sheetPad = SPACING.sm + insets.bottom + SPACING.md;
+  const scrollMax = screenH * 0.7 - headerH - footerH - sheetPad - SPACING.md;
+
   const sheetStyle = [
     styles.sheet,
     { paddingBottom: insets.bottom + SPACING.md },
@@ -50,10 +63,25 @@ export default function BottomSheet({
 
   const body = (
     <>
-      <View style={styles.handle} />
-      <Text style={styles.title}>{title}</Text>
-      {scrollable ? <ScrollView>{children}</ScrollView> : children}
-      {footer}
+      <View onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
+        <View style={styles.handle} />
+        <Text style={styles.title}>{title}</Text>
+      </View>
+      {scrollable ? (
+        <ScrollView
+          style={scrollMax > 0 ? { maxHeight: scrollMax } : undefined}
+          // Belt-and-suspenders for Android scroll inside a modal.
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        children
+      )}
+      {footer != null && (
+        <View onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}>{footer}</View>
+      )}
     </>
   );
 
@@ -70,12 +98,16 @@ export default function BottomSheet({
           <View style={sheetStyle}>{body}</View>
         </KeyboardAvoidingView>
       ) : (
-        <Pressable style={styles.overlay} onPress={onClose}>
-          {/* An empty onPress swallows the tap so it doesn't reach the backdrop. */}
-          <Pressable style={sheetStyle} onPress={() => {}}>
-            {body}
-          </Pressable>
-        </Pressable>
+        // Same shape as the keyboard-aware branch: the backdrop is a separate
+        // Pressable ABOVE the sheet, and the sheet itself is a plain View. It
+        // used to be a Pressable wrapping the sheet (with an empty onPress to
+        // swallow taps) — but that Pressable ate the drag gesture before it
+        // reached the ScrollView, so the list showed but wouldn't scroll. With
+        // the sheet as a plain View, the scroll gesture is the ScrollView's.
+        <View style={styles.overlay}>
+          <Pressable style={styles.overlayFill} onPress={onClose} />
+          <View style={sheetStyle}>{body}</View>
+        </View>
       )}
     </Modal>
   );
@@ -158,6 +190,7 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
   },
   // A list of options gets a tighter cap, so it reads as a sheet and not a page.
+  // The scroll area's pixel height is derived from this 70% in the component.
   sheetCapped: { maxHeight: '70%' },
   handle: {
     alignSelf: 'center',

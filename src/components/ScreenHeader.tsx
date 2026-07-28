@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
     paddingBottom: SPACING.md,
   },
   // Fixed-width side slots keep the title centred with or without an action.

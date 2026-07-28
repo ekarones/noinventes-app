@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   RefreshControl,
@@ -17,11 +16,12 @@ import {
   forceDeleteProduct,
   restoreProduct,
 } from '../api/admin/products';
-import type { PaginationMeta } from '../api/products';
+import { usePagedList } from '../hooks/usePagedList';
 import { colors } from '../theme/colors';
 import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 import ScreenHeader from '../components/ScreenHeader';
 import { formatPrice } from '../utils/format';
 import { useToast } from '../context/ToastContext';
@@ -36,53 +36,28 @@ const PER_PAGE = 20;
 export default function AdminProductsTrashScreen({ navigation }: Props) {
   const { showToast } = useToast();
 
-  const [products, setProducts] = useState<AdminProductRow[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const loadFirstPage = useCallback(async (isRefresh = false) => {
-    isRefresh ? setRefreshing(true) : setLoading(true);
-    setError(null);
-    try {
-      const { items, meta: m } = await fetchAdminProductsTrash({ page: 1, perPage: PER_PAGE });
-      setProducts(items);
-      setMeta(m);
-    } catch (e: any) {
-      setError(e?.message ?? 'No se pudo cargar la papelera.');
-      setProducts([]);
-      setMeta(null);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const fetchPage = useCallback(
+    (page: number) => fetchAdminProductsTrash({ page, perPage: PER_PAGE }),
+    []
+  );
+  const {
+    items: products,
+    meta,
+    page,
+    loading,
+    refreshing,
+    error,
+    listRef,
+    loadPage,
+  } = usePagedList<AdminProductRow>(fetchPage, 'No se pudo cargar la papelera.');
 
   useFocusEffect(
     useCallback(() => {
-      loadFirstPage();
-    }, [loadFirstPage])
+      loadPage(1);
+    }, [loadPage])
   );
-
-  async function loadMore() {
-    if (!meta || loadingMore || meta.currentPage >= meta.lastPage) return;
-    setLoadingMore(true);
-    try {
-      const { items, meta: m } = await fetchAdminProductsTrash({
-        page: meta.currentPage + 1,
-        perPage: PER_PAGE,
-      });
-      setProducts((prev) => [...prev, ...items]);
-      setMeta(m);
-    } catch {
-      /* keep what we have */
-    } finally {
-      setLoadingMore(false);
-    }
-  }
 
   async function doRestore(p: AdminProductRow) {
     if (busy) return;
@@ -90,7 +65,8 @@ export default function AdminProductsTrashScreen({ navigation }: Props) {
     try {
       await restoreProduct(p.id);
       showToast('Producto restaurado', 'checkmark-circle');
-      loadFirstPage();
+      // Stay on the page you were looking at; loadPage steps back if it emptied.
+      loadPage(page);
     } catch (e: any) {
       Alert.alert('No se pudo restaurar', e?.message ?? 'Inténtalo de nuevo.');
     } finally {
@@ -115,7 +91,7 @@ export default function AdminProductsTrashScreen({ navigation }: Props) {
     try {
       await forceDeleteProduct(p.id);
       showToast('Producto eliminado', 'checkmark-circle');
-      loadFirstPage();
+      loadPage(page);
     } catch (e: any) {
       Alert.alert('No se pudo eliminar', e?.message ?? 'Inténtalo de nuevo.');
     } finally {
@@ -164,35 +140,37 @@ export default function AdminProductsTrashScreen({ navigation }: Props) {
     <View style={styles.container}>
       <ScreenHeader title="Papelera" onBack={() => navigation.goBack()} />
 
-      {loading ? (
+      {loading && products.length === 0 ? (
         <LoadingState />
       ) : error ? (
         <EmptyState
           icon="cloud-offline-outline"
           message={error}
-          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
         />
       ) : (
         <FlatList
+          ref={listRef}
           data={products}
           keyExtractor={(p) => String(p.id)}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => loadFirstPage(true)}
+              onRefresh={() => loadPage(page, true)}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
           ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
-            ) : null
+            <Pagination
+              page={page}
+              lastPage={meta?.lastPage ?? 1}
+              onChange={loadPage}
+              loading={loading}
+            />
           }
           ListEmptyComponent={
             <EmptyState
@@ -209,8 +187,8 @@ export default function AdminProductsTrashScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md, borderWidth: 1, borderColor: colors.border },
+  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md },
   thumb: { width: 52, height: 52, borderRadius: RADIUS.control, opacity: 0.6 },
   cardInfo: { flex: 1, gap: SPACING.hairline },
   name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
@@ -220,7 +198,7 @@ const styles = StyleSheet.create({
   restoreBtn: {
     width: TOUCH_MIN,
     height: TOUCH_MIN,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -228,7 +206,7 @@ const styles = StyleSheet.create({
   forceBtn: {
     width: TOUCH_MIN,
     height: TOUCH_MIN,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     backgroundColor: '#fef2f2',
     alignItems: 'center',
     justifyContent: 'center',

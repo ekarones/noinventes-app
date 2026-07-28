@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
@@ -12,6 +12,8 @@ type Props = {
   label?: string;
   /** Filled with the primary colour — for the one creative action of a screen. */
   primary?: boolean;
+  /** Greys the icon/label — for a secondary header action (e.g. "Vaciar"). */
+  muted?: boolean;
   disabled?: boolean;
 };
 
@@ -24,9 +26,10 @@ export default function IconButton({
   accessibilityLabel,
   label,
   primary,
+  muted,
   disabled,
 }: Props) {
-  const tint = primary ? colors.textOnPrimary : colors.primary;
+  const tint = primary ? colors.textOnPrimary : muted ? colors.textSecondary : colors.primary;
 
   return (
     <TouchableOpacity
@@ -42,7 +45,16 @@ export default function IconButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      <Ionicons name={icon} size={label ? 16 : 20} color={tint} />
+      {label ? (
+        // Labelled: the icon rides its own disc, with the label beside it.
+        <View style={[styles.disc, primary && styles.discPrimary]}>
+          <Ionicons name={icon} size={16} color={tint} />
+        </View>
+      ) : (
+        // Icon-only: the button already IS the circle — a disc inside it would be
+        // a circle within a circle.
+        <Ionicons name={icon} size={20} color={tint} />
+      )}
       {!!label && <Text style={[styles.label, { color: tint }]}>{label}</Text>}
     </TouchableOpacity>
   );
@@ -55,12 +67,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: SPACING.xs,
     height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primarySoft,
+    // Flat: white with a border, matching the search field and filter buttons.
+    backgroundColor: colors.surface,
   },
-  circle: { width: TOUCH_MIN },
-  pill: { paddingHorizontal: SPACING.md },
-  primary: { backgroundColor: colors.primary },
+  // Both are fully-rounded pills: icon-only is a circle, the labelled QR a
+  // stadium — same as the sort / category / filter buttons it sits beside.
+  circle: { width: TOUCH_MIN, borderRadius: RADIUS.pill },
+  // The labelled pill hugs its disc on the left, so it pays less padding there.
+  pill: { paddingLeft: SPACING.xs, paddingRight: SPACING.md, borderRadius: RADIUS.pill },
+  // Circular via RADIUS.pill, never width/2 — resizing it must not un-round it.
+  disc: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // On the filled action the muted grey would read as dirt against the brand red.
+  discPrimary: { backgroundColor: colors.primaryLight },
+  // The one filled action (e.g. "+ new product") keeps its solid brand fill.
+  primary: { backgroundColor: colors.primary, borderColor: colors.primary },
   disabled: { opacity: 0.5 },
   label: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
 });

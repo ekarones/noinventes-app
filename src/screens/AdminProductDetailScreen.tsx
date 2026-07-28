@@ -25,7 +25,10 @@ import { formatPrice } from '../utils/format';
 import { stockColor } from '../utils/stock';
 import { useToast } from '../context/ToastContext';
 import ProductImage from '../components/ProductImage';
-import IconLabel from '../components/IconLabel';
+import VariationFilter, { useVariationFilter } from '../components/VariationFilter';
+import CopyableCode from '../components/CopyableCode';
+import LabelPrintSheet from '../components/LabelPrintSheet';
+import PrinterSheet from '../components/PrinterSheet';
 import type { AdminProductDetail, AdminVariation, StockByBranch } from '../types';
 import type { AdminProductsStackParamList } from '../navigation/types';
 
@@ -47,6 +50,10 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
   // The attribute set a new variation must match. Empty = unknown, so the
   // variation form lets the admin choose it.
   const [attributeIds, setAttributeIds] = useState<number[]>([]);
+  // Both label sheets live here, and only one is ever open: nesting the printer
+  // picker inside the label sheet would be a modal inside a modal.
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [printerOpen, setPrinterOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,6 +93,9 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
   );
 
   const d = detail;
+  // Same attribute filter the seller's product detail has, over the same shape.
+  const filter = useVariationFilter(variations);
+
   const variationLabel = (v: AdminVariation) =>
     v.attributeValues.map((a) => a.value).join(' · ') || v.code;
 
@@ -161,7 +171,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
         />
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
+          contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
           showsVerticalScrollIndicator={false}
         >
           {/* Images */}
@@ -186,21 +196,33 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
             <ProductImage uri={null} style={styles.heroPlaceholder} iconSize={40} />
           )}
 
-          <TouchableOpacity
-            style={styles.manageImagesBtn}
-            onPress={() =>
-              navigation.navigate('AdminProductImages', { productId: d.id, productName: d.name })
-            }
-            activeOpacity={ROW_PRESS_OPACITY}
-          >
-            <Ionicons name="images-outline" size={16} color={colors.primary} />
-            <Text style={styles.editText}>Gestionar imágenes ({d.images.length})</Text>
-          </TouchableOpacity>
+          {/* The two product-level actions, side by side and equal: neither is
+              the primary thing to do on this screen. */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() =>
+                navigation.navigate('AdminProductImages', { productId: d.id, productName: d.name })
+              }
+              activeOpacity={ROW_PRESS_OPACITY}
+            >
+              <Ionicons name="images-outline" size={16} color={colors.primary} />
+              <Text style={styles.editText}>Imágenes ({d.images.length})</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => setLabelsOpen(true)}
+              activeOpacity={ROW_PRESS_OPACITY}
+            >
+              <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
+              <Text style={styles.editText}>Etiquetas</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Identity */}
           <View style={styles.titleBlock}>
             <Text style={styles.name}>{d.name}</Text>
-            <Text style={styles.code}>{d.code}</Text>
+            <CopyableCode code={d.code} />
             <View style={styles.badges}>
               <View style={[styles.statusBadge, statusStyle(d.status)]}>
                 <Text style={[styles.statusText, statusTextStyle(d.status)]}>
@@ -270,37 +292,44 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
           {d.type === 'variable' && (
             <>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitleInline}>Variaciones y stock</Text>
-                <TouchableOpacity
-                  style={styles.editBtn}
-                  onPress={() =>
-                    navigation.navigate('AdminVariationForm', {
-                      productId: d.id,
-                      productName: d.name,
-                      productCode: d.code,
-                      productUnitValue: d.unitValue,
-                      productFinalPrice: d.finalPrice,
-                      attributeIds,
-                    })
-                  }
-                  activeOpacity={ROW_PRESS_OPACITY}
-                >
-                  <Ionicons name="add" size={16} color={colors.primary} />
-                  <Text style={styles.editText}>Agregar</Text>
-                </TouchableOpacity>
+                <Text style={styles.sectionTitleInline}>
+                  Variaciones y stock
+                  {variations.length > 0 ? ` (${filter.shown.length})` : ''}
+                </Text>
+                <View style={styles.sectionActions}>
+                  {filter.attributes.length > 0 && <VariationFilter state={filter} />}
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() =>
+                      navigation.navigate('AdminVariationForm', {
+                        productId: d.id,
+                        productName: d.name,
+                        productUnitValue: d.unitValue,
+                        productFinalPrice: d.finalPrice,
+                        attributeIds,
+                      })
+                    }
+                    activeOpacity={ROW_PRESS_OPACITY}
+                  >
+                    <Ionicons name="add" size={16} color={colors.primary} />
+                    <Text style={styles.editText}>Agregar</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               {variations.length === 0 ? (
                 <Text style={styles.muted}>
                   Este producto no tiene variaciones. Agrega la primera para definir sus atributos.
                 </Text>
+              ) : filter.shown.length === 0 ? (
+                <Text style={styles.muted}>Ninguna variación coincide con el filtro.</Text>
               ) : (
-                variations.map((v) => (
+                filter.shown.map((v) => (
                   <View key={v.id} style={styles.varCard}>
                     <View style={styles.varHeader}>
                       <ProductImage uri={v.imageThumbUrl} style={styles.varThumb} iconSize={32} />
                       <View style={styles.varInfo}>
                         <View style={styles.varOverline}>
-                          <IconLabel icon="barcode-outline" text={v.code} />
+                          <CopyableCode code={v.code} label="Código de variación" />
                         </View>
                         <Text style={styles.varName}>{variationLabel(v)}</Text>
                         <Text style={styles.varPrice}>{formatPrice(v.finalPrice)}</Text>
@@ -311,7 +340,6 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                             navigation.navigate('AdminVariationForm', {
                               productId: d.id,
                               productName: d.name,
-                              productCode: d.code,
                               variation: v,
                             })
                           }
@@ -370,6 +398,22 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
           <Text style={styles.deleteHint}>Pasará a la papelera; podrás restaurarlo.</Text>
         </ScrollView>
       )}
+
+      {d && (
+        <LabelPrintSheet
+          visible={labelsOpen}
+          onClose={() => setLabelsOpen(false)}
+          product={d}
+          variations={variations}
+          variationLabel={variationLabel}
+          // Swap one sheet for the other instead of stacking them.
+          onConnectPrinter={() => {
+            setLabelsOpen(false);
+            setPrinterOpen(true);
+          }}
+        />
+      )}
+      <PrinterSheet visible={printerOpen} onClose={() => setPrinterOpen(false)} />
     </View>
   );
 }
@@ -397,15 +441,17 @@ function StockList({ stock, compact }: { stock: StockByBranch[]; compact?: boole
   );
 }
 
+// The badge answers one question — ¿lo ve el vendedor? — and `public` and
+// `published` answer it the same way: ambos llegan al catálogo. Pintarlos de
+// distinto color sugería dos niveles de visibilidad que no existen; lo que los
+// separa es el flag de destacado, y eso ya lo dice la etiqueta.
 function statusStyle(status: string) {
-  if (status === 'published') return { backgroundColor: '#dcfce7' };
-  if (status === 'public') return { backgroundColor: colors.primarySoft };
-  return { backgroundColor: colors.border };
+  if (status === 'private') return { backgroundColor: colors.border };
+  return { backgroundColor: colors.successSoft };
 }
 function statusTextStyle(status: string) {
-  if (status === 'published') return { color: colors.success };
-  if (status === 'public') return { color: colors.primary };
-  return { color: colors.textSecondary };
+  if (status === 'private') return { color: colors.textSecondary };
+  return { color: colors.success };
 }
 
 const styles = StyleSheet.create({
@@ -426,7 +472,6 @@ const styles = StyleSheet.create({
   },
   titleBlock: { marginTop: SPACING.xl, gap: SPACING.sm },
   name: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  code: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xs },
   statusBadge: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, borderRadius: RADIUS.badge },
   statusText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.bold },
@@ -447,6 +492,8 @@ const styles = StyleSheet.create({
     marginTop: SPACING['2xl'],
     marginBottom: SPACING.md,
   },
+  // The filter and "Agregar" share the right side of the section header.
+  sectionActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
   sectionTitleInline: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   description: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, lineHeight: 20 },
@@ -468,15 +515,16 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
   },
   editText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
-  manageImagesBtn: {
+  actionRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.lg },
+  actionBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
     height: 42,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primarySoft,
-    marginTop: SPACING.lg,
   },
   deleteBtn: {
     flexDirection: 'row',
@@ -484,7 +532,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: SPACING.sm,
     height: 54,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     borderWidth: 1.5,
     borderColor: colors.error,
     marginTop: SPACING['3xl'],
@@ -494,9 +542,7 @@ const styles = StyleSheet.create({
   stockBox: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
   },
   stockBoxCompact: { marginTop: SPACING.md },
   stockRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
@@ -508,9 +554,7 @@ const styles = StyleSheet.create({
   varCard: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: SPACING.lg,
+    padding: SPACING.sm,
     marginBottom: SPACING.md,
   },
   // The same anatomy as a catalogue product card: a big thumbnail, then a column
@@ -534,7 +578,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: SPACING.sm,
     height: 40,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primarySoft,
     marginTop: SPACING.md,
   },

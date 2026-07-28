@@ -1,156 +1,162 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
+  Platform,
   RefreshControl,
   StyleSheet,
+  Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchSales, fetchSaleSummaryById } from '../api/sales';
 import { ApiError } from '../api/client';
-import type { PaginationMeta } from '../api/products';
+import { usePagedList } from '../hooks/usePagedList';
 import { SALE_DEFAULT_SORT, SALE_SORT_OPTIONS } from '../utils/sortOptions';
 import { colors } from '../theme/colors';
-import { SPACING } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import { ymd } from '../utils/format';
 import { useDebounce } from '../hooks/useDebounce';
 import SaleRow from '../components/SaleRow';
-import Chip, { ChipRow } from '../components/Chip';
 import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
 import LoadingState from '../components/LoadingState';
-import { ClearFiltersButton, SortControl } from '../components/FilterControls';
+import Select from '../components/Select';
+import Pagination from '../components/Pagination';
+import IconButton from '../components/IconButton';
+import PrinterSheet from '../components/PrinterSheet';
+import { usePrinter } from '../context/PrinterContext';
+import { SortControl } from '../components/FilterControls';
 import EmptyState from '../components/EmptyState';
-import type { SaleSummary } from '../types';
+import { PAYMENT_METHODS } from '../utils/payment';
+import type { PaymentMethod, SaleSummary } from '../types';
 import type { OrdersStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<OrdersStackParamList, 'Orders'>;
 
 const PER_PAGE = 20;
 
-type DatePreset = 'all' | 'today' | '7d' | '30d';
-
-const DATE_PRESETS: { value: DatePreset; label: string }[] = [
-  { value: 'all', label: 'Todas' },
-  { value: 'today', label: 'Hoy' },
-  { value: '7d', label: '7 días' },
-  { value: '30d', label: '30 días' },
-];
-
-
+// "5 jul" — short enough to fit two of them plus the clear button on one line.
+function shortDate(d: Date): string {
+  return d.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
+}
 
 export default function OrdersScreen({ navigation }: Props) {
-  const [sales, setSales] = useState<SaleSummary[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // ---- Filters ----
   const [searchText, setSearchText] = useState('');
   const query = useDebounce(searchText, 400);
-  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  const [dateFrom, setDateFrom] = useState<Date | null>(null);
+  const [dateTo, setDateTo] = useState<Date | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const printer = usePrinter();
+  const [printerOpen, setPrinterOpen] = useState(false);
+  // iOS renders the picker inline; this holds which field it's editing.
+  const [iosPicking, setIosPicking] = useState<'from' | 'to' | null>(null);
 
   // ---- Sort ----
   const [sortIndex, setSortIndex] = useState(SALE_DEFAULT_SORT);
   const sort = SALE_SORT_OPTIONS[sortIndex];
 
-  const range = useMemo(() => {
-    if (datePreset === 'all') return { dateFrom: undefined, dateTo: undefined };
-    const now = new Date();
-    const from = new Date(now);
-    if (datePreset === '7d') from.setDate(from.getDate() - 6);
-    else if (datePreset === '30d') from.setDate(from.getDate() - 29);
-    // 'today' → from = today
-    return { dateFrom: ymd(from), dateTo: ymd(now) };
-  }, [datePreset]);
+  // Payment methods as Select options (string ids), each keeping its own icon.
+  const paymentOptions = useMemo(
+    () => PAYMENT_METHODS.map((m) => ({ id: m.value, label: m.label, icon: m.icon })),
+    []
+  );
 
-  const hasFilters = query.length > 0 || datePreset !== 'all';
+  const range = useMemo(
+    () => ({ dateFrom: dateFrom ? ymd(dateFrom) : undefined, dateTo: dateTo ? ymd(dateTo) : undefined }),
+    [dateFrom, dateTo]
+  );
 
-  function clearFilters() {
-    setSearchText('');
-    setDatePreset('all');
+  const hasFilters = query.length > 0 || dateFrom != null || dateTo != null || paymentMethod != null;
+
+  function applyDate(which: 'from' | 'to', d: Date) {
+    if (which === 'from') setDateFrom(d);
+    else setDateTo(d);
   }
 
-  const loadFirstPage = useCallback(
-    async (isRefresh = false) => {
-      isRefresh ? setRefreshing(true) : setLoading(true);
-      setError(null);
-      try {
-        const trimmed = query.trim();
-        // A purely-numeric query is an exact sale-number lookup: the list
-        // `search` only matches customer names, so hit GET /sales/{id} instead.
-        if (/^\d+$/.test(trimmed)) {
-          try {
-            const sale = await fetchSaleSummaryById(Number(trimmed));
-            setSales([sale]);
-            setMeta({ currentPage: 1, lastPage: 1, perPage: 1, total: 1 });
-          } catch (e) {
-            // Not found (or cancelled) → show an empty result, not an error.
-            if (e instanceof ApiError && (e.status === 404 || e.status === 403)) {
-              setSales([]);
-              setMeta({ currentPage: 1, lastPage: 1, perPage: PER_PAGE, total: 0 });
-            } else {
-              throw e;
-            }
+  // Android shows the native dialog imperatively; iOS renders a picker inline.
+  function pickDate(which: 'from' | 'to') {
+    const value = (which === 'from' ? dateFrom : dateTo) ?? new Date();
+    const min = which === 'to' ? dateFrom ?? undefined : undefined;
+    const max = which === 'from' ? dateTo ?? new Date() : new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value,
+        mode: 'date',
+        minimumDate: min,
+        maximumDate: max,
+        // onValueChange fires only on "set" (dismiss goes to onDismiss, which we
+        // don't need), so the date is always present — no event.type check.
+        onValueChange: (_e, d) => applyDate(which, d),
+      });
+    } else {
+      setIosPicking(which);
+    }
+  }
+
+  // Clears everything — used by the "no results" empty state. Each control also
+  // clears itself in place (the dates and the payment pill each carry an "×").
+  function clearFilters() {
+    setDateFrom(null);
+    setDateTo(null);
+    setPaymentMethod(null);
+    setSearchText('');
+  }
+
+  const fetchPage = useCallback(
+    async (page: number) => {
+      const trimmed = query.trim();
+      // A purely-numeric query is an exact sale-number lookup: the list `search`
+      // only matches customer names, so hit GET /sales/{id} instead. One result,
+      // so it reports a single page and the pagination hides itself.
+      if (/^\d+$/.test(trimmed)) {
+        try {
+          const sale = await fetchSaleSummaryById(Number(trimmed));
+          return { items: [sale], meta: { currentPage: 1, lastPage: 1, perPage: 1, total: 1 } };
+        } catch (e) {
+          // Not found (or cancelled) → an empty result, not an error.
+          if (e instanceof ApiError && (e.status === 404 || e.status === 403)) {
+            return { items: [], meta: { currentPage: 1, lastPage: 1, perPage: PER_PAGE, total: 0 } };
           }
-          return;
+          throw e;
         }
-        const { items, meta: m } = await fetchSales({
-          search: query || undefined,
-          dateFrom: range.dateFrom,
-          dateTo: range.dateTo,
-          sortBy: sort.sortBy,
-          sortDir: sort.sortDir,
-          page: 1,
-          perPage: PER_PAGE,
-        });
-        setSales(items);
-        setMeta(m);
-      } catch (e: any) {
-        setError(e?.message ?? 'No se pudieron cargar las ventas.');
-        setSales([]);
-        setMeta(null);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
       }
-    },
-    [query, range, sort]
-  );
-
-  // Refresh on focus and whenever a filter changes (loadFirstPage identity
-  // changes with the filters, so useFocusEffect re-runs while focused).
-  useFocusEffect(
-    useCallback(() => {
-      loadFirstPage();
-    }, [loadFirstPage])
-  );
-
-  async function loadMore() {
-    if (!meta || loadingMore || meta.currentPage >= meta.lastPage) return;
-    setLoadingMore(true);
-    try {
-      const { items, meta: m } = await fetchSales({
+      return fetchSales({
         search: query || undefined,
+        paymentMethod: paymentMethod ?? undefined,
         dateFrom: range.dateFrom,
         dateTo: range.dateTo,
         sortBy: sort.sortBy,
         sortDir: sort.sortDir,
-        page: meta.currentPage + 1,
+        page,
         perPage: PER_PAGE,
       });
-      setSales((prev) => [...prev, ...items]);
-      setMeta(m);
-    } catch {
-      /* keep what we have */
-    } finally {
-      setLoadingMore(false);
-    }
-  }
+    },
+    [query, paymentMethod, range, sort]
+  );
+  const {
+    items: sales,
+    meta,
+    page,
+    loading,
+    refreshing,
+    error,
+    listRef,
+    loadPage,
+  } = usePagedList<SaleSummary>(fetchPage, 'No se pudieron cargar las ventas.');
+
+  // Runs on focus (a sale may have been made meanwhile) and whenever a filter
+  // changes — either way the result set is new, so it starts at page 1.
+  useFocusEffect(
+    useCallback(() => {
+      loadPage(1);
+    }, [loadPage])
+  );
 
   function renderItem({ item }: { item: SaleSummary }) {
     return (
@@ -174,7 +180,22 @@ export default function OrdersScreen({ navigation }: Props) {
         subtitle={
           meta ? `${meta.total} ${hasFilters ? 'coinciden' : 'en total'} · ${sort.label}` : undefined
         }
-        actions={<SortControl options={SALE_SORT_OPTIONS} index={sortIndex} onChange={setSortIndex} />}
+        actions={
+          // Hidden entirely where Bluetooth isn't available (iOS, Expo Go), so
+          // the header never offers something that can't work.
+          printer.supported ? (
+            <IconButton
+              icon={printer.connected ? 'print' : 'print-outline'}
+              muted={!printer.connected}
+              onPress={() => setPrinterOpen(true)}
+              accessibilityLabel={
+                printer.connected
+                  ? `Impresora conectada: ${printer.device?.name ?? ''}`
+                  : 'Conectar impresora'
+              }
+            />
+          ) : undefined
+        }
       >
         <SearchBar
           value={searchText}
@@ -182,52 +203,138 @@ export default function OrdersScreen({ navigation }: Props) {
           placeholder="Buscar por cliente o N° de venta..."
         />
 
-        {/* Date range presets */}
+        {/* First row, same as the catalogue's: payment picker and sort share the
+            width equally. Payment clears via its own ×; the sort always has a
+            value, so it just names it. */}
         <View style={styles.filterRow}>
-          <ChipRow>
-            {DATE_PRESETS.map((p) => (
-              <Chip
-                key={p.value}
-                label={p.label}
-                active={datePreset === p.value}
-                onPress={() => setDatePreset(p.value)}
-              />
-            ))}
-          </ChipRow>
-          {hasFilters && <ClearFiltersButton onPress={clearFilters} />}
+          <Select
+            icon="card-outline"
+            placeholder="Todos los métodos"
+            value={paymentMethod}
+            options={paymentOptions}
+            onChange={setPaymentMethod}
+            style={styles.filterItem}
+          />
+          <SortControl
+            options={SALE_SORT_OPTIONS}
+            index={sortIndex}
+            onChange={setSortIndex}
+            showSelection
+            style={styles.filterItem}
+          />
         </View>
+
+        {/* Second row: date range — two pickers ("Desde" / "Hasta"). */}
+        <View style={styles.filterRow2}>
+          <TouchableOpacity
+            style={[styles.dateBtn, !!dateFrom && styles.dateBtnActive]}
+            onPress={() => pickDate('from')}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel="Fecha desde"
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={16}
+              color={dateFrom ? colors.primary : colors.textSecondary}
+            />
+            <Text
+              style={[styles.dateBtnText, !!dateFrom && styles.dateBtnTextActive]}
+              numberOfLines={1}
+            >
+              {dateFrom ? shortDate(dateFrom) : 'Desde'}
+            </Text>
+            {!!dateFrom && (
+              // Can't grow to the touch minimum — it lives inside the pill — so it
+              // borrows the room around it.
+              <TouchableOpacity
+                onPress={() => setDateFrom(null)}
+                hitSlop={HIT_SLOP}
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityLabel="Quitar fecha desde"
+              >
+                <Ionicons name="close-circle" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.dateBtn, !!dateTo && styles.dateBtnActive]}
+            onPress={() => pickDate('to')}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel="Fecha hasta"
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={16}
+              color={dateTo ? colors.primary : colors.textSecondary}
+            />
+            <Text style={[styles.dateBtnText, !!dateTo && styles.dateBtnTextActive]} numberOfLines={1}>
+              {dateTo ? shortDate(dateTo) : 'Hasta'}
+            </Text>
+            {!!dateTo && (
+              <TouchableOpacity
+                onPress={() => setDateTo(null)}
+                hitSlop={HIT_SLOP}
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityLabel="Quitar fecha hasta"
+              >
+                <Ionicons name="close-circle" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {iosPicking && (
+          <DateTimePicker
+            value={(iosPicking === 'from' ? dateFrom : dateTo) ?? new Date()}
+            mode="date"
+            minimumDate={iosPicking === 'to' ? dateFrom ?? undefined : undefined}
+            maximumDate={iosPicking === 'from' ? dateTo ?? new Date() : new Date()}
+            onValueChange={(_e, d) => {
+              setIosPicking(null);
+              applyDate(iosPicking, d);
+            }}
+            onDismiss={() => setIosPicking(null)}
+          />
+        )}
       </ScreenTitle>
 
-      {loading ? (
+      {/* Only the very first load takes over the screen. Once there's a list,
+          changing page keeps it on screen and just disables the controls. */}
+      {loading && sales.length === 0 ? (
         <LoadingState />
       ) : error ? (
         <EmptyState
           icon="cloud-offline-outline"
           message={error}
-          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
         />
       ) : (
         <FlatList
+          ref={listRef}
           data={sales}
           keyExtractor={(s) => String(s.id)}
           renderItem={renderItem}
           contentContainerStyle={sales.length ? styles.list : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => loadFirstPage(true)}
+              onRefresh={() => loadPage(page, true)}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
           ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
-            ) : null
+            <Pagination
+              page={page}
+              lastPage={meta?.lastPage ?? 1}
+              onChange={loadPage}
+              loading={loading}
+            />
           }
           ListEmptyComponent={
             <EmptyState
@@ -244,6 +351,7 @@ export default function OrdersScreen({ navigation }: Props) {
         />
       )}
 
+      <PrinterSheet visible={printerOpen} onClose={() => setPrinterOpen(false)} />
     </View>
   );
 }
@@ -251,9 +359,34 @@ export default function OrdersScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  // First row: payment picker + sort (+ clear when active). `sm` between the
+  // controls and off the search bar above — same rhythm as the catalogue header.
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
+  // Second row: the two date pickers split the full width below.
+  filterRow2: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
+  // Payment picker and sort share the row equally, with a `sm` (10) gap between —
+  // same as the catalogue header.
+  filterItem: { flex: 1 },
+  // A flat pill, like the search / sort controls. flex:1 so the two dates split the
+  // row; the clear button, when present, stays compact beside them.
+  dateBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    height: CONTROL_HEIGHT.pill,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    backgroundColor: colors.surface,
+  },
+  // Selected: primary frame + soft fill, like the category filter.
+  dateBtnActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  dateBtnText: { flex: 1, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
+  dateBtnTextActive: { color: colors.primary },
   // Each sale is its own card; the list just spaces them and pays the screen
   // margins. flexGrow lets a short list still fill the page.
-  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
   listEmpty: { flexGrow: 1 },
 });

@@ -302,8 +302,8 @@ export default function AdminAttributesScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
-  card: { backgroundColor: colors.surface, borderRadius: RADIUS.card, borderWidth: 1, borderColor: colors.border, padding: SPACING.md },
+  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
+  card: { backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   iconBox: {
     width: 40,
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: SPACING.sm,
     height: 44,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     backgroundColor: colors.primarySoft,
     marginTop: SPACING.xs,
   },

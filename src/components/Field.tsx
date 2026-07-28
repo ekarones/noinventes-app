@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     backgroundColor: colors.primarySoft,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.input,
     // Transparent until focused, so gaining the border doesn't shift the layout.
@@ -115,6 +115,9 @@ const styles = StyleSheet.create({
     minHeight: 90,
     alignItems: 'flex-start',
     paddingVertical: SPACING.md,
+    // A tall box can't be a pill — that would bow its sides into a stadium — so a
+    // multiline field keeps the moderate control radius.
+    borderRadius: RADIUS.control,
   },
   input: {
     flex: 1,

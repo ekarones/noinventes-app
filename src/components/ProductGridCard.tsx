@@ -85,14 +85,13 @@ export default function ProductGridCard({
 
 const styles = StyleSheet.create({
   card: {
-    // 49% (not flex:1), with `space-between` on the row: two per line with a small
-    // gap between them, and a lone last card sits at half width on the left instead
-    // of stretching. Wider than 48% so `space-between` leaves a tighter column gap.
-    width: '49%',
+    // flex:1 with a `gap` on the row: two per line share the width evenly with a
+    // fixed gap between them. maxWidth caps a lone last card at half so it sits on
+    // the left instead of stretching to the full row.
+    flex: 1,
+    maxWidth: '50%',
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
     // Padding, not a flush image: the picture floats inside the card with a white
     // margin all around rather than bleeding to the border.
     padding: SPACING.sm,

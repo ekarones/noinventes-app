@@ -182,8 +182,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
     padding: SPACING['2xl'],
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   errorBox: {
     flexDirection: 'row',

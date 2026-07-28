@@ -1,8 +1,8 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ActionRow } from '../components/Row';
 import Card from '../components/Card';
+import ScreenTitle from '../components/ScreenTitle';
 import { colors } from '../theme/colors';
 import { FONT_SIZE, FONT_WEIGHT, SPACING } from '../theme/tokens';
 import type { AdminMoreStackParamList } from '../navigation/types';
@@ -12,13 +12,9 @@ type Props = NativeStackScreenProps<AdminMoreStackParamList, 'AdminMore'>;
 // Hub for the master-catalog / management sections. Rows get added here as new
 // admin modules ship (atributos, sucursales, usuarios).
 export default function AdminMoreScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
-
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
-        <Text style={styles.title}>Gestión</Text>
-      </View>
+      <ScreenTitle title="Gestión" />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: SPACING['2xl'] }}
@@ -71,8 +67,6 @@ export default function AdminMoreScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.sm },
-  title: { fontSize: FONT_SIZE.screenTitle, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   overline: {
     fontSize: FONT_SIZE.caption,
     fontWeight: FONT_WEIGHT.bold,
@@ -81,6 +75,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: SPACING.xl,
     marginBottom: SPACING.sm,
-    marginHorizontal: SPACING.xl,
+    marginHorizontal: SPACING.sm,
   },
 });

@@ -48,7 +48,8 @@ export default function ScreenTitle({ overline, title, subtitle, actions, childr
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xs },
+  // paddingBottom is a 5px optical nudge above the content — off the grid on purpose.
+  header: { paddingHorizontal: SPACING.sm, paddingBottom: 5 },
   row: {
     flexDirection: 'row',
     // Actions hang off the title itself, so they line up with it and not with the

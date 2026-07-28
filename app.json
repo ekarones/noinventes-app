@@ -18,7 +18,12 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -42,13 +47,14 @@
       "expo-font",
       "expo-secure-store",
       "expo-sharing",
-      "expo-image"
+      "expo-image",
+      "@react-native-community/datetimepicker"
     ],
+    "owner": "mizonaonline",
     "extra": {
       "eas": {
-        "projectId": "2b60ed45-a976-4f91-a70b-a7a81cdaf97b"
+        "projectId": "c8ed52de-921d-442d-83d5-15b319e9b2d9"
       }
-    },
-    "owner": "ekarones"
+    }
   }
 }

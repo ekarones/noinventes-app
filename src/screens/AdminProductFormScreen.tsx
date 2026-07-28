@@ -36,7 +36,10 @@ import type { AdminProductsStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminProductForm'>;
 
 const STATUSES: { value: AdminProductStatus; label: string; hint: string }[] = [
-  { value: 'published', label: 'Publicado', hint: 'Visible para los vendedores' },
+  // Los dos primeros llegan igual al catálogo del vendedor: lo que cambia es el
+  // destacado. Decir "visible para los vendedores" sólo en uno daba a entender
+  // que el otro no lo era.
+  { value: 'published', label: 'Publicado', hint: 'Visible y destacado' },
   { value: 'public', label: 'Público', hint: 'Visible, sin destacar' },
   { value: 'private', label: 'Privado', hint: 'Oculto en la app del vendedor' },
 ];
@@ -158,7 +161,6 @@ export default function AdminProductFormScreen({ route, navigation }: Props) {
         navigation.replace('AdminVariationForm', {
           productId: newId,
           productName: payload.name,
-          productCode: payload.code,
           productUnitValue: payload.unitValue,
           productFinalPrice: payload.finalPrice,
           attributeIds,
@@ -188,7 +190,7 @@ export default function AdminProductFormScreen({ route, navigation }: Props) {
       />
 
       <ScrollView
-        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
+        contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -527,10 +529,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
+    // Transparent at rest; the selected state frames it in primary — same as the
+    // category filter.
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: RADIUS.card,
-    padding: SPACING.lg,
+    padding: SPACING.sm,
     marginBottom: SPACING.md,
   },
   optionCardActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
@@ -542,7 +546,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primarySoft,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.input,
   },

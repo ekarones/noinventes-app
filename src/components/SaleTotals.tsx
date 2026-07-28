@@ -47,9 +47,7 @@ const styles = StyleSheet.create({
   box: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: SPACING.lg,
+    padding: SPACING.sm,
     gap: SPACING.sm,
     marginTop: SPACING['2xl'],
   },

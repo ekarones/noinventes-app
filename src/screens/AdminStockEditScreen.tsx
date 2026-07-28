@@ -77,7 +77,7 @@ export default function AdminStockEditScreen({ route, navigation }: Props) {
       <ScreenHeader title="Editar stock" onBack={() => navigation.goBack()} />
 
       <ScrollView
-        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING.xl }}
+        contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING.xl }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -135,9 +135,7 @@ const styles = StyleSheet.create({
   box: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
     marginTop: SPACING.xl,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
@@ -147,7 +145,7 @@ const styles = StyleSheet.create({
   input: {
     width: 84,
     height: 46,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.background,

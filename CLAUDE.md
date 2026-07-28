@@ -95,7 +95,8 @@ Layered, with a clean split between the network layer and the UI.
   - Type: `FONT_SIZE` / `FONT_WEIGHT`. There is deliberately no 10 or 17 — a one-point difference is
     invisible, so it only ever means someone eyeballed it.
   - Rhythm: `SPACING`, a 4pt grid. `hairline` (2) is the one step off it, for an optical nudge.
-    The screen margin is `SPACING.xl` (20): anything that touches the screen edge uses it.
+    The screen margin is `SPACING.sm` (8): anything that touches the screen edge uses it
+    (the shared `ScreenTitle` / `ScreenHeader` headers and every list / grid / form gutter).
   - Shape: `RADIUS`, four roles — `badge`, `control`, `card`, `pill`. A circle or a pill is
     `RADIUS.pill`, **never** `width / 2`: hard-coding half the height means resizing the box
     silently un-rounds it.

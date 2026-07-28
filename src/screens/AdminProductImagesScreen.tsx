@@ -134,7 +134,7 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
         />
       ) : (
         <ScrollView
-          contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
+          contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.productName}>{productName}</Text>
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     backgroundColor: colors.primary,
     height: 54,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     marginTop: SPACING['2xl'],
   },
   uploadBtnDisabled: { opacity: 0.5 },

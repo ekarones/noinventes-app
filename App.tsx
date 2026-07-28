@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import { ToastProvider } from './src/context/ToastContext';
+import { PrinterProvider } from './src/context/PrinterContext';
 import LoginScreen from './src/screens/LoginScreen';
 import AppNavigator from './src/navigation/AppNavigator';
 import AdminNavigator from './src/navigation/AdminNavigator';
@@ -51,12 +52,16 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ToastProvider>
-        <AuthProvider>
-          <View style={styles.root}>
-            <StatusBar style="dark" />
-            <Root />
-          </View>
-        </AuthProvider>
+        {/* Outside the auth gate: the printer session belongs to the device, not
+            to whoever is signed in, so it survives a sign-out. */}
+        <PrinterProvider>
+          <AuthProvider>
+            <View style={styles.root}>
+              <StatusBar style="dark" />
+              <Root />
+            </View>
+          </AuthProvider>
+        </PrinterProvider>
       </ToastProvider>
     </SafeAreaProvider>
   );

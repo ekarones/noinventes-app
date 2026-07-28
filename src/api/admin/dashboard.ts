@@ -1,5 +1,12 @@
 import { apiRequest } from '../client';
-import type { AdminDashboard, PaymentMethod, StatsPeriod } from '../../types';
+import type { PaginationMeta } from '../products';
+import type {
+  AdminDashboard,
+  DashboardTopProduct,
+  LowStockItem,
+  PaymentMethod,
+  StatsPeriod,
+} from '../../types';
 
 // Raw shape from GET /admin/dashboard (snake_case + string decimals).
 type RawAdminDashboard = {
@@ -21,8 +28,11 @@ type RawAdminDashboard = {
     quantity_sold: number;
     total: string;
     image_url: string | null;
-    image_thumb_url?: string | null;
+    image_thumb_url: string | null;
   }[];
+  // Says whether the inline top 5 is the whole ranking or there is more to page
+  // through via /admin/dashboard/top-products.
+  top_products_meta?: { total: number; has_more: boolean; limit: number };
   sales_by_branch: {
     branch_id: number;
     branch_name: string;
@@ -54,7 +64,7 @@ type RawAdminDashboard = {
       product_name: string;
       product_type: 'simple' | 'variable';
       image_url: string | null;
-      image_thumb_url?: string | null;
+      image_thumb_url: string | null;
       branch_id: number;
       branch_name: string;
       stock: number;
@@ -62,6 +72,38 @@ type RawAdminDashboard = {
     has_more?: boolean;
   };
 };
+
+// Both the inline blocks and their paginated endpoints return the same rows, so
+// the mappers are shared.
+type RawTopProduct = RawAdminDashboard['top_products'][number];
+type RawLowStockItem = NonNullable<RawAdminDashboard['low_stock']['products']>[number];
+
+function mapTopProduct(p: RawTopProduct): DashboardTopProduct {
+  return {
+    productId: p.product_id,
+    variationId: p.product_variation_id,
+    variationLabel: p.variation_label,
+    name: p.name,
+    quantitySold: p.quantity_sold,
+    total: parseFloat(p.total),
+    imageUrl: p.image_url ?? null,
+    imageThumbUrl: p.image_thumb_url,
+  };
+}
+
+function mapLowStockItem(p: RawLowStockItem): LowStockItem {
+  return {
+    productId: p.product_id,
+    productCode: p.product_code,
+    productName: p.product_name,
+    productType: p.product_type,
+    imageUrl: p.image_url ?? null,
+    imageThumbUrl: p.image_thumb_url,
+    branchId: p.branch_id,
+    branchName: p.branch_name,
+    stock: p.stock,
+  };
+}
 
 // GET /admin/dashboard — global KPIs for admins (admin-api gated). When
 // `branchId` is given, every metric is scoped to that branch and the server
@@ -75,6 +117,7 @@ export async function fetchAdminDashboard(
   if (branchId) q.set('branch_id', String(branchId));
 
   const res = await apiRequest<RawAdminDashboard>(`/admin/dashboard?${q.toString()}`);
+  const topProducts = (res.top_products ?? []).map(mapTopProduct);
 
   return {
     period: res.period,
@@ -84,16 +127,13 @@ export async function fetchAdminDashboard(
       itemsSold: res.summary.items_sold,
       averageTicket: parseFloat(res.summary.average_ticket),
     },
-    topProducts: (res.top_products ?? []).map((p) => ({
-      productId: p.product_id,
-      variationId: p.product_variation_id,
-      variationLabel: p.variation_label,
-      name: p.name,
-      quantitySold: p.quantity_sold,
-      total: parseFloat(p.total),
-      imageUrl: p.image_url ?? null,
-      imageThumbUrl: p.image_thumb_url ?? p.image_url ?? null,
-    })),
+    topProducts,
+    // An older API build without the field: assume what we got is all there is.
+    topProductsMeta: {
+      total: res.top_products_meta?.total ?? topProducts.length,
+      hasMore: res.top_products_meta?.has_more ?? false,
+      limit: res.top_products_meta?.limit ?? topProducts.length,
+    },
     salesByBranch: (res.sales_by_branch ?? []).map((b) => ({
       branchId: b.branch_id,
       branchName: b.branch_name,
@@ -119,18 +159,69 @@ export async function fetchAdminDashboard(
     lowStock: {
       threshold: res.low_stock?.threshold ?? 0,
       count: res.low_stock?.count ?? 0,
-      products: (res.low_stock?.products ?? []).map((p) => ({
-        productId: p.product_id,
-        productCode: p.product_code,
-        productName: p.product_name,
-        productType: p.product_type,
-        imageUrl: p.image_url ?? null,
-        imageThumbUrl: p.image_thumb_url ?? p.image_url ?? null,
-        branchId: p.branch_id,
-        branchName: p.branch_name,
-        stock: p.stock,
-      })),
+      products: (res.low_stock?.products ?? []).map(mapLowStockItem),
       hasMore: res.low_stock?.has_more ?? false,
+    },
+  };
+}
+
+// GET /admin/dashboard/top-products — the full cross-seller ranking for the
+// period, paged. Backs the dashboard's "Ver todas"; honours `branchId` so the
+// list matches whatever scope the dashboard is showing.
+export async function fetchAdminTopProducts(
+  period: StatsPeriod,
+  branchId: number | null | undefined,
+  page = 1,
+  perPage = 20
+): Promise<{ items: DashboardTopProduct[]; meta: PaginationMeta }> {
+  const q = new URLSearchParams();
+  q.set('period', period);
+  if (branchId) q.set('branch_id', String(branchId));
+  q.set('page', String(page));
+  q.set('per_page', String(perPage));
+
+  const res = await apiRequest<{
+    data: RawTopProduct[];
+    meta: { current_page: number; last_page: number; per_page: number; total: number };
+  }>(`/admin/dashboard/top-products?${q.toString()}`);
+
+  return {
+    items: res.data.map(mapTopProduct),
+    meta: {
+      currentPage: res.meta.current_page,
+      lastPage: res.meta.last_page,
+      perPage: res.meta.per_page,
+      total: res.meta.total,
+    },
+  };
+}
+
+// GET /admin/dashboard/low-stock — every critical (product, branch) pair, paged.
+// The dashboard only inlines up to 50 of them.
+export async function fetchAdminLowStock(
+  branchId: number | null | undefined,
+  page = 1,
+  perPage = 20
+): Promise<{ items: LowStockItem[]; threshold: number; meta: PaginationMeta }> {
+  const q = new URLSearchParams();
+  if (branchId) q.set('branch_id', String(branchId));
+  q.set('page', String(page));
+  q.set('per_page', String(perPage));
+
+  const res = await apiRequest<{
+    threshold: number;
+    data: RawLowStockItem[];
+    meta: { current_page: number; last_page: number; per_page: number; total: number };
+  }>(`/admin/dashboard/low-stock?${q.toString()}`);
+
+  return {
+    items: res.data.map(mapLowStockItem),
+    threshold: res.threshold,
+    meta: {
+      currentPage: res.meta.current_page,
+      lastPage: res.meta.last_page,
+      perPage: res.meta.per_page,
+      total: res.meta.total,
     },
   };
 }

@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   RefreshControl,
@@ -13,7 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { deleteUser, fetchAdminUsers } from '../api/admin/users';
-import type { PaginationMeta } from '../api/products';
+import { usePagedList } from '../hooks/usePagedList';
 import { colors } from '../theme/colors';
 import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
@@ -24,6 +23,7 @@ import SearchBar from '../components/SearchBar';
 import LoadingState from '../components/LoadingState';
 import ScreenHeader from '../components/ScreenHeader';
 import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 import { useDebounce } from '../hooks/useDebounce';
 import type { AdminUser, AdminUserRole } from '../types';
 import type { AdminMoreStackParamList } from '../navigation/types';
@@ -44,12 +44,6 @@ export default function AdminUsersScreen({ navigation }: Props) {
   const { showToast } = useToast();
   const { user: me } = useAuth();
 
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [searchText, setSearchText] = useState('');
   const query = useDebounce(searchText, 400);
@@ -57,55 +51,28 @@ export default function AdminUsersScreen({ navigation }: Props) {
 
   const roleParam = useMemo(() => (role === 'all' ? undefined : role), [role]);
 
-  const loadFirstPage = useCallback(
-    async (isRefresh = false) => {
-      isRefresh ? setRefreshing(true) : setLoading(true);
-      setError(null);
-      try {
-        const { items, meta: m } = await fetchAdminUsers({
-          search: query || undefined,
-          role: roleParam,
-          page: 1,
-          perPage: PER_PAGE,
-        });
-        setUsers(items);
-        setMeta(m);
-      } catch (e: any) {
-        setError(e?.message ?? 'No se pudieron cargar los usuarios.');
-        setUsers([]);
-        setMeta(null);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
+  const fetchPage = useCallback(
+    (page: number) => fetchAdminUsers({ search: query || undefined, role: roleParam, page, perPage: PER_PAGE }),
     [query, roleParam]
   );
+  const {
+    items: users,
+    meta,
+    page,
+    loading,
+    refreshing,
+    error,
+    listRef,
+    loadPage,
+  } = usePagedList<AdminUser>(fetchPage, 'No se pudieron cargar los usuarios.');
 
+  // Runs on focus and whenever a filter changes — either way the result set is
+  // new, so it starts at page 1.
   useFocusEffect(
     useCallback(() => {
-      loadFirstPage();
-    }, [loadFirstPage])
+      loadPage(1);
+    }, [loadPage])
   );
-
-  async function loadMore() {
-    if (!meta || loadingMore || meta.currentPage >= meta.lastPage) return;
-    setLoadingMore(true);
-    try {
-      const { items, meta: m } = await fetchAdminUsers({
-        search: query || undefined,
-        role: roleParam,
-        page: meta.currentPage + 1,
-        perPage: PER_PAGE,
-      });
-      setUsers((prev) => [...prev, ...items]);
-      setMeta(m);
-    } catch {
-      /* keep what we have */
-    } finally {
-      setLoadingMore(false);
-    }
-  }
 
   function confirmDelete(u: AdminUser) {
     Alert.alert('Eliminar usuario', `¿Eliminar a "${u.name}"? Esta acción no se puede deshacer.`, [
@@ -118,7 +85,8 @@ export default function AdminUsersScreen({ navigation }: Props) {
     try {
       await deleteUser(u.id);
       showToast('Usuario eliminado', 'checkmark-circle');
-      loadFirstPage();
+      // Stay on the page you were looking at; loadPage steps back if it emptied.
+      loadPage(page);
     } catch (e: any) {
       // The server 422s on self-deletion; its message explains why.
       Alert.alert('No se pudo eliminar', e?.message ?? 'Inténtalo de nuevo.');
@@ -215,36 +183,38 @@ export default function AdminUsersScreen({ navigation }: Props) {
         </ChipRow>
       </View>
 
-      {loading ? (
+      {loading && users.length === 0 ? (
         <LoadingState />
       ) : error ? (
         <EmptyState
           icon="cloud-offline-outline"
           message={error}
-          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
         />
       ) : (
         <FlatList
+          ref={listRef}
           data={users}
           keyExtractor={(u) => String(u.id)}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           keyboardShouldPersistTaps="handled"
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => loadFirstPage(true)}
+              onRefresh={() => loadPage(page, true)}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
           ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
-            ) : null
+            <Pagination
+              page={page}
+              lastPage={meta?.lastPage ?? 1}
+              onChange={loadPage}
+              loading={loading}
+            />
           }
           ListEmptyComponent={
             <EmptyState
@@ -261,8 +231,8 @@ export default function AdminUsersScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  filters: { paddingHorizontal: SPACING.xl },
-  list: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING['2xl'], flexGrow: 1 },
+  filters: { paddingHorizontal: SPACING.sm },
+  list: { paddingHorizontal: SPACING.sm, paddingBottom: SPACING['2xl'], flexGrow: 1 },
   sep: { height: 1, backgroundColor: colors.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   avatarAdmin: { backgroundColor: colors.textPrimary },

@@ -1,6 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -12,11 +11,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchAdminSalesTrash } from '../api/admin/sales';
-import type { PaginationMeta } from '../api/products';
+import { usePagedList } from '../hooks/usePagedList';
 import { colors } from '../theme/colors';
 import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
+import Pagination from '../components/Pagination';
 import ScreenHeader from '../components/ScreenHeader';
 import { formatDate, formatPrice } from '../utils/format';
 import type { AdminSaleSummary } from '../types';
@@ -27,52 +27,26 @@ type Props = NativeStackScreenProps<AdminSalesStackParamList, 'AdminSalesTrash'>
 const PER_PAGE = 20;
 
 export default function AdminSalesTrashScreen({ navigation }: Props) {
-  const [sales, setSales] = useState<AdminSaleSummary[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadFirstPage = useCallback(async (isRefresh = false) => {
-    isRefresh ? setRefreshing(true) : setLoading(true);
-    setError(null);
-    try {
-      const { items, meta: m } = await fetchAdminSalesTrash({ page: 1, perPage: PER_PAGE });
-      setSales(items);
-      setMeta(m);
-    } catch (e: any) {
-      setError(e?.message ?? 'No se pudo cargar la papelera.');
-      setSales([]);
-      setMeta(null);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const fetchPage = useCallback(
+    (page: number) => fetchAdminSalesTrash({ page, perPage: PER_PAGE }),
+    []
+  );
+  const {
+    items: sales,
+    meta,
+    page,
+    loading,
+    refreshing,
+    error,
+    listRef,
+    loadPage,
+  } = usePagedList<AdminSaleSummary>(fetchPage, 'No se pudo cargar la papelera.');
 
   useFocusEffect(
     useCallback(() => {
-      loadFirstPage();
-    }, [loadFirstPage])
+      loadPage(1);
+    }, [loadPage])
   );
-
-  async function loadMore() {
-    if (!meta || loadingMore || meta.currentPage >= meta.lastPage) return;
-    setLoadingMore(true);
-    try {
-      const { items, meta: m } = await fetchAdminSalesTrash({
-        page: meta.currentPage + 1,
-        perPage: PER_PAGE,
-      });
-      setSales((prev) => [...prev, ...items]);
-      setMeta(m);
-    } catch {
-      /* keep what we have */
-    } finally {
-      setLoadingMore(false);
-    }
-  }
 
   function renderItem({ item }: { item: AdminSaleSummary }) {
     return (
@@ -103,35 +77,39 @@ export default function AdminSalesTrashScreen({ navigation }: Props) {
     <View style={styles.container}>
       <ScreenHeader title="Papelera" onBack={() => navigation.goBack()} />
 
-      {loading ? (
+      {/* Only the very first load takes over the screen; changing page keeps the
+          list visible and just disables the controls. */}
+      {loading && sales.length === 0 ? (
         <LoadingState />
       ) : error ? (
         <EmptyState
           icon="cloud-offline-outline"
           message={error}
-          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
         />
       ) : (
         <FlatList
+          ref={listRef}
           data={sales}
           keyExtractor={(s) => String(s.id)}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => loadFirstPage(true)}
+              onRefresh={() => loadPage(page, true)}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
           ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
-            ) : null
+            <Pagination
+              page={page}
+              lastPage={meta?.lastPage ?? 1}
+              onChange={loadPage}
+              loading={loading}
+            />
           }
           ListEmptyComponent={
             <EmptyState
@@ -148,8 +126,8 @@ export default function AdminSalesTrashScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md, borderWidth: 1, borderColor: colors.border },
+  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md },
   iconBox: {
     width: 48,
     height: 48,

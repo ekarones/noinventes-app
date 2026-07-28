@@ -124,12 +124,10 @@ const styles = StyleSheet.create({
   // The standalone card: same border and radius as a product card, so the two
   // lists read as one family.
   card: {
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   iconBox: {
     width: 40,

@@ -9,6 +9,7 @@ import CheckoutScreen from '../screens/CheckoutScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import TopProductsScreen from '../screens/TopProductsScreen';
 import { colors } from '../theme/colors';
 import { useCart } from '../context/CartContext';
 import type {
@@ -30,6 +31,7 @@ function DashboardStack() {
     <DashboardStackNav.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStackNav.Screen name="Dashboard" component={DashboardScreen} />
       <DashboardStackNav.Screen name="Profile" component={ProfileScreen} />
+      <DashboardStackNav.Screen name="TopProducts" component={TopProductsScreen} />
       {/* Also registered in the Catálogo and Ventas stacks. Inicio opens its
           best-sellers and recent sales HERE, on its own stack, so that going back
           returns to Inicio — a cross-tab navigate would push them onto the other

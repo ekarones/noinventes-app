@@ -15,7 +15,9 @@ type Props = {
 export default function SearchBar({ value, onChangeText, placeholder }: Props) {
   return (
     <View style={styles.box}>
-      <Ionicons name="search" size={20} color={colors.textSecondary} />
+      <View style={styles.disc}>
+        <Ionicons name="search" size={18} color={colors.textSecondary} />
+      </View>
 
       <TextInput
         style={styles.input}
@@ -50,11 +52,21 @@ const styles = StyleSheet.create({
     // Flat: a white field with a border, so it matches the cards and the filter
     // buttons instead of the old brand-tinted fill.
     backgroundColor: colors.surface,
-    borderRadius: RADIUS.control,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.pill,
+    // The disc brings its own visual margin, so the left padding shrinks.
+    paddingLeft: SPACING.xs,
+    paddingRight: SPACING.md,
     height: CONTROL_HEIGHT.input,
+  },
+  // Circular via RADIUS.pill, never width/2 — the same disc the filter and sort
+  // pills carry, so the whole header row reads as one family.
+  disc: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,

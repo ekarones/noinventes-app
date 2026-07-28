@@ -7,7 +7,7 @@ import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import { stockColor } from '../utils/stock';
 import ProductImage from '../components/ProductImage';
-import type { AdminProductRow, LowStockItem } from '../types';
+import type { LowStockItem } from '../types';
 import type { AdminHomeStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AdminHomeStackParamList, 'AdminLowStock'>;
@@ -15,30 +15,15 @@ type Props = NativeStackScreenProps<AdminHomeStackParamList, 'AdminLowStock'>;
 export default function AdminLowStockScreen({ route, navigation }: Props) {
   const { items, threshold, hasMore } = route.params;
 
-  // Jump to the product detail to fix its stock. The
-  // detail refetches everything from its id, so a minimal row is enough — the
-  // other fields are placeholders that are never displayed before the reload.
+  // Jump to the product detail to fix its stock. The detail refetches everything
+  // from the id, so it only needs the seed.
   function openProduct(item: LowStockItem) {
-    const product: AdminProductRow = {
-      id: item.productId,
-      code: item.productCode,
-      name: item.productName,
-      type: item.productType,
-      status: 'published',
-      unitValue: 0,
-      finalPrice: 0,
-      finalPriceMax: null,
-      unitOfMeasure: 'unit',
-      imageUrl: item.imageUrl,
-      imageThumbUrl: item.imageThumbUrl,
-      variationsCount: 0,
-      category: null,
-      stock: null,
-    };
     // Pushed on Inicio's own stack — this screen lives there, and so does the
     // product detail. Sending it to the Catálogo tab instead would mean going
     // back from the product lands on that tab's list, not on this alert.
-    navigation.navigate('AdminProductDetail', { product });
+    navigation.navigate('AdminProductDetail', {
+      product: { id: item.productId, name: item.productName },
+    });
   }
 
   function renderItem({ item }: { item: LowStockItem }) {
@@ -106,10 +91,10 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.lg, flexGrow: 1 },
+  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
   caption: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: SPACING.sm, paddingHorizontal: SPACING.xs },
   footer: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.lg },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md, borderWidth: 1, borderColor: colors.border },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md },
   thumb: { width: 52, height: 52, borderRadius: RADIUS.control },
   info: { flex: 1, gap: SPACING.hairline },
   name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },

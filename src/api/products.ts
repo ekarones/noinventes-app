@@ -25,12 +25,12 @@ type RawProduct = {
   final_price_max: string | null;
   unit_of_measure: string;
   image_url: string | null;
-  image_thumb_url?: string | null;
+  image_thumb_url: string | null;
   // Detail-only; absent in the listing response.
   images?: {
     id: number;
     url: string;
-    thumb_url?: string | null;
+    thumb_url: string;
     is_featured: boolean;
     sort_order: number;
   }[];
@@ -45,12 +45,18 @@ type RawVariation = {
   unit_value: string;
   final_price: string;
   image_url: string | null;
-  image_thumb_url?: string | null;
+  image_thumb_url: string | null;
   stock: number;
   attribute_values: AttributeValue[];
 };
 
-type RawCategory = { id: number; parent_id: number | null; name: string };
+type RawCategory = {
+  id: number;
+  parent_id: number | null;
+  name: string;
+  depth: number;
+  has_children: boolean;
+};
 
 type ProductsResponse = {
   data: RawProduct[];
@@ -72,13 +78,12 @@ function mapProduct(p: RawProduct): Product {
     finalPriceMax: p.final_price_max != null ? parseFloat(p.final_price_max) : null,
     unitOfMeasure: p.unit_of_measure,
     imageUrl: p.image_url,
-    // Fall back to the full image if the server sends no thumb (older build).
-    imageThumbUrl: p.image_thumb_url ?? p.image_url,
+    imageThumbUrl: p.image_thumb_url,
     // Empty from the listing; the detail endpoint fills it.
     images: (p.images ?? []).map((i) => ({
       id: i.id,
       url: i.url,
-      thumbUrl: i.thumb_url ?? i.url,
+      thumbUrl: i.thumb_url,
       isFeatured: i.is_featured,
       sortOrder: i.sort_order,
     })),
@@ -95,7 +100,7 @@ function mapVariation(v: RawVariation): Variation {
     unitValue: parseFloat(v.unit_value),
     finalPrice: parseFloat(v.final_price),
     imageUrl: v.image_url,
-    imageThumbUrl: v.image_thumb_url ?? v.image_url,
+    imageThumbUrl: v.image_thumb_url,
     stock: v.stock,
     attributeValues: v.attribute_values ?? [],
   };
@@ -176,7 +181,15 @@ export async function lookupByCode(code: string): Promise<LookupResult> {
   return { type: 'product', product, variation: null };
 }
 
+// GET /categories — the tree already flattened depth-first, siblings sorted with
+// Spanish collation. Order and `depth` are the server's; the app renders as-is.
 export async function fetchCategories(): Promise<Category[]> {
   const res = await apiRequest<{ data: RawCategory[] }>(`/categories`);
-  return res.data.map((c) => ({ id: c.id, parentId: c.parent_id, name: c.name }));
+  return res.data.map((c) => ({
+    id: c.id,
+    parentId: c.parent_id,
+    name: c.name,
+    depth: c.depth,
+    hasChildren: c.has_children,
+  }));
 }

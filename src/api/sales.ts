@@ -2,6 +2,7 @@ import { apiRequest } from './client';
 import type { PaginationMeta } from './products';
 import type {
   DashboardStats,
+  DashboardTopProduct,
   PaymentMethod,
   SaleDetail,
   SaleItem,
@@ -33,8 +34,8 @@ type RawSaleFull = {
   total: string;
   payment_method: PaymentMethod;
   notes: string | null;
+  items_count: number;
   created_at: string;
-  items: { quantity: number }[];
 };
 
 function summaryFromFull(s: RawSaleFull): SaleSummary {
@@ -46,7 +47,10 @@ function summaryFromFull(s: RawSaleFull): SaleSummary {
     total: parseFloat(s.total),
     paymentMethod: s.payment_method,
     notes: s.notes,
-    itemsCount: s.items.reduce((n, i) => n + i.quantity, 0),
+    // Σ of the quantities, served — the same field the list rows and the detail
+    // carry. The app used to add it up here, back when POST /sales was the one
+    // response that left it out.
+    itemsCount: s.items_count,
     createdAt: s.created_at,
   };
 }
@@ -111,6 +115,8 @@ type RawSaleDetail = {
   total: string;
   payment_method: PaymentMethod;
   notes: string | null;
+  // Σ of the item quantities, served — same meaning as in the list row.
+  items_count: number;
   created_at: string;
   branch: { id: number; name: string } | null;
   items: RawSaleItem[];
@@ -140,6 +146,7 @@ export async function fetchSaleDetail(id: number): Promise<SaleDetail> {
     total: parseFloat(s.total),
     paymentMethod: s.payment_method,
     notes: s.notes,
+    itemsCount: s.items_count,
     createdAt: s.created_at,
     branch: s.branch,
     items: s.items.map(mapItem),
@@ -159,7 +166,7 @@ export async function fetchSaleSummaryById(id: number): Promise<SaleSummary> {
     total: d.total,
     paymentMethod: d.paymentMethod,
     notes: d.notes,
-    itemsCount: d.items.reduce((n, i) => n + i.quantity, 0),
+    itemsCount: d.itemsCount,
     createdAt: d.createdAt,
   };
 }
@@ -249,8 +256,11 @@ type RawStats = {
     quantity_sold: number;
     total: string;
     image_url: string | null;
-    image_thumb_url?: string | null;
+    image_thumb_url: string | null;
   }[];
+  // Says whether the inline top 5 is the whole ranking or there is more to page
+  // through via /sales/statistics/top-products.
+  top_products_meta?: { total: number; has_more: boolean; limit: number };
   recent_sales: {
     id: number;
     customer_name: string;
@@ -261,8 +271,25 @@ type RawStats = {
   }[];
 };
 
+// Shared by the inline ranking and the paginated one — same row either way.
+type RawTopProduct = RawStats['top_products'][number];
+
+function mapTopProduct(p: RawTopProduct): DashboardTopProduct {
+  return {
+    productId: p.product_id,
+    variationId: p.product_variation_id,
+    variationLabel: p.variation_label,
+    name: p.name,
+    quantitySold: p.quantity_sold,
+    total: parseFloat(p.total),
+    imageUrl: p.image_url ?? null,
+    imageThumbUrl: p.image_thumb_url,
+  };
+}
+
 export async function fetchStatistics(period: StatsPeriod): Promise<DashboardStats> {
   const res = await apiRequest<RawStats>(`/sales/statistics?period=${period}`);
+  const topProducts = res.top_products.map(mapTopProduct);
   return {
     period: res.period,
     summary: {
@@ -271,16 +298,13 @@ export async function fetchStatistics(period: StatsPeriod): Promise<DashboardSta
       itemsSold: res.summary.items_sold,
       averageTicket: parseFloat(res.summary.average_ticket),
     },
-    topProducts: res.top_products.map((p) => ({
-      productId: p.product_id,
-      variationId: p.product_variation_id,
-      variationLabel: p.variation_label,
-      name: p.name,
-      quantitySold: p.quantity_sold,
-      total: parseFloat(p.total),
-      imageUrl: p.image_url ?? null,
-      imageThumbUrl: p.image_thumb_url ?? p.image_url ?? null,
-    })),
+    topProducts,
+    // An older API build without the field: assume what we got is all there is.
+    topProductsMeta: {
+      total: res.top_products_meta?.total ?? topProducts.length,
+      hasMore: res.top_products_meta?.has_more ?? false,
+      limit: res.top_products_meta?.limit ?? topProducts.length,
+    },
     recentSales: res.recent_sales.map((s) => ({
       id: s.id,
       customerName: s.customer_name,
@@ -289,5 +313,33 @@ export async function fetchStatistics(period: StatsPeriod): Promise<DashboardSta
       itemsCount: s.items_count,
       createdAt: s.created_at,
     })),
+  };
+}
+
+// GET /sales/statistics/top-products — the full ranking for the period, paged.
+// The dashboard only inlines the top 5; this backs its "Ver todas".
+export async function fetchTopProducts(
+  period: StatsPeriod,
+  page = 1,
+  perPage = 20
+): Promise<{ items: DashboardTopProduct[]; meta: PaginationMeta }> {
+  const q = new URLSearchParams();
+  q.set('period', period);
+  q.set('page', String(page));
+  q.set('per_page', String(perPage));
+
+  const res = await apiRequest<{
+    data: RawTopProduct[];
+    meta: { current_page: number; last_page: number; per_page: number; total: number };
+  }>(`/sales/statistics/top-products?${q.toString()}`);
+
+  return {
+    items: res.data.map(mapTopProduct),
+    meta: {
+      currentPage: res.meta.current_page,
+      lastPage: res.meta.last_page,
+      perPage: res.meta.per_page,
+      total: res.meta.total,
+    },
   };
 }

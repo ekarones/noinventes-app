@@ -21,9 +21,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
   },
-  inset: { marginHorizontal: SPACING.xl },
+  inset: { marginHorizontal: SPACING.sm },
 });

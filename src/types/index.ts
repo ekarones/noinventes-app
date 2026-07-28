@@ -6,10 +6,15 @@ export type CategoryRef = {
   name: string;
 };
 
+// The server sends the tree already flattened depth-first (parent immediately
+// followed by its descendants, siblings alphabetical), tagged with its nesting
+// level — the picker just indents by `depth` and renders in order.
 export type Category = {
   id: number;
   parentId: number | null;
   name: string;
+  depth: number;
+  hasChildren: boolean;
 };
 
 export type ProductType = 'simple' | 'variable';
@@ -40,8 +45,8 @@ export type Product = {
   finalPriceMax: number | null;
   unitOfMeasure: string;
   imageUrl: string | null;
-  // ~600px version of imageUrl. Use it in lists and cards; keep imageUrl for the
-  // full-screen detail. Falls back to imageUrl when the server has no thumb.
+  // ~600px version of imageUrl, served by the API. Use it in lists and cards;
+  // keep imageUrl for the full-screen detail. Null when the product has no image.
   imageThumbUrl: string | null;
   // Full gallery, ordered by sortOrder. Populated only by the detail endpoint;
   // empty when the product came from the listing.
@@ -74,6 +79,19 @@ export type CartItem = {
   product: Product;
   variation: Variation | null;
   quantity: number;
+};
+
+// ---- Printing ----
+
+// A byte stream the server already composed, ready to write to a Bluetooth
+// printer socket. The app never builds one: layout, QR, code page and printer
+// dialect all live server-side, so a format change never needs a release.
+//
+// Base64 because the stream carries control bytes (0x1b, 0x1d, 0x00) that don't
+// survive as text — the native side decodes it back to raw bytes.
+export type PrintPayload = {
+  payload: string;
+  encoding: 'base64';
 };
 
 // ---- Sales ----
@@ -116,6 +134,8 @@ export type SaleDetail = {
   total: number;
   paymentMethod: PaymentMethod;
   notes: string | null;
+  // Σ of the item quantities. Served by the API, like the list row's.
+  itemsCount: number;
   createdAt: string;
   branch: { id: number; name: string } | null;
   items: SaleItem[];
@@ -151,6 +171,14 @@ export type DashboardTopProduct = {
   imageThumbUrl: string | null;
 };
 
+// Tells whether the inline ranking (top 5) covers the whole period or there are
+// more rows to page through via the dedicated top-products endpoint.
+export type TopProductsMeta = {
+  total: number;
+  hasMore: boolean;
+  limit: number;
+};
+
 export type DashboardRecentSale = {
   id: number;
   customerName: string;
@@ -164,6 +192,7 @@ export type DashboardStats = {
   period: StatsPeriod;
   summary: DashboardSummary;
   topProducts: DashboardTopProduct[];
+  topProductsMeta: TopProductsMeta;
   recentSales: DashboardRecentSale[];
 };
 
@@ -215,6 +244,7 @@ export type AdminDashboard = {
   period: StatsPeriod;
   summary: DashboardSummary;
   topProducts: DashboardTopProduct[];
+  topProductsMeta: TopProductsMeta;
   salesByBranch: AdminSalesByBranch[];
   salesBySeller: AdminSalesBySeller[];
   recentSales: AdminRecentSale[];
@@ -260,7 +290,7 @@ export type StockByBranch = {
 export type AdminProductImage = {
   id: number;
   url: string;
-  // ~600px version of `url`; falls back to `url` when there's no thumb.
+  // ~600px version of `url`, served by the API.
   thumbUrl: string;
   isFeatured: boolean;
   sortOrder: number;

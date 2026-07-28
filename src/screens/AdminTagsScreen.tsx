@@ -221,7 +221,7 @@ export default function AdminTagsScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING['2xl'], flexGrow: 1 },
+  list: { paddingHorizontal: SPACING.sm, paddingBottom: SPACING['2xl'], flexGrow: 1 },
   sep: { height: 1, backgroundColor: colors.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   iconBox: {

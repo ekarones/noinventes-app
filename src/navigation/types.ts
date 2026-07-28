@@ -1,16 +1,26 @@
 // Route param lists for type-safe navigation.
 
+import type { CompositeNavigationProp, NavigatorScreenParams } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type {
   AdminProductDetail,
-  AdminProductRow,
   AdminSaleSummary,
   AdminUser,
   AdminVariation,
   LowStockItem,
   Product,
   SaleSummary,
+  StatsPeriod,
   StockByBranch,
 } from '../types';
+
+// The admin product detail re-fetches everything from the id; what it receives
+// is only a seed for the header while that request is in flight. Typing it as a
+// full `AdminProductRow` forced callers that hold a ranking or low-stock row to
+// fabricate a row full of zeros just to satisfy the compiler — so the route asks
+// for exactly the two fields it reads.
+type ProductSeed = { id: number; name: string };
 
 // Two screens are reachable from more than one tab: the dashboard opens a
 // best-seller and a recent sale, exactly as the catalogue and the history do. A
@@ -31,6 +41,8 @@ export type DashboardStackParamList = ProductDetailRoute &
   OrderDetailRoute & {
     Dashboard: undefined;
     Profile: undefined;
+    // The full best-sellers ranking, scoped to the period the dashboard shows.
+    TopProducts: { period: StatsPeriod };
   };
 
 export type CatalogStackParamList = ProductDetailRoute & {
@@ -46,11 +58,14 @@ export type OrdersStackParamList = OrderDetailRoute & {
   Orders: undefined;
 };
 
+// Each tab hosts a stack, so `NavigatorScreenParams` is what lets a screen jump
+// to a sibling tab AND name the route inside it — `navigate('OrdersTab', {
+// screen: 'Orders' })` — with the nested route still type-checked.
 export type TabParamList = {
-  DashboardTab: undefined;
-  CatalogTab: undefined;
-  CartTab: undefined;
-  OrdersTab: undefined;
+  DashboardTab: NavigatorScreenParams<DashboardStackParamList> | undefined;
+  CatalogTab: NavigatorScreenParams<CatalogStackParamList> | undefined;
+  CartTab: NavigatorScreenParams<CartStackParamList> | undefined;
+  OrdersTab: NavigatorScreenParams<OrdersStackParamList> | undefined;
 };
 
 // Admin interface = bottom tabs, each wrapping its own native-stack.
@@ -60,7 +75,7 @@ export type TabParamList = {
 // best-seller, and a product detail leads on to the whole edit sub-flow — so the
 // sub-flow has to be reachable from wherever the detail was pushed.
 type AdminProductRoutes = {
-  AdminProductDetail: { product: AdminProductRow };
+  AdminProductDetail: { product: ProductSeed };
   // `product` absent = creating a new one.
   AdminProductForm: { product?: AdminProductDetail };
   AdminProductImages: { productId: number; productName: string };
@@ -74,12 +89,11 @@ type AdminProductRoutes = {
   };
   // `variation` absent = creating. `attributeIds` are the attributes the product
   // already uses; a new variation must supply exactly one value for each.
-  // `productCode` seeds the auto-generated variation code; `productUnitValue` /
-  // `productFinalPrice` seed the price fields, inherited from the parent.
+  // `productUnitValue` / `productFinalPrice` seed the price fields, inherited
+  // from the parent.
   AdminVariationForm: {
     productId: number;
     productName: string;
-    productCode?: string;
     productUnitValue?: number;
     productFinalPrice?: number;
     variation?: AdminVariation;
@@ -97,6 +111,8 @@ export type AdminHomeStackParamList = AdminProductRoutes &
     AdminDashboard: undefined;
     AdminProfile: undefined;
     AdminLowStock: { items: LowStockItem[]; threshold: number; hasMore: boolean };
+    // The full cross-seller ranking, keeping the dashboard's period + branch scope.
+    AdminTopProducts: { period: StatsPeriod; branchId?: number | null };
   };
 
 export type AdminSalesStackParamList = AdminSaleDetailRoute & {
@@ -122,8 +138,26 @@ export type AdminMoreStackParamList = {
 };
 
 export type AdminTabParamList = {
-  AdminHomeTab: undefined;
-  AdminSalesTab: undefined;
-  AdminProductsTab: undefined;
-  AdminMoreTab: undefined;
+  AdminHomeTab: NavigatorScreenParams<AdminHomeStackParamList> | undefined;
+  AdminSalesTab: NavigatorScreenParams<AdminSalesStackParamList> | undefined;
+  AdminProductsTab: NavigatorScreenParams<AdminProductsStackParamList> | undefined;
+  AdminMoreTab: NavigatorScreenParams<AdminMoreStackParamList> | undefined;
 };
+
+// ---- Navigation props ----
+// A screen that lives in a stack but also jumps to a sibling tab needs BOTH
+// navigators' types. That combination is exactly what `useNavigation<any>()` was
+// papering over — and why passing the wrong shape to a route went unnoticed.
+
+export type DashboardNavigation = CompositeNavigationProp<
+  NativeStackNavigationProp<DashboardStackParamList>,
+  BottomTabNavigationProp<TabParamList>
+>;
+
+export type AdminHomeNavigation = CompositeNavigationProp<
+  NativeStackNavigationProp<AdminHomeStackParamList>,
+  BottomTabNavigationProp<AdminTabParamList>
+>;
+
+// Checkout finishes by sending the user to the history tab, outside its stack.
+export type RootTabNavigation = BottomTabNavigationProp<TabParamList>;

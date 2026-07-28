@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchAdminProducts } from '../api/admin/products';
 import { fetchAdminCategories } from '../api/admin/categories';
-import type { PaginationMeta } from '../api/products';
+import { usePagedList } from '../hooks/usePagedList';
 import { colors } from '../theme/colors';
 import { SPACING } from '../theme/tokens';
+import Pagination from '../components/Pagination';
 import ProductGridCard from '../components/ProductGridCard';
 import StockBadge from '../components/StockBadge';
 import IconLabel, { IconLabelRow } from '../components/IconLabel';
@@ -27,7 +28,7 @@ import type { AdminProductsStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminProducts'>;
 
-const PER_PAGE = 30;
+const PER_PAGE = 20;
 
 type StatusFilter = 'all' | AdminProductStatus;
 
@@ -44,25 +45,20 @@ const STATUS_LABEL: Record<AdminProductStatus, string> = {
   private: 'Privado',
 };
 
+// `published` y `public` son igual de visibles para el vendedor; el ícono es lo
+// único que los separa, porque la diferencia real es destacado vs. no. El color
+// queda para la única distinción que cambia lo que el vendedor ve: oculto o no.
 const STATUS_ICON: Record<AdminProductStatus, keyof typeof Ionicons.glyphMap> = {
-  published: 'checkmark-circle-outline',
+  published: 'star-outline',
   public: 'eye-outline',
   private: 'lock-closed-outline',
 };
 
 function statusColor(status: AdminProductStatus) {
-  if (status === 'published') return colors.success;
-  if (status === 'public') return colors.primary;
-  return colors.textSecondary;
+  return status === 'private' ? colors.textSecondary : colors.success;
 }
 
 export default function AdminProductsScreen({ navigation }: Props) {
-  const [products, setProducts] = useState<AdminProductRow[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [searchText, setSearchText] = useState('');
   const query = useDebounce(searchText, 400);
@@ -93,61 +89,37 @@ export default function AdminProductsScreen({ navigation }: Props) {
 
   const statusParam = useMemo(() => (status === 'all' ? undefined : status), [status]);
 
-  const loadFirstPage = useCallback(
-    async (isRefresh = false) => {
-      isRefresh ? setRefreshing(true) : setLoading(true);
-      setError(null);
-      try {
-        const { items, meta: m } = await fetchAdminProducts({
-          search: query || undefined,
-          status: statusParam,
-          categoryId,
-          sortBy: sort.sortBy,
-          sortDir: sort.sortDir,
-          page: 1,
-          perPage: PER_PAGE,
-        });
-        setProducts(items);
-        setMeta(m);
-      } catch (e: any) {
-        setError(e?.message ?? 'No se pudieron cargar los productos.');
-        setProducts([]);
-        setMeta(null);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [query, statusParam, categoryId, sort]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      loadFirstPage();
-    }, [loadFirstPage])
-  );
-
-  async function loadMore() {
-    if (!meta || loadingMore || meta.currentPage >= meta.lastPage) return;
-    setLoadingMore(true);
-    try {
-      const { items, meta: m } = await fetchAdminProducts({
+  const fetchPage = useCallback(
+    (page: number) =>
+      fetchAdminProducts({
         search: query || undefined,
         status: statusParam,
         categoryId,
         sortBy: sort.sortBy,
         sortDir: sort.sortDir,
-        page: meta.currentPage + 1,
+        page,
         perPage: PER_PAGE,
-      });
-      setProducts((prev) => [...prev, ...items]);
-      setMeta(m);
-    } catch {
-      /* keep what we have */
-    } finally {
-      setLoadingMore(false);
-    }
-  }
+      }),
+    [query, statusParam, categoryId, sort]
+  );
+  const {
+    items: products,
+    meta,
+    page,
+    loading,
+    refreshing,
+    error,
+    listRef,
+    loadPage,
+  } = usePagedList<AdminProductRow>(fetchPage, 'No se pudieron cargar los productos.');
+
+  // Runs on focus (an edit elsewhere may have changed the catalogue) and whenever
+  // a filter changes — either way the result set is new, so it starts at page 1.
+  useFocusEffect(
+    useCallback(() => {
+      loadPage(1);
+    }, [loadPage])
+  );
 
   function renderItem({ item }: { item: AdminProductRow }) {
     return (
@@ -189,11 +161,6 @@ export default function AdminProductsScreen({ navigation }: Props) {
         }
         actions={
           <>
-            <SortControl
-              options={PRODUCT_SORT_OPTIONS}
-              index={sortIndex}
-              onChange={setSortIndex}
-            />
             <IconButton
               icon="trash-outline"
               onPress={() => navigation.navigate('AdminProductsTrash')}
@@ -226,26 +193,40 @@ export default function AdminProductsScreen({ navigation }: Props) {
           ))}
         </ChipRow>
 
-        {/* Category scope */}
-        <Select
-          icon="folder-outline"
-          placeholder="Todas las categorías"
-          value={categoryId}
-          options={categories.map((c) => ({ id: c.id, label: c.name, depth: c.depth }))}
-          onChange={setCategoryId}
-        />
+        {/* Category picker and sort share the row equally — same as the seller's
+            catalogue, so both roles read the same header. */}
+        <View style={styles.filterRow}>
+          <Select
+            icon="folder-outline"
+            placeholder="Todas las categorías"
+            value={categoryId}
+            options={categories.map((c) => ({ id: c.id, label: c.name, depth: c.depth }))}
+            onChange={setCategoryId}
+            style={styles.filterItem}
+          />
+          <SortControl
+            options={PRODUCT_SORT_OPTIONS}
+            index={sortIndex}
+            onChange={setSortIndex}
+            showSelection
+            style={styles.filterItem}
+          />
+        </View>
       </ScreenTitle>
 
-      {loading ? (
+      {/* Only the very first load takes over the screen. Once there's a grid,
+          changing page keeps it on screen and just disables the controls. */}
+      {loading && products.length === 0 ? (
         <LoadingState />
       ) : error ? (
         <EmptyState
           icon="cloud-offline-outline"
           message={error}
-          action={{ label: 'Reintentar', onPress: () => loadFirstPage() }}
+          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
         />
       ) : (
         <FlatList
+          ref={listRef}
           data={products}
           keyExtractor={(p) => String(p.id)}
           renderItem={renderItem}
@@ -254,20 +235,21 @@ export default function AdminProductsScreen({ navigation }: Props) {
           contentContainerStyle={products.length ? styles.grid : styles.listEmpty}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.4}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => loadFirstPage(true)}
+              onRefresh={() => loadPage(page, true)}
               tintColor={colors.primary}
               colors={[colors.primary]}
             />
           }
           ListFooterComponent={
-            loadingMore ? (
-              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={colors.primary} />
-            ) : null
+            <Pagination
+              page={page}
+              lastPage={meta?.lastPage ?? 1}
+              onChange={loadPage}
+              loading={loading}
+            />
           }
           ListEmptyComponent={
             <EmptyState
@@ -293,9 +275,13 @@ export default function AdminProductsScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  // A 2-column grid. `gap` spaces the rows; the row's own `space-between` (with the
-  // cards at 49%) spaces the two columns. flexGrow lets a short grid fill the page.
-  grid: { padding: SPACING.xl, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
-  gridRow: { justifyContent: 'space-between' },
+  // Category picker + sort share the row equally, `sm` apart — the same header
+  // rhythm as the seller's catalogue.
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
+  filterItem: { flex: 1 },
+  // A 2-column grid. The container `gap` spaces the rows; the row's `gap` spaces the
+  // two columns (a fixed SPACING.sm). flexGrow lets a short grid fill the page.
+  grid: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
+  gridRow: { gap: SPACING.sm },
   listEmpty: { flexGrow: 1 },
 });

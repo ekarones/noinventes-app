@@ -317,8 +317,8 @@ export default function AdminCategoriesScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  searchWrap: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.md },
-  list: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING['2xl'], flexGrow: 1 },
+  searchWrap: { paddingHorizontal: SPACING.sm, paddingBottom: SPACING.md },
+  list: { paddingHorizontal: SPACING.sm, paddingBottom: SPACING['2xl'], flexGrow: 1 },
   sep: { height: 1, backgroundColor: colors.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   rowInfo: { flex: 1 },
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primarySoft,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.input,
   },

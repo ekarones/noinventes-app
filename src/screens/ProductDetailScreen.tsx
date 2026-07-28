@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { fetchVariations } from '../api/products';
+import { fetchProduct, fetchVariations } from '../api/products';
 import type { Variation } from '../types';
 import type { CatalogStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
@@ -14,9 +23,11 @@ import { variationLabel } from '../utils/cart';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { hapticAdd } from '../utils/haptics';
+import ScreenHeader from '../components/ScreenHeader';
 import ProductImage from '../components/ProductImage';
 import StockBadge from '../components/StockBadge';
 import IconLabel from '../components/IconLabel';
+import VariationFilter, { useVariationFilter } from '../components/VariationFilter';
 import Button from '../components/Button';
 import QuantityStepper from '../components/QuantityStepper';
 
@@ -29,7 +40,11 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { addItem } = useCart();
   const { showToast } = useToast();
-  const { product, variationId } = route.params;
+  const { variationId } = route.params;
+
+  // Local copy so pull-to-refresh can replace it with fresh stock/price, without
+  // waiting for the catalogue list to be re-fetched.
+  const [product, setProduct] = useState(route.params.product);
 
   const isVariable = product.type === 'variable' || product.variationsCount > 0;
 
@@ -38,6 +53,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [variationsError, setVariationsError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Variation | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Tapping the header thumbnail opens the photo full-screen.
   const [zoomed, setZoomed] = useState(false);
@@ -56,6 +72,28 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       .catch((e: any) => setVariationsError(e?.message ?? 'No se pudieron cargar las variantes.'))
       .finally(() => setLoadingVariations(false));
   }, [isVariable, product.id, variationId]);
+
+  // Pull-to-refresh: re-fetch the product (stock/price/image) and, if variable, its
+  // variations — re-syncing the selected one to its new stock.
+  async function onRefresh() {
+    setRefreshing(true);
+    try {
+      setProduct(await fetchProduct(product.id));
+      if (isVariable) {
+        const vs = await fetchVariations(product.id);
+        setVariations(vs);
+        setSelected((cur) => (cur ? vs.find((v) => v.id === cur.id) ?? null : null));
+        setVariationsError(null);
+      }
+    } catch (e: any) {
+      showToast(e?.message ?? 'No se pudo actualizar', 'alert-circle');
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const filter = useVariationFilter(variations);
+  const shownVariations = filter.shown;
 
   // Effective values: a chosen variation overrides the parent product, so the
   // summary at the top always reflects exactly what will go in the cart.
@@ -87,19 +125,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Back bar — the chevron used to float over a full-width hero; the hero is
-          now a thumbnail in the row below, so the button gets its own strip. */}
-      <View style={[styles.topBar, { paddingTop: insets.top + SPACING.sm }]}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={ROW_PRESS_OPACITY}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-      </View>
+      {/* Same header as the sale detail: back chevron, centred title. */}
+      <ScreenHeader title="Detalle del producto" onBack={() => navigation.goBack()} />
 
       {/* Header: the image and the summary side by side, so the variants below get
           the room instead of being squeezed under a full-width image. The summary
@@ -134,8 +161,9 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           <Text style={styles.name} numberOfLines={2}>
             {product.name}
           </Text>
-          {/* The chosen variation's code once one is picked, else the parent's. */}
-          <IconLabel icon="barcode-outline" text={code} />
+          {/* The chosen variation's code once one is picked, else the parent's.
+              Wraps to two lines so a long variation code isn't cut off. */}
+          <IconLabel icon="barcode-outline" text={code} numberOfLines={2} />
           {/* No variation chosen → the product's full range ("S/ 39.90 – S/ 59.90"
               when the variations differ). Once one is picked, its exact price. */}
           <Text style={styles.price} numberOfLines={1}>
@@ -155,9 +183,12 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           summary or the add-to-cart bar off screen. */}
       {isVariable ? (
         <View style={styles.variantsSection}>
-          <Text style={[styles.sectionTitle, styles.sectionTitleInset]}>
-            Variantes{variations.length > 0 ? ` (${variations.length})` : ''}
-          </Text>
+          <View style={styles.variantsHeader}>
+            <Text style={styles.variantsTitle}>
+              Variantes{variations.length > 0 ? ` (${shownVariations.length})` : ''}
+            </Text>
+            {filter.attributes.length > 0 && <VariationFilter state={filter} />}
+          </View>
           {loadingVariations ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: SPACING['2xl'] }} />
           ) : variationsError ? (
@@ -167,8 +198,19 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
               style={styles.variantsScroll}
               contentContainerStyle={styles.variantsList}
               showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={colors.primary}
+                  colors={[colors.primary]}
+                />
+              }
             >
-              {variations.map((v) => {
+              {shownVariations.length === 0 && (
+                <Text style={styles.errorText}>Ninguna variante coincide con el filtro.</Text>
+              )}
+              {shownVariations.map((v) => {
                 const active = selected?.id === v.id;
                 const vOut = v.stock <= 0;
                 return (
@@ -216,7 +258,18 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           )}
         </View>
       ) : (
-        <View style={{ flex: 1 }} />
+        // Simple product: no variants list, but keep a pull-to-refresh region.
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        />
       )}
 
       {/* Fixed footer: quantity + total + add. The bottom tab bar already
@@ -282,19 +335,23 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  topBar: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.sm },
-  // The image and the summary share a row, so the variants below get real room.
+  // The image + summary sit inside a bordered card, same chrome as a catalogue
+  // card: white surface, rounded, padded, the picture rounded inside it.
   headerRow: {
     flexDirection: 'row',
-    gap: SPACING.lg,
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.md,
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginHorizontal: SPACING.sm,
+    padding: SPACING.sm,
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.card,
   },
   imageBox: {
     width: IMG_SIZE,
     height: IMG_SIZE,
-    borderRadius: RADIUS.card,
+    borderRadius: RADIUS.control,
     overflow: 'hidden',
+    backgroundColor: colors.surfaceMuted,
   },
   image: { width: IMG_SIZE, height: IMG_SIZE },
   // A small dark chip in the corner of the thumbnail, so the tap-to-zoom is
@@ -319,7 +376,7 @@ const styles = StyleSheet.create({
   zoomImage: { width: '100%', height: '100%' },
   zoomClose: {
     position: 'absolute',
-    right: SPACING.xl,
+    right: SPACING.sm,
     width: TOUCH_MIN,
     height: TOUCH_MIN,
     borderRadius: RADIUS.pill,
@@ -327,17 +384,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backBtn: {
-    width: TOUCH_MIN,
-    height: TOUCH_MIN,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // The text column beside the image. Tight vertical rhythm: the four lines are
-  // one identity block, so they sit close (a 2pt grid step apart); centred so they
-  // balance against the square thumbnail.
   // No blanket gap: the category hugs the name (as on a catalogue card), and the
   // lines below carry their own spacing.
   summary: { flex: 1, justifyContent: 'center' },
@@ -355,15 +401,22 @@ const styles = StyleSheet.create({
   // the "Elige variante" hint (short) — otherwise picking a variation nudges the
   // whole summary up or down. 24 is the stock badge's own height.
   stockRow: { flexDirection: 'row', alignItems: 'center', minHeight: 24, marginTop: SPACING.sm },
-  // The variants list below scrolls horizontally and bleeds to the screen edge,
-  // so its section can't be padded — the title carries the inset instead. Same
-  // type as the admin's section title, just placed by hand.
-  sectionTitleInset: { paddingHorizontal: SPACING.xl },
   variantsSection: { flex: 1 },
-  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING.md, marginBottom: SPACING.md },
+  // Title + filter button on one line; the list below carries its own inset.
+  variantsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  variantsTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  // The flat pill shared by the search/sort/category controls.
   variantsScroll: { flex: 1 },
-  variantsList: { paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg, gap: SPACING.md },
-  errorText: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, paddingHorizontal: SPACING.xl },
+  variantsList: { paddingHorizontal: SPACING.sm, paddingBottom: SPACING.lg, gap: SPACING.sm },
+  errorText: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, paddingHorizontal: SPACING.sm },
   // A compact picker card: a small thumbnail, the variation and its code+stock in
   // one column, the price and the selected check aside. Smaller than a catalogue
   // card because the list is a chooser you scroll, not a shelf you browse.
@@ -373,8 +426,8 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     padding: SPACING.md,
     borderRadius: RADIUS.card,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    borderWidth: 1,
+    borderColor: 'transparent',
     backgroundColor: colors.surface,
   },
   variationRowActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
@@ -388,7 +441,7 @@ const styles = StyleSheet.create({
   // Keeps the check's slot so the price never jumps; invisible until selected.
   checkHidden: { opacity: 0 },
   footer: {
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: SPACING.sm,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,

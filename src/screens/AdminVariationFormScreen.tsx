@@ -22,7 +22,6 @@ import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
 import BottomSheet, { SheetOption } from '../components/BottomSheet';
 import Button from '../components/Button';
-import { buildVariationCode } from '../utils/slug';
 import { pickImages } from '../utils/imagePicker';
 import type { AdminAttribute } from '../types';
 import type { AdminProductsStackParamList } from '../navigation/types';
@@ -34,7 +33,6 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
   const {
     productId,
     productName,
-    productCode,
     productUnitValue,
     productFinalPrice,
     variation,
@@ -42,10 +40,9 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
   } = route.params;
   const editing = !!variation;
 
+  // Blank while creating: the server generates it from the product code and the
+  // chosen values unless the admin types one.
   const [code, setCode] = useState(variation?.code ?? '');
-  // Once the admin edits the code by hand, stop auto-generating it (only when
-  // creating; on edit the code stands on its own from the start).
-  const [codeTouched, setCodeTouched] = useState(editing);
   // On create, inherit the parent's unit value / price as editable defaults.
   const [unitValue, setUnitValue] = useState(
     editing ? String(variation!.unitValue) : productUnitValue != null ? String(productUnitValue) : '1'
@@ -101,20 +98,9 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
   // Every attribute in play needs exactly one value.
   const comboReady = pickable.length > 0 && pickable.every((a) => selection[a.id] != null);
 
-  // Selected value ids, in attribute order — the same order used both for the
-  // POST payload and the auto-generated code, so the two always agree.
+  // Selected value ids, in attribute order — the order the server also uses to
+  // build the code when we leave it blank.
   const orderedValueIds = pickable.map((a) => selection[a.id]).filter((id) => id != null);
-
-  // Auto-generate the code from the product code + chosen value slugs, the same
-  // way the server does (Str::slug). Runs while creating and until the admin
-  // types their own code. Needs productCode from the caller.
-  useEffect(() => {
-    if (codeTouched || !productCode) return;
-    const values = pickable
-      .map((a) => a.values.find((v) => v.id === selection[a.id])?.value)
-      .filter((v): v is string => !!v);
-    setCode(buildVariationCode(productCode, values));
-  }, [codeTouched, productCode, pickable, selection]);
 
   function toggleAttribute(id: number) {
     setChosenIds((prev) => {
@@ -132,7 +118,8 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
   const price = parseFloat(finalPrice);
   const unit = parseFloat(unitValue);
   const canSubmit =
-    code.trim().length > 0 &&
+    // Required only when editing — on create a blank code means "generate it".
+    (!editing || code.trim().length > 0) &&
     Number.isFinite(price) &&
     Number.isFinite(unit) &&
     (editing || comboReady) &&
@@ -157,7 +144,7 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
         await createVariation(
           productId,
           {
-            code: code.trim(),
+            code: code.trim() || undefined,
             unitValue: unit,
             finalPrice: price,
             attributeValueIds: orderedValueIds,
@@ -189,7 +176,7 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
       />
 
       <ScrollView
-        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
+        contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -296,17 +283,14 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
         <Field
           label="Código"
           value={code}
-          onChangeText={(t) => {
-            setCodeTouched(true);
-            setCode(t);
-          }}
-          placeholder="Ej. POL-001-RJ-M"
+          onChangeText={setCode}
+          placeholder={editing ? 'Ej. POL-001-RJ-M' : 'Se genera solo'}
           autoCapitalize="characters"
           autoCorrect={false}
           hint={
-            !editing && !codeTouched && productCode
-              ? 'Se genera solo a partir del producto y los valores. Puedes editarlo.'
-              : undefined
+            editing
+              ? undefined
+              : 'Déjalo vacío y el servidor lo genera con el producto y los valores.'
           }
         />
 
@@ -416,7 +400,7 @@ const styles = StyleSheet.create({
     top: -8,
     right: -8,
     backgroundColor: colors.surface,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
   },
   imagePlaceholder: {
     width: 150,
@@ -438,7 +422,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primarySoft,
-    borderRadius: RADIUS.control,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.input,
     borderWidth: 1.5,

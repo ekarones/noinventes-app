@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { DashboardNavigation } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { SPACING } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
@@ -28,7 +29,7 @@ const PERIODS: { value: StatsPeriod; label: string }[] = [
 ];
 
 export default function DashboardScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<DashboardNavigation>();
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -174,7 +175,17 @@ export default function DashboardScreen() {
             </KpiGrid>
 
             {/* Top products */}
-            <SectionHeader icon="trophy-outline" title="Más vendidos" />
+            <SectionHeader
+              icon="trophy-outline"
+              title="Más vendidos"
+              // Always offered, even when the inline top 5 is already the whole
+              // ranking: a link that comes and goes with the period is harder to
+              // find than one that opens a list you've already seen.
+              action={{
+                label: 'Ver todas',
+                onPress: () => navigation.navigate('TopProducts', { period }),
+              }}
+            />
             {!stats || stats.topProducts.length === 0 ? (
               <EmptyState
                 compact

@@ -14,10 +14,11 @@ import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
 import { formatDate, formatPrice } from '../utils/format';
 import { paymentMethodLabel } from '../utils/payment';
 import { cancelSale, fetchSaleDetail } from '../api/sales';
-import { downloadAndShareBoleta } from '../api/boleta';
+import { downloadAndShareBoleta, fetchReceiptPayload } from '../api/boleta';
 import { MetaRow } from '../components/Row';
 import SaleTotals from '../components/SaleTotals';
 import Button from '../components/Button';
+import { usePrinter } from '../context/PrinterContext';
 import ScreenHeader from '../components/ScreenHeader';
 import type { SaleDetail } from '../types';
 import type { OrdersStackParamList } from '../navigation/types';
@@ -30,6 +31,8 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
   const [loadingItems, setLoadingItems] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const printer = usePrinter();
 
   // The list/dashboard rows only carry partial data (e.g. no subtotal/notes, and
   // the dashboard has no line items). Fetch the full sale and prefer it for
@@ -96,14 +99,33 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
     }
   }
 
-  const busy = downloading || cancelling;
+  const busy = downloading || cancelling || printing;
+
+  // The server composes the receipt from the sale id, so this no longer waits
+  // for the line items to arrive — it used to, back when the app built the
+  // ESC/POS itself and needed them.
+  async function handlePrint() {
+    if (printing) return;
+    setPrinting(true);
+    try {
+      const { payload, encoding } = await fetchReceiptPayload(sale.id);
+      await printer.printPayload(payload, encoding);
+    } catch (e: any) {
+      Alert.alert(
+        'No se pudo imprimir',
+        e?.message ?? 'Revisa que la impresora esté encendida y en rango.'
+      );
+    } finally {
+      setPrinting(false);
+    }
+  }
 
   return (
     <View style={styles.container}>
       <ScreenHeader title={`Venta #${sale.id}`} onBack={() => navigation.goBack()} />
 
       <ScrollView
-        contentContainerStyle={{ padding: SPACING.xl, paddingBottom: SPACING['2xl'] }}
+        contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
         showsVerticalScrollIndicator={false}
       >
         {/* Meta */}
@@ -155,6 +177,20 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
           style={styles.actionTop}
         />
 
+        {/* Only with a printer actually connected — an "Imprimir" that can't
+            print is worse than no button. Connect it from Ventas. */}
+        {printer.supported && printer.connected && (
+          <Button
+            label="Imprimir boleta"
+            icon="print-outline"
+            variant="secondary"
+            onPress={handlePrint}
+            loading={printing}
+            disabled={busy}
+            style={styles.actionNext}
+          />
+        )}
+
         <Button
           label="Anular venta"
           icon="trash-outline"
@@ -178,9 +214,7 @@ const styles = StyleSheet.create({
   metaCard: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: SPACING.lg,
+    padding: SPACING.sm,
     gap: SPACING.md,
   },
   sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
@@ -188,9 +222,7 @@ const styles = StyleSheet.create({
   itemsBox: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
   },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.lg },
   itemBorder: { borderTopWidth: 1, borderTopColor: colors.border },
