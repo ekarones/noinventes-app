@@ -13,7 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchAdminSalesTrash } from '../api/admin/sales';
 import { usePagedList } from '../hooks/usePagedList';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
@@ -137,8 +137,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardInfo: { flex: 1, gap: SPACING.hairline },
-  orderId: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  count: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
-  deleted: { fontSize: FONT_SIZE.micro, color: colors.error, fontWeight: FONT_WEIGHT.medium },
-  total: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  orderId: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  count: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary },
+  deleted: { fontSize: FONT_SIZE.micro, color: colors.error, fontFamily: FONT_FAMILY.medium },
+  total: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
 });

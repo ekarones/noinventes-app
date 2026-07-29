@@ -1,7 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Icon = keyof typeof Ionicons.glyphMap;
 
@@ -85,17 +85,17 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
   },
   border: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  label: { fontSize: FONT_SIZE.body, color: colors.textSecondary },
+  label: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.body, color: colors.textSecondary },
   value: {
     flex: 1,
     fontSize: FONT_SIZE.body,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
     color: colors.textPrimary,
     textAlign: 'right',
   },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: SIZE.iconBox,
+    height: SIZE.iconBox,
     borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
@@ -104,14 +104,14 @@ const styles = StyleSheet.create({
   actionTexts: { flex: 1 },
   actionLabel: {
     fontSize: FONT_SIZE.body,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
     color: colors.textPrimary,
   },
-  actionHint: {
+  actionHint: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.micro,
     color: colors.textSecondary,
     marginTop: SPACING.hairline,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  metaText: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, flex: 1 },
+  metaText: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, flex: 1 },
 });

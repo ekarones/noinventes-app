@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createTag, deleteTag, fetchAdminTags, updateTag } from '../api/admin/tags';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import Field from '../components/Field';
 import LoadingState from '../components/LoadingState';
@@ -225,16 +225,16 @@ const styles = StyleSheet.create({
   sep: { height: 1, backgroundColor: colors.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: SIZE.iconBox,
+    height: SIZE.iconBox,
     borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowInfo: { flex: 1 },
-  rowName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  rowMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  rowName: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
+  rowMeta: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
   rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
   saveBtn: { marginTop: SPACING['2xl'] },
 });

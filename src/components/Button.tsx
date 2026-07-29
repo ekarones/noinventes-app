@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_FAMILY, RADIUS, SPACING } from '../theme/tokens';
 
 // primary   — the one thing the screen wants you to do (filled brand).
 // secondary — a supporting action (soft tint, no border).
@@ -114,6 +114,6 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     paddingHorizontal: SPACING.xl,
   },
-  label: { fontWeight: FONT_WEIGHT.bold },
+  label: { fontFamily: FONT_FAMILY.bold },
   disabled: { opacity: 0.45 },
 });

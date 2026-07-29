@@ -1,5 +1,6 @@
 import { apiRequest } from '../client';
 import { filePart } from '../upload';
+import { mapMeta } from '../products';
 import type { PaginationMeta, ProductSortBy, SortDir } from '../products';
 import type {
   AdminProductDetail,
@@ -190,12 +191,7 @@ export async function fetchAdminProducts(
 
   return {
     items: res.data.map(mapRow),
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }
 
@@ -342,12 +338,7 @@ export async function fetchAdminProductsTrash(
 
   return {
     items: res.data.map(mapRow),
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }
 

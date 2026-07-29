@@ -2,6 +2,12 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import {
+  useFonts,
+  Manrope_400Regular,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+} from '@expo-google-fonts/manrope';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
 import { ToastProvider } from './src/context/ToastContext';
@@ -49,6 +55,23 @@ function Root() {
 }
 
 export default function App() {
+  // Manrope is the app typeface (its weights are wired through FONT_FAMILY in
+  // src/theme/tokens.ts). Hold on a splash until the font files are ready, so
+  // text doesn't render once in the system font and then reflow into Manrope.
+  const [fontsLoaded] = useFonts({
+    Manrope_400Regular,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <ToastProvider>

@@ -1,17 +1,19 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import ProductImage from './ProductImage';
+import CodeBadge from './CodeBadge';
 
 type Props = {
   imageUri: string | null;
   /** The small line above the name — the category, grey and upper-cased. */
   overline?: string;
   name: string;
-  /** The product code, shown small under the name with a barcode icon. */
+  /** The product code, shown small and grey under the name. */
   code?: string;
+  /** Sits on the code's line, pinned to the right — the seller's stock. */
+  codeRight?: ReactNode;
   price: string;
   /** Overlaid on the image, top-left — the stock badge. */
   badge?: ReactNode;
@@ -32,6 +34,7 @@ export default function ProductGridCard({
   overline,
   name,
   code,
+  codeRight,
   price,
   badge,
   action,
@@ -60,12 +63,10 @@ export default function ProductGridCard({
         <Text style={styles.name} numberOfLines={2}>
           {name}
         </Text>
-        {!!code && (
+        {(!!code || !!codeRight) && (
           <View style={styles.codeRow}>
-            <Ionicons name="barcode-outline" size={11} color={colors.textSecondary} />
-            <Text style={styles.code} numberOfLines={1}>
-              {code}
-            </Text>
+            {!!code && <CodeBadge code={code} />}
+            {codeRight}
           </View>
         )}
 
@@ -112,14 +113,15 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: SPACING.hairline },
   overline: {
     fontSize: FONT_SIZE.nano,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  name: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  codeRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
-  code: { fontSize: FONT_SIZE.nano, color: colors.textSecondary, flexShrink: 1 },
+  name: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  // Two chips side by side: the neutral code, then the colour-coded stock. Left-
+  // aligned with a small gap so they read as a pair.
+  codeRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginTop: SPACING.hairline },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -135,7 +137,7 @@ const styles = StyleSheet.create({
   price: {
     flex: 1,
     fontSize: FONT_SIZE.body,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
   },
 });

@@ -1,4 +1,5 @@
 import { apiRequest } from '../client';
+import { mapMeta } from '../products';
 import type { PaginationMeta } from '../products';
 import type { AdminUser, AdminUserRole } from '../../types';
 
@@ -44,12 +45,7 @@ export async function fetchAdminUsers(
 
   return {
     items: res.data.map(mapUser),
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }
 

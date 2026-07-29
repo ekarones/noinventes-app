@@ -14,7 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { deleteUser, fetchAdminUsers } from '../api/admin/users';
 import { usePagedList } from '../hooks/usePagedList';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/Avatar';
@@ -238,14 +238,14 @@ const styles = StyleSheet.create({
   avatarAdmin: { backgroundColor: colors.textPrimary },
   rowInfo: { flex: 1 },
   nameLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  rowName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, flexShrink: 1 },
+  rowName: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, flexShrink: 1 },
   meBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.hairline, borderRadius: RADIUS.badge },
-  meText: { fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
-  rowEmail: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  meText: { fontSize: FONT_SIZE.badge, fontFamily: FONT_FAMILY.bold, color: colors.primary },
+  rowEmail: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xs },
   roleBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.hairline, borderRadius: RADIUS.badge },
   roleBadgeAdmin: { backgroundColor: '#e5e7eb' },
-  roleText: { fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
+  roleText: { fontSize: FONT_SIZE.badge, fontFamily: FONT_FAMILY.bold, color: colors.primary },
   roleTextAdmin: { color: colors.textPrimary },
   branchBadge: {
     flexDirection: 'row',
@@ -259,6 +259,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.badge,
     maxWidth: 140,
   },
-  branchText: { fontSize: FONT_SIZE.badge, color: colors.textSecondary, fontWeight: FONT_WEIGHT.medium },
+  branchText: { fontSize: FONT_SIZE.badge, color: colors.textSecondary, fontFamily: FONT_FAMILY.medium },
   rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
 });

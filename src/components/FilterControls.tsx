@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import BottomSheet, { SheetOption } from './BottomSheet';
 
 // A sort preset as far as this control is concerned: what the user sees. Callers
@@ -18,8 +18,8 @@ type SortControlProps = {
   options: SortChoice[];
   index: number;
   onChange: (index: number) => void;
-  /** Names the sort in effect and frames the pill in primary. A list is always
-   *  sorted by something, so there is nothing to clear — the chevron stays. */
+  /** Names the sort in effect. A list is always sorted by something, so there is
+   *  nothing to clear — the chevron stays. */
   showSelection?: boolean;
   /** Lets the caller size the pill — e.g. `flex: 1` to share a filter row. */
   style?: StyleProp<ViewStyle>;
@@ -30,25 +30,26 @@ type SortControlProps = {
 export function SortControl({ options, index, onChange, showSelection, style }: SortControlProps) {
   const [open, setOpen] = useState(false);
   const active = !!showSelection;
-  const tint = active ? colors.primary : colors.textSecondary;
   const label = (active && options[index]?.label) || 'Ordenar';
 
   return (
     <>
       <TouchableOpacity
-        style={[styles.pill, active && styles.pillActive, style]}
+        style={[styles.pill, style]}
         onPress={() => setOpen(true)}
         activeOpacity={ROW_PRESS_OPACITY}
         accessibilityRole="button"
         accessibilityLabel="Ordenar"
       >
-        <View style={[styles.disc, active && styles.discActive]}>
-          <Ionicons name="swap-vertical" size={16} color={tint} />
+        {/* The same accent look as the category Select beside it — a primary disc,
+            a neutral pill — so the whole filter row reads as one family. */}
+        <View style={[styles.disc, styles.discAccent]}>
+          <Ionicons name="swap-vertical" size={16} color={colors.primary} />
         </View>
-        <Text style={[styles.pillText, active && styles.pillTextActive]} numberOfLines={1}>
+        <Text style={styles.pillText} numberOfLines={1}>
           {label}
         </Text>
-        <Ionicons name="chevron-down" size={16} color={tint} />
+        <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
       </TouchableOpacity>
 
       <BottomSheet visible={open} onClose={() => setOpen(false)} title="Ordenar por">
@@ -101,30 +102,28 @@ const styles = StyleSheet.create({
     paddingRight: SPACING.md,
     height: CONTROL_HEIGHT.pill,
     borderRadius: RADIUS.pill,
-    // Transparent at rest (no visible line); the active state frames it in primary
-    // without shifting its size — same as the category Select.
+    // A transparent border keeps the pill the same size as the bordered search
+    // field beside it, so the header row lines up.
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  pillActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  // Circular via RADIUS.pill, never width/2. Muted at rest; turns white once the
-  // pill takes its soft fill, so the disc keeps reading against it.
+  // Circular via RADIUS.pill, never width/2. The sort pill overrides it with the
+  // primary-tinted `discAccent`; the neutral "Limpiar" keeps this muted fill.
   disc: {
-    width: 32,
-    height: 32,
+    width: SIZE.disc,
+    height: SIZE.disc,
     borderRadius: RADIUS.pill,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  discActive: { backgroundColor: colors.surface },
+  discAccent: { backgroundColor: colors.primarySoft },
   pillText: {
     // Fills the pill so a trailing chevron pins to the right when the control is
     // stretched (flex:1); harmless when the pill sizes to its content.
     flex: 1,
     color: colors.textSecondary,
     fontSize: FONT_SIZE.bodySm,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
   },
-  pillTextActive: { color: colors.primary },
 });

@@ -1,7 +1,7 @@
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, FONT_FAMILY, CONTROL_HEIGHT, FONT_SIZE, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Props = {
   value: string;
@@ -16,7 +16,7 @@ export default function SearchBar({ value, onChangeText, placeholder }: Props) {
   return (
     <View style={styles.box}>
       <View style={styles.disc}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
+        <Ionicons name="search" size={18} color={colors.primary} />
       </View>
 
       <TextInput
@@ -49,26 +49,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    // Flat: a white field with a border, so it matches the cards and the filter
-    // buttons instead of the old brand-tinted fill.
+    // Same box as the filter pills: white with a transparent border, fully
+    // rounded, and the same `pill` height — so the whole header row lines up.
     backgroundColor: colors.surface,
     borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: 'transparent',
     // The disc brings its own visual margin, so the left padding shrinks.
     paddingLeft: SPACING.xs,
     paddingRight: SPACING.md,
-    height: CONTROL_HEIGHT.input,
+    height: CONTROL_HEIGHT.pill,
   },
-  // Circular via RADIUS.pill, never width/2 — the same disc the filter and sort
-  // pills carry, so the whole header row reads as one family.
+  // Circular via RADIUS.pill, never width/2 — the same primary-tinted disc the
+  // filter and sort pills carry, so the whole header row reads as one family.
   disc: {
-    width: 32,
-    height: 32,
+    width: SIZE.disc,
+    height: SIZE.disc,
     borderRadius: RADIUS.pill,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  input: {
+  input: { fontFamily: FONT_FAMILY.regular,
     flex: 1,
     height: '100%',
     fontSize: FONT_SIZE.subheading,

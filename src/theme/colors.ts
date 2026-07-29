@@ -1,10 +1,12 @@
-// Brand palette. Primary color comes from the logo: #ff3822.
+// Brand palette. A warm coral-orange refined from the logo's #ff3822 — nudged a
+// touch off pure red toward orange and pulled back from neon, so it sits calmer
+// on the off-white UI and reads apart from the destructive red.
 export const colors = {
-  primary: '#ff3822',
-  primaryDark: '#d92a17',
-  primaryLight: '#ff6452',
-  primarySoft: '#fff1ef', // tint used for input backgrounds / subtle surfaces
-  primarySoftPressed: '#ffe3de', // pressed state for soft/outline buttons
+  primary: '#ef5a2c',
+  primaryDark: '#d0481f',
+  primaryLight: '#f57e57',
+  primarySoft: '#fef1ec', // tint used for input backgrounds / subtle surfaces
+  primarySoftPressed: '#fde2d7', // pressed state for soft/outline buttons
 
   // A soft off-white so the pure-white surfaces (cards, panels, sheets) read as
   // raised against the page instead of blending into it.
@@ -20,7 +22,7 @@ export const colors = {
   textOnPrimary: '#ffffff',
 
   border: '#e5e7eb',
-  borderFocused: '#ff3822',
+  borderFocused: '#ef5a2c',
 
   // Status, each with the soft fill that carries it as a badge. The three come as
   // a set: the stock badge picks one of them by level, so a missing soft tint

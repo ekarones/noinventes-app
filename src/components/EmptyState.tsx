@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, SPACING } from '../theme/tokens';
 import Button from './Button';
 
 type Props = {
@@ -56,12 +56,12 @@ const styles = StyleSheet.create({
   compact: { flex: 0, paddingTop: SPACING.md, paddingBottom: SPACING.md },
   title: {
     fontSize: FONT_SIZE.heading,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
     marginTop: SPACING.md,
     textAlign: 'center',
   },
-  message: {
+  message: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.body,
     color: colors.textSecondary,
     textAlign: 'center',

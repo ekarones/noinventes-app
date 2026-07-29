@@ -18,7 +18,7 @@ import { fetchAdminTags } from '../api/admin/tags';
 import { fetchAdminAttributes } from '../api/admin/attributes';
 import { pickImages } from '../utils/imagePicker';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import Field from '../components/Field';
 import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
@@ -495,11 +495,11 @@ function OptionCard({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  imagePicker: { alignSelf: 'center', width: 150, height: 150, borderRadius: RADIUS.card },
-  imagePreview: { width: 150, height: 150, borderRadius: RADIUS.card },
+  imagePicker: { alignSelf: 'center', width: SIZE.image, height: SIZE.image, borderRadius: RADIUS.card },
+  imagePreview: { width: SIZE.image, height: SIZE.image, borderRadius: RADIUS.card },
   imagePlaceholder: {
-    width: 150,
-    height: 150,
+    width: SIZE.image,
+    height: SIZE.image,
     borderRadius: RADIUS.card,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderStyle: 'dashed',
   },
-  imageHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
+  imageHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
   imageBadge: {
     position: 'absolute',
     right: -4,
@@ -523,8 +523,8 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.background,
   },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
-  optional: { fontWeight: FONT_WEIGHT.regular, color: colors.textSecondary, fontSize: FONT_SIZE.micro },
+  label: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
+  optional: { fontFamily: FONT_FAMILY.regular, color: colors.textSecondary, fontSize: FONT_SIZE.micro },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -538,9 +538,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   optionCardActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  optionLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  optionLabel: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
   optionLabelActive: { color: colors.primary },
-  optionHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  optionHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -550,9 +550,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.input,
   },
-  selectText: { flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
+  selectText: { fontFamily: FONT_FAMILY.regular, flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   selectPlaceholder: { color: colors.textSecondary },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
   saveBtn: { marginTop: SPACING['2xl'] },
   doneBtn: { marginTop: SPACING.md },
 });

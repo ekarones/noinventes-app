@@ -1,4 +1,5 @@
 import { apiRequest } from '../client';
+import { mapMeta } from '../products';
 import type { PaginationMeta } from '../products';
 import type { CancelResult, SaleSortBy, SortDir } from '../sales';
 import type {
@@ -146,12 +147,7 @@ export async function fetchAdminSales(
 
   return {
     items: res.data.map(mapRow),
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }
 
@@ -213,12 +209,7 @@ export async function fetchAdminSalesTrash(
 
   return {
     items: res.data.map(mapRow),
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }
 

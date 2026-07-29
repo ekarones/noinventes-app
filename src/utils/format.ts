@@ -22,12 +22,6 @@ export function formatPriceRange(min: number, max: number | null): string {
   return `${formatPrice(min)} – ${formatPrice(max)}`;
 }
 
-// True when a product spans a real price range — several variations at different
-// prices — as opposed to one price (simple, or all variations equal).
-export function hasPriceRange(min: number, max: number | null): boolean {
-  return max != null && toCents(max) > toCents(min);
-}
-
 // Money in cents. Summing `price * quantity` in floating point drifts: 39.90 × 3
 // is 119.69999999999999, not 119.70. Compare and total in cents, never in soles.
 export function toCents(amount: number): number {

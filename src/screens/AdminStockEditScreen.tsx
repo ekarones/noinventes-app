@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { updateProductStock, updateVariationStock } from '../api/admin/products';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, SPACING } from '../theme/tokens';
 import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
 import Button from '../components/Button';
@@ -129,9 +129,9 @@ export default function AdminStockEditScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  productName: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  productSub: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
-  muted: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.xl },
+  productName: { fontSize: FONT_SIZE.titleSm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  productSub: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
+  muted: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.xl },
   box: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
   branchInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  branchName: { flex: 1, fontSize: FONT_SIZE.body, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
+  branchName: { flex: 1, fontSize: FONT_SIZE.body, color: colors.textPrimary, fontFamily: FONT_FAMILY.medium },
   input: {
     width: 84,
     height: 46,
@@ -151,9 +151,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     textAlign: 'center',
     fontSize: FONT_SIZE.heading,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
   },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
   saveBtn: { marginTop: SPACING['2xl'] },
 });

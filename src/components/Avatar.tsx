@@ -1,7 +1,7 @@
 import type { StyleProp, ViewStyle } from 'react-native';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, TOUCH_MIN } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, TOUCH_MIN } from '../theme/tokens';
 
 type Size = 'sm' | 'md' | 'lg';
 
@@ -51,13 +51,13 @@ const styles = StyleSheet.create({
   },
   // sm matches the 40px icon box it sits alongside in the dashboard breakdowns;
   // md is the minimum touch target, since at that size it is always a button.
-  sm: { width: 40, height: 40 },
+  sm: { width: SIZE.iconBox, height: SIZE.iconBox },
   md: { width: TOUCH_MIN, height: TOUCH_MIN },
-  lg: { width: 88, height: 88 },
-  text: { color: colors.textOnPrimary, fontWeight: FONT_WEIGHT.bold },
-  textSm: { fontSize: FONT_SIZE.subheading },
-  textMd: { fontSize: FONT_SIZE.heading },
-  textLg: { fontSize: FONT_SIZE.avatar },
+  lg: { width: SIZE.thumbLg, height: SIZE.thumbLg },
+  text: { color: colors.textOnPrimary, fontFamily: FONT_FAMILY.bold },
+  textSm: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.subheading },
+  textMd: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.heading },
+  textLg: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.avatar },
 });
 
 const CIRCLE = { sm: styles.sm, md: styles.md, lg: styles.lg } as const;

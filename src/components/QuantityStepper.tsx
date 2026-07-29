@@ -1,7 +1,7 @@
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Props = {
   value: number;
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     fontSize: FONT_SIZE.body,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
     color: colors.textPrimary,
     paddingVertical: 0,
     paddingHorizontal: SPACING.xs,

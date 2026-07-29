@@ -1,15 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import {
-  FlatList,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchSales, fetchSaleSummaryById } from '../api/sales';
@@ -17,15 +8,15 @@ import { ApiError } from '../api/client';
 import { usePagedList } from '../hooks/usePagedList';
 import { SALE_DEFAULT_SORT, SALE_SORT_OPTIONS } from '../utils/sortOptions';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SPACING } from '../theme/tokens';
 import { ymd } from '../utils/format';
 import { useDebounce } from '../hooks/useDebounce';
 import SaleRow from '../components/SaleRow';
 import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
-import LoadingState from '../components/LoadingState';
+import FilterPill from '../components/FilterPill';
+import PagedList from '../components/PagedList';
 import Select from '../components/Select';
-import Pagination from '../components/Pagination';
 import IconButton from '../components/IconButton';
 import PrinterSheet from '../components/PrinterSheet';
 import { usePrinter } from '../context/PrinterContext';
@@ -139,23 +130,14 @@ export default function OrdersScreen({ navigation }: Props) {
     },
     [query, paymentMethod, range, sort]
   );
-  const {
-    items: sales,
-    meta,
-    page,
-    loading,
-    refreshing,
-    error,
-    listRef,
-    loadPage,
-  } = usePagedList<SaleSummary>(fetchPage, 'No se pudieron cargar las ventas.');
+  const list = usePagedList<SaleSummary>(fetchPage, 'No se pudieron cargar las ventas.');
 
   // Runs on focus (a sale may have been made meanwhile) and whenever a filter
   // changes — either way the result set is new, so it starts at page 1.
   useFocusEffect(
     useCallback(() => {
-      loadPage(1);
-    }, [loadPage])
+      list.loadPage(1);
+    }, [list.loadPage])
   );
 
   function renderItem({ item }: { item: SaleSummary }) {
@@ -178,7 +160,9 @@ export default function OrdersScreen({ navigation }: Props) {
       <ScreenTitle
         title="Ventas"
         subtitle={
-          meta ? `${meta.total} ${hasFilters ? 'coinciden' : 'en total'} · ${sort.label}` : undefined
+          list.meta
+            ? `${list.meta.total} ${hasFilters ? 'coinciden' : 'en total'} · ${sort.label}`
+            : undefined
         }
         actions={
           // Hidden entirely where Bluetooth isn't available (iOS, Expo Go), so
@@ -226,64 +210,22 @@ export default function OrdersScreen({ navigation }: Props) {
 
         {/* Second row: date range — two pickers ("Desde" / "Hasta"). */}
         <View style={styles.filterRow2}>
-          <TouchableOpacity
-            style={[styles.dateBtn, !!dateFrom && styles.dateBtnActive]}
+          <FilterPill
+            icon="calendar-outline"
+            label={dateFrom ? shortDate(dateFrom) : 'Desde'}
+            active={!!dateFrom}
             onPress={() => pickDate('from')}
-            activeOpacity={ROW_PRESS_OPACITY}
-            accessibilityRole="button"
+            onClear={() => setDateFrom(null)}
             accessibilityLabel="Fecha desde"
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={16}
-              color={dateFrom ? colors.primary : colors.textSecondary}
-            />
-            <Text
-              style={[styles.dateBtnText, !!dateFrom && styles.dateBtnTextActive]}
-              numberOfLines={1}
-            >
-              {dateFrom ? shortDate(dateFrom) : 'Desde'}
-            </Text>
-            {!!dateFrom && (
-              // Can't grow to the touch minimum — it lives inside the pill — so it
-              // borrows the room around it.
-              <TouchableOpacity
-                onPress={() => setDateFrom(null)}
-                hitSlop={HIT_SLOP}
-                activeOpacity={ROW_PRESS_OPACITY}
-                accessibilityLabel="Quitar fecha desde"
-              >
-                <Ionicons name="close-circle" size={16} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.dateBtn, !!dateTo && styles.dateBtnActive]}
+          />
+          <FilterPill
+            icon="calendar-outline"
+            label={dateTo ? shortDate(dateTo) : 'Hasta'}
+            active={!!dateTo}
             onPress={() => pickDate('to')}
-            activeOpacity={ROW_PRESS_OPACITY}
-            accessibilityRole="button"
+            onClear={() => setDateTo(null)}
             accessibilityLabel="Fecha hasta"
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={16}
-              color={dateTo ? colors.primary : colors.textSecondary}
-            />
-            <Text style={[styles.dateBtnText, !!dateTo && styles.dateBtnTextActive]} numberOfLines={1}>
-              {dateTo ? shortDate(dateTo) : 'Hasta'}
-            </Text>
-            {!!dateTo && (
-              <TouchableOpacity
-                onPress={() => setDateTo(null)}
-                hitSlop={HIT_SLOP}
-                activeOpacity={ROW_PRESS_OPACITY}
-                accessibilityLabel="Quitar fecha hasta"
-              >
-                <Ionicons name="close-circle" size={16} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
+          />
         </View>
 
         {iosPicking && (
@@ -301,55 +243,24 @@ export default function OrdersScreen({ navigation }: Props) {
         )}
       </ScreenTitle>
 
-      {/* Only the very first load takes over the screen. Once there's a list,
-          changing page keeps it on screen and just disables the controls. */}
-      {loading && sales.length === 0 ? (
-        <LoadingState />
-      ) : error ? (
-        <EmptyState
-          icon="cloud-offline-outline"
-          message={error}
-          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
-        />
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={sales}
-          keyExtractor={(s) => String(s.id)}
-          renderItem={renderItem}
-          contentContainerStyle={sales.length ? styles.list : styles.listEmpty}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => loadPage(page, true)}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
-            />
-          }
-          ListFooterComponent={
-            <Pagination
-              page={page}
-              lastPage={meta?.lastPage ?? 1}
-              onChange={loadPage}
-              loading={loading}
-            />
-          }
-          ListEmptyComponent={
-            <EmptyState
-              icon="receipt-outline"
-              title={hasFilters ? 'Sin resultados' : 'Aún no hay ventas'}
-              message={
-                hasFilters
-                  ? 'Prueba con otros filtros o límpialos.'
-                  : 'Registra una venta y aparecerá aquí.'
-              }
-              action={hasFilters ? { label: 'Limpiar filtros', onPress: clearFilters } : undefined}
-            />
-          }
-        />
-      )}
+      <PagedList
+        list={list}
+        keyExtractor={(s) => String(s.id)}
+        renderItem={renderItem}
+        contentContainerStyle={styles.list}
+        empty={
+          <EmptyState
+            icon="receipt-outline"
+            title={hasFilters ? 'Sin resultados' : 'Aún no hay ventas'}
+            message={
+              hasFilters
+                ? 'Prueba con otros filtros o límpialos.'
+                : 'Registra una venta y aparecerá aquí.'
+            }
+            action={hasFilters ? { label: 'Limpiar filtros', onPress: clearFilters } : undefined}
+          />
+        }
+      />
 
       <PrinterSheet visible={printerOpen} onClose={() => setPrinterOpen(false)} />
     </View>
@@ -367,26 +278,7 @@ const styles = StyleSheet.create({
   // Payment picker and sort share the row equally, with a `sm` (10) gap between —
   // same as the catalogue header.
   filterItem: { flex: 1 },
-  // A flat pill, like the search / sort controls. flex:1 so the two dates split the
-  // row; the clear button, when present, stays compact beside them.
-  dateBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surface,
-  },
-  // Selected: primary frame + soft fill, like the category filter.
-  dateBtnActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  dateBtnText: { flex: 1, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  dateBtnTextActive: { color: colors.primary },
   // Each sale is its own card; the list just spaces them and pays the screen
   // margins. flexGrow lets a short list still fill the page.
   list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
-  listEmpty: { flexGrow: 1 },
 });

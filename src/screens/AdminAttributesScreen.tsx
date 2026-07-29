@@ -20,7 +20,7 @@ import {
   updateAttribute,
 } from '../api/admin/attributes';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import Field from '../components/Field';
 import LoadingState from '../components/LoadingState';
@@ -306,15 +306,15 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: SIZE.iconBox,
+    height: SIZE.iconBox,
     borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  cardMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  cardName: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  cardMeta: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
   rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
   valueChips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.md },
   valueChip: {
@@ -323,8 +323,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.badge,
   },
-  valueChipText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.medium, color: colors.primary },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
+  valueChipText: { fontSize: FONT_SIZE.micro, fontFamily: FONT_FAMILY.medium, color: colors.primary },
+  label: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
   valueRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
   // The row owns the vertical rhythm here, so the field must not add its own.
   valueInput: { flex: 1, marginBottom: 0 },
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
     marginTop: SPACING.xs,
   },
-  addValueText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  addValueText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold },
+  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
   saveBtn: { marginTop: SPACING['2xl'] },
 });

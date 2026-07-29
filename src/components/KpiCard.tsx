@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, SPACING } from '../theme/tokens';
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -18,7 +18,7 @@ export default function KpiCard({ icon, label, value, highlight }: Props) {
   return (
     <View style={[styles.card, highlight && styles.cardHighlight]}>
       <View style={[styles.icon, highlight && styles.iconHighlight]}>
-        <Ionicons name={icon} size={20} color={highlight ? colors.textOnPrimary : colors.primary} />
+        <Ionicons name={icon} size={20} color={highlight ? colors.textOnPrimary : colors.textSecondary} />
       </View>
       <View style={styles.texts}>
         {/* Shrinks to fit rather than truncating a long total in the narrow card. */}
@@ -65,10 +65,10 @@ const styles = StyleSheet.create({
   },
   cardHighlight: { backgroundColor: colors.primary, borderColor: colors.primary },
   icon: {
-    width: 40,
-    height: 40,
+    width: SIZE.iconBox,
+    height: SIZE.iconBox,
     borderRadius: RADIUS.control,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -76,10 +76,10 @@ const styles = StyleSheet.create({
   texts: { flex: 1 },
   value: {
     fontSize: FONT_SIZE.heading,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
   },
-  label: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
+  label: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
   textOnPrimary: { color: colors.textOnPrimary },
   textOnPrimarySoft: { color: 'rgba(255, 255, 255, 0.85)' },
 });

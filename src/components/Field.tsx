@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, SPACING } from '../theme/tokens';
 
 type Props = TextInputProps & {
   label?: string;
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   container: { marginBottom: SPACING.lg },
   label: {
     fontSize: FONT_SIZE.caption,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
     color: colors.textPrimary,
     marginBottom: SPACING.sm,
   },
@@ -119,20 +119,20 @@ const styles = StyleSheet.create({
     // multiline field keeps the moderate control radius.
     borderRadius: RADIUS.control,
   },
-  input: {
+  input: { fontFamily: FONT_FAMILY.regular,
     flex: 1,
     height: '100%',
     fontSize: FONT_SIZE.subheading,
     color: colors.textPrimary,
   },
   inputMultiline: { height: undefined, minHeight: 66 },
-  hint: {
+  hint: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.micro,
     color: colors.textSecondary,
     marginTop: SPACING.sm,
     lineHeight: 17,
   },
-  error: {
+  error: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.caption,
     color: colors.error,
     marginTop: SPACING.sm,

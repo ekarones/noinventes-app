@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, SPACING } from '../theme/tokens';
 
 type Props = {
   /** A short line ABOVE the title — the greeting on the dashboards. */
@@ -48,8 +48,8 @@ export default function ScreenTitle({ overline, title, subtitle, actions, childr
 }
 
 const styles = StyleSheet.create({
-  // paddingBottom is a 5px optical nudge above the content — off the grid on purpose.
-  header: { paddingHorizontal: SPACING.sm, paddingBottom: 5 },
+  // paddingBottom gives the content below a small gap from the header.
+  header: { paddingHorizontal: SPACING.sm, paddingBottom: SPACING.sm },
   row: {
     flexDirection: 'row',
     // Actions hang off the title itself, so they line up with it and not with the
@@ -66,11 +66,11 @@ const styles = StyleSheet.create({
   rowSpaced: { marginBottom: SPACING.md },
   texts: { flex: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  overline: { fontSize: FONT_SIZE.body, color: colors.textSecondary, marginBottom: SPACING.hairline },
+  overline: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.body, color: colors.textSecondary, marginBottom: SPACING.hairline },
   title: {
     fontSize: FONT_SIZE.screenTitle,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
   },
-  subtitle: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
+  subtitle: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
 });

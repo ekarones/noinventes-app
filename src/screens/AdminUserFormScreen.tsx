@@ -14,7 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createUser, updateUser } from '../api/admin/users';
 import { fetchAdminBranches } from '../api/admin/branches';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import Field from '../components/Field';
 import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
@@ -230,7 +230,7 @@ export default function AdminUserFormScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
+  label: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -244,9 +244,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   roleCardActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  roleLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  roleLabel: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
   roleLabelActive: { color: colors.primary },
-  roleHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  roleHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -256,8 +256,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.input,
   },
-  selectText: { flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
+  selectText: { fontFamily: FONT_FAMILY.regular, flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   selectPlaceholder: { color: colors.textSecondary },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
   saveBtn: { marginTop: SPACING['2xl'] },
 });

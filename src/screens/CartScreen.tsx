@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { CartStackParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { formatPrice, roundMoney, toCents } from '../utils/format';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
@@ -357,14 +357,14 @@ const styles = StyleSheet.create({
   },
   image: { width: 64, height: 64, borderRadius: RADIUS.control },
   info: { flex: 1, gap: SPACING.hairline },
-  name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  meta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
-  variation: { color: colors.primary, fontWeight: FONT_WEIGHT.medium },
+  name: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
+  meta: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
+  variation: { color: colors.primary, fontFamily: FONT_FAMILY.medium },
   // A round icon button under the price. Below TOUCH_MIN on purpose — it can't
   // grow without pushing the row taller than its own thumbnail, so it keeps a slop.
   removeBtn: {
-    width: 32,
-    height: 32,
+    width: SIZE.disc,
+    height: SIZE.disc,
     borderRadius: RADIUS.pill,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   qtyCol: { alignItems: 'flex-end', gap: SPACING.xs },
   lineTotal: {
     fontSize: FONT_SIZE.subheading,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
   },
   // No top border: the notched edge is the seam between the lines and the stub.
@@ -393,15 +393,15 @@ const styles = StyleSheet.create({
   // which also makes it read as tappable next to the static rows.
   discountRow: { minHeight: TOUCH_MIN },
   discountLabel: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
-  discountOn: { color: colors.success, fontWeight: FONT_WEIGHT.medium },
+  discountOn: { color: colors.success, fontFamily: FONT_FAMILY.medium },
   sheetActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.lg },
   sheetAction: { flex: 1 },
-  totalLabel: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
+  totalLabel: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
   totalCount: {
     fontSize: FONT_SIZE.bodySm,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
     color: colors.textPrimary,
   },
-  grandLabel: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  totalValue: { fontSize: FONT_SIZE.sectionValue, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
+  grandLabel: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  totalValue: { fontSize: FONT_SIZE.sectionValue, fontFamily: FONT_FAMILY.bold, color: colors.primary },
 });

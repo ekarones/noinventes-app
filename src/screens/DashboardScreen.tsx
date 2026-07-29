@@ -11,21 +11,21 @@ import { fetchStatistics } from '../api/sales';
 import { fetchProduct } from '../api/products';
 import { ApiError } from '../api/client';
 import Avatar from '../components/Avatar';
-import KpiCard, { KpiGrid } from '../components/KpiCard';
+import SalesKpiGrid from '../components/SalesKpiGrid';
 import SaleRow from '../components/SaleRow';
 import TopProductRow, { topProductKey } from '../components/TopProductRow';
 import ScreenTitle from '../components/ScreenTitle';
 import SectionHeader from '../components/SectionHeader';
 import Card from '../components/Card';
-import Segmented from '../components/Segmented';
+import Select, { type SelectOption } from '../components/Select';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import type { DashboardRecentSale, DashboardStats, DashboardTopProduct, StatsPeriod } from '../types';
 
-const PERIODS: { value: StatsPeriod; label: string }[] = [
-  { value: 'today', label: 'Hoy' },
-  { value: 'week', label: 'Semana' },
-  { value: 'month', label: 'Mes' },
+const PERIOD_OPTIONS: SelectOption<StatsPeriod>[] = [
+  { id: 'today', label: 'Hoy' },
+  { id: 'week', label: 'Semana' },
+  { id: 'month', label: 'Mes' },
 ];
 
 export default function DashboardScreen() {
@@ -127,8 +127,16 @@ export default function DashboardScreen() {
               accessibilityLabel="Perfil"
             />
           }
-        />
-        <Segmented options={PERIODS} value={period} onChange={setPeriod} />
+        >
+          <Select
+            icon="calendar-outline"
+            placeholder="Período"
+            value={period}
+            options={PERIOD_OPTIONS}
+            onChange={(v) => v && setPeriod(v)}
+            mandatory
+          />
+        </ScreenTitle>
       </View>
 
       <ScrollView
@@ -154,50 +162,33 @@ export default function DashboardScreen() {
         ) : (
           <>
             {/* KPI cards */}
-            <KpiGrid>
-              <KpiCard
-                icon="cash-outline"
-                label="Ventas totales"
-                value={formatPrice(summary?.totalSales ?? 0)}
-                highlight
-              />
-              <KpiCard icon="receipt-outline" label="Ventas" value={String(summary?.salesCount ?? 0)} />
-              <KpiCard
-                icon="cube-outline"
-                label="Artículos vendidos"
-                value={String(summary?.itemsSold ?? 0)}
-              />
-              <KpiCard
-                icon="trending-up-outline"
-                label="Ticket promedio"
-                value={formatPrice(summary?.averageTicket ?? 0)}
-              />
-            </KpiGrid>
+            <SalesKpiGrid summary={summary} />
 
-            {/* Top products */}
-            <SectionHeader
-              icon="trophy-outline"
-              title="Más vendidos"
-              // Always offered, even when the inline top 5 is already the whole
-              // ranking: a link that comes and goes with the period is harder to
-              // find than one that opens a list you've already seen.
-              action={{
-                label: 'Ver todas',
-                onPress: () => navigation.navigate('TopProducts', { period }),
-              }}
-            />
-            {!stats || stats.topProducts.length === 0 ? (
-              <EmptyState
-                compact
+            {/* Top products — header + list wrapped in one card. */}
+            <Card inset style={styles.sectionCard}>
+              <SectionHeader
+                card
+                dot
                 icon="trophy-outline"
-                message="Aún no vendes nada en este período."
+                title="Más vendidos"
+                // Always offered, even when the inline top 5 is already the whole
+                // ranking: a link that comes and goes with the period is harder to
+                // find than one that opens a list you've already seen.
+                action={{
+                  label: 'Ver todas',
+                  onPress: () => navigation.navigate('TopProducts', { period }),
+                }}
               />
-            ) : (
-              <Card inset>
-                {stats.topProducts.map((tp, index) => (
+              {!stats || stats.topProducts.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon="trophy-outline"
+                  message="Aún no vendes nada en este período."
+                />
+              ) : (
+                stats.topProducts.map((tp, index) => (
                   <TopProductRow
                     key={topProductKey(tp)}
-                    rank={index + 1}
                     name={tp.name}
                     variationLabel={tp.variationLabel}
                     imageUri={tp.imageThumbUrl}
@@ -208,33 +199,35 @@ export default function DashboardScreen() {
                     disabled={openingKey !== null}
                     divided={index > 0}
                   />
-                ))}
-              </Card>
-            )}
+                ))
+              )}
+            </Card>
 
-            {/* Recent sales */}
-            <SectionHeader
-              icon="receipt-outline"
-              title="Ventas recientes"
-              action={{
-                label: 'Ver todas',
-                onPress: () => navigation.navigate('OrdersTab', { screen: 'Orders' }),
-              }}
-            />
-            {!stats || stats.recentSales.length === 0 ? (
-              <EmptyState
-                compact
+            {/* Recent sales — header + list wrapped in one card. */}
+            <Card inset style={styles.sectionCard}>
+              <SectionHeader
+                card
+                dot
                 icon="receipt-outline"
-                message="Aún no registras ventas en este período."
+                title="Ventas recientes"
                 action={{
-                  label: 'Ir al catálogo',
-                  icon: 'cube-outline',
-                  onPress: () => navigation.navigate('CatalogTab'),
+                  label: 'Ver todas',
+                  onPress: () => navigation.navigate('OrdersTab', { screen: 'Orders' }),
                 }}
               />
-            ) : (
-              <Card inset>
-                {stats.recentSales.map((sale, index) => (
+              {!stats || stats.recentSales.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon="receipt-outline"
+                  message="Aún no registras ventas en este período."
+                  action={{
+                    label: 'Ir al catálogo',
+                    icon: 'cube-outline',
+                    onPress: () => navigation.navigate('CatalogTab'),
+                  }}
+                />
+              ) : (
+                stats.recentSales.map((sale, index) => (
                   <SaleRow
                     key={sale.id}
                     id={sale.id}
@@ -245,9 +238,9 @@ export default function DashboardScreen() {
                     onPress={() => openSale(sale)}
                     divided={index > 0}
                   />
-                ))}
-              </Card>
-            )}
+                ))
+              )}
+            </Card>
           </>
         )}
       </ScrollView>
@@ -258,9 +251,12 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  // A titled card (header + list inside): carries the gap to the block above, and
+  // a bottom pad so the last row isn't flush to the card edge.
+  sectionCard: { marginTop: SPACING.sm, paddingBottom: SPACING.sm },
   // flexGrow lets the loading / error state fill the space left under the header
   // and centre itself in it; without it they collapse to their own height and sit
   // right below the period selector. The bottom tab bar already reserves the
   // safe-area inset, so only a small visual gap is needed here.
-  scroll: { flexGrow: 1, paddingBottom: SPACING['2xl'] },
+  scroll: { flexGrow: 1, paddingBottom: SPACING.sm },
 });

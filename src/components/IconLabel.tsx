@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, SPACING } from '../theme/tokens';
+import { FONT_FAMILY, FONT_SIZE, SPACING } from '../theme/tokens';
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   rowTop: { alignItems: 'flex-start' },
   // flexShrink here too, so the wrapping text keeps to the column and doesn't shove
   // the icon off the row.
-  text: { fontSize: FONT_SIZE.caption, flexShrink: 1 },
+  text: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, flexShrink: 1 },
   group: {
     flexDirection: 'row',
     alignItems: 'center',

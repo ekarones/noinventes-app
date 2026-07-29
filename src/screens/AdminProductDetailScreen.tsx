@@ -17,28 +17,24 @@ import {
   fetchAdminProductVariations,
 } from '../api/admin/products';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import { formatPrice } from '../utils/format';
 import { stockColor } from '../utils/stock';
+import { variationLabel } from '../utils/cart';
 import { useToast } from '../context/ToastContext';
 import ProductImage from '../components/ProductImage';
 import VariationFilter, { useVariationFilter } from '../components/VariationFilter';
 import CopyableCode from '../components/CopyableCode';
 import LabelPrintSheet from '../components/LabelPrintSheet';
 import PrinterSheet from '../components/PrinterSheet';
-import type { AdminProductDetail, AdminVariation, StockByBranch } from '../types';
+import { PRODUCT_STATUS_LABEL, productStatusColor } from '../utils/productStatus';
+import type { AdminProductDetail, AdminProductStatus, AdminVariation, StockByBranch } from '../types';
 import type { AdminProductsStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminProductDetail'>;
-
-const STATUS_LABEL: Record<string, string> = {
-  published: 'Publicado',
-  public: 'Público',
-  private: 'Privado',
-};
 
 export default function AdminProductDetailScreen({ route, navigation }: Props) {
   const { showToast } = useToast();
@@ -95,9 +91,6 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
   const d = detail;
   // Same attribute filter the seller's product detail has, over the same shape.
   const filter = useVariationFilter(variations);
-
-  const variationLabel = (v: AdminVariation) =>
-    v.attributeValues.map((a) => a.value).join(' · ') || v.code;
 
   function confirmDeleteProduct() {
     if (!d) return;
@@ -225,8 +218,8 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
             <CopyableCode code={d.code} />
             <View style={styles.badges}>
               <View style={[styles.statusBadge, statusStyle(d.status)]}>
-                <Text style={[styles.statusText, statusTextStyle(d.status)]}>
-                  {STATUS_LABEL[d.status] ?? d.status}
+                <Text style={[styles.statusText, { color: productStatusColor(d.status) }]}>
+                  {PRODUCT_STATUS_LABEL[d.status] ?? d.status}
                 </Text>
               </View>
               <View style={styles.typeBadge}>
@@ -445,19 +438,15 @@ function StockList({ stock, compact }: { stock: StockByBranch[]; compact?: boole
 // `published` answer it the same way: ambos llegan al catálogo. Pintarlos de
 // distinto color sugería dos niveles de visibilidad que no existen; lo que los
 // separa es el flag de destacado, y eso ya lo dice la etiqueta.
-function statusStyle(status: string) {
+function statusStyle(status: AdminProductStatus) {
   if (status === 'private') return { backgroundColor: colors.border };
   return { backgroundColor: colors.successSoft };
-}
-function statusTextStyle(status: string) {
-  if (status === 'private') return { color: colors.textSecondary };
-  return { color: colors.success };
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   gallery: { gap: SPACING.md, paddingRight: SPACING.sm },
-  galleryImg: { width: 150, height: 150, borderRadius: RADIUS.card, backgroundColor: colors.surfaceMuted },
+  galleryImg: { width: SIZE.image, height: SIZE.image, borderRadius: RADIUS.card, backgroundColor: colors.surfaceMuted },
   heroPlaceholder: { width: '100%', height: 200, borderRadius: RADIUS.card },
   featuredBadge: {
     position: 'absolute',
@@ -471,10 +460,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titleBlock: { marginTop: SPACING.xl, gap: SPACING.sm },
-  name: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  name: { fontSize: FONT_SIZE.title, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xs },
   statusBadge: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, borderRadius: RADIUS.badge },
-  statusText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.bold },
+  statusText: { fontSize: FONT_SIZE.micro, fontFamily: FONT_FAMILY.bold },
   typeBadge: {
     backgroundColor: colors.background,
     borderWidth: 1,
@@ -483,8 +472,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.badge,
   },
-  typeText: { fontSize: FONT_SIZE.micro, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  price: { fontSize: FONT_SIZE.sectionValue, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
+  typeText: { fontSize: FONT_SIZE.micro, fontFamily: FONT_FAMILY.medium, color: colors.textSecondary },
+  price: { fontSize: FONT_SIZE.sectionValue, fontFamily: FONT_FAMILY.bold, color: colors.primary },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -494,9 +483,9 @@ const styles = StyleSheet.create({
   },
   // The filter and "Agregar" share the right side of the section header.
   sectionActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
-  sectionTitleInline: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  description: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, lineHeight: 20 },
+  sectionTitle: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
+  sectionTitleInline: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  description: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, lineHeight: 20 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.lg },
   tag: {
     backgroundColor: colors.primarySoft,
@@ -504,7 +493,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.badge,
   },
-  tagText: { fontSize: FONT_SIZE.caption, color: colors.primary, fontWeight: FONT_WEIGHT.medium },
+  tagText: { fontSize: FONT_SIZE.caption, color: colors.primary, fontFamily: FONT_FAMILY.medium },
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -514,7 +503,7 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: RADIUS.pill,
   },
-  editText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
+  editText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold },
   actionRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.lg },
   actionBtn: {
     flex: 1,
@@ -537,8 +526,8 @@ const styles = StyleSheet.create({
     borderColor: colors.error,
     marginTop: SPACING['3xl'],
   },
-  deleteText: { color: colors.error, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
-  deleteHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.md },
+  deleteText: { color: colors.error, fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold },
+  deleteHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.md },
   stockBox: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
@@ -547,10 +536,10 @@ const styles = StyleSheet.create({
   stockBoxCompact: { marginTop: SPACING.md },
   stockRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   stockBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  stockBranch: { flex: 1, fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
+  stockBranch: { flex: 1, fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, fontFamily: FONT_FAMILY.medium },
   stockPill: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, borderRadius: RADIUS.badge },
-  stockPillText: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.bold },
-  muted: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
+  stockPillText: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.bold },
+  muted: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
   varCard: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
@@ -560,13 +549,13 @@ const styles = StyleSheet.create({
   // The same anatomy as a catalogue product card: a big thumbnail, then a column
   // that reads top-down (code → which variation → price), and the actions aside.
   varHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md },
-  varThumb: { width: 88, height: 88, borderRadius: RADIUS.control },
+  varThumb: { width: SIZE.thumbLg, height: SIZE.thumbLg, borderRadius: RADIUS.control },
   varInfo: { flex: 1 },
   varOverline: { marginBottom: SPACING.hairline },
-  varName: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  varName: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
   varPrice: {
     fontSize: FONT_SIZE.subheading,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
     marginTop: SPACING.xs,
   },

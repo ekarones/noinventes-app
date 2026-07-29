@@ -1,12 +1,11 @@
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import IconLabel, { IconLabelRow } from './IconLabel';
+import Badge from './Badge';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
 import ProductImage from './ProductImage';
 
 type Props = {
-  rank: number;
   name: string;
   /** The variation that sold, when the product has them ("Blanco · M"). */
   variationLabel?: string | null;
@@ -31,7 +30,6 @@ export function topProductKey(tp: { productId: number; variationId: number | nul
 // A best-seller on a dashboard. Both roles rank the same way; the row was
 // duplicated between them, and the admin's wasn't even tappable.
 export default function TopProductRow({
-  rank,
   name,
   variationLabel,
   imageUri,
@@ -55,9 +53,6 @@ export default function TopProductRow({
     >
       <View style={styles.thumbWrap}>
         <ProductImage uri={imageUri} style={styles.thumb} iconSize={18} />
-        <View style={styles.rankBadge}>
-          <Text style={styles.rankText}>{rank}</Text>
-        </View>
         {loading && (
           <View style={styles.spinner}>
             <ActivityIndicator size="small" color={colors.primary} />
@@ -72,12 +67,14 @@ export default function TopProductRow({
         <Text style={styles.name} numberOfLines={2}>
           {name}
         </Text>
+        {/* One badge per attribute value of the sold variation ("Blanco", "M"),
+            split from the server's " · "-joined label. */}
         {!!variationLabel && (
-          <IconLabelRow>
-            {/* The same icon the catalogue uses to mark a variation, and the same
-                muted grey: it is a fact about the row, not something to shout. */}
-            <IconLabel icon="git-branch-outline" text={variationLabel} />
-          </IconLabelRow>
+          <View style={styles.badges}>
+            {variationLabel.split(' · ').map((attr, i) => (
+              <Badge key={`${attr}-${i}`} label={attr} />
+            ))}
+          </View>
         )}
       </View>
 
@@ -102,24 +99,7 @@ const styles = StyleSheet.create({
   },
   divided: { borderTopWidth: 1, borderTopColor: colors.border },
   thumbWrap: { position: 'relative' },
-  thumb: { width: 40, height: 40, borderRadius: RADIUS.control },
-  // Overlaps the thumbnail's corner, so the ranking reads at a glance.
-  rankBadge: {
-    position: 'absolute',
-    top: -4,
-    left: -4,
-    width: 20,
-    height: 20,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rankText: {
-    color: colors.textOnPrimary,
-    fontWeight: FONT_WEIGHT.bold,
-    fontSize: FONT_SIZE.badge,
-  },
+  thumb: { width: SIZE.iconBox, height: SIZE.iconBox, borderRadius: RADIUS.control },
   // Covers the thumbnail while its product is being fetched.
   spinner: {
     position: 'absolute',
@@ -133,11 +113,13 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.control,
   },
   info: { flex: 1 },
-  name: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  // The per-attribute badges wrap onto a second line if a variation has many.
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs },
+  name: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
   right: { alignItems: 'flex-end', gap: SPACING.xs, flexShrink: 0 },
   // What the product BILLED in the period — not its unit price. Same style as the
   // recent sale's total and the catalogue's price: they are the same kind of
   // figure, and should not change size from screen to screen.
-  total: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  qty: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
+  total: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  qty: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary },
 });

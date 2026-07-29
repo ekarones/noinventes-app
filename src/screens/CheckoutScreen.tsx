@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
 import { linePrice, variationLabel } from '../utils/cart';
 import { PAYMENT_METHODS } from '../utils/payment';
@@ -72,7 +72,7 @@ export default function CheckoutScreen({ navigation }: Props) {
   const rootNav = useNavigation<RootTabNavigation>();
   // Subtotal, discount and total all come from the cart now — the discount is set
   // there, beside the lines it applies to, and arrives here already clamped.
-  const { items, totalPrice: subtotal, discount, total, clear, updateQuantity, removeItem } =
+  const { items, totalPrice: subtotal, discount, total, clear, updateQuantity, removeItem, invalidateStock } =
     useCart();
   const { showToast } = useToast();
 
@@ -109,6 +109,8 @@ export default function CheckoutScreen({ navigation }: Props) {
       });
 
       clear();
+      // Stock just changed — let the catalogue re-fetch next time it's shown.
+      invalidateStock();
       hapticSuccess();
       showToast(`Venta #${sale.id} registrada`, 'checkmark-circle');
       // Open the receipt in the History tab, keeping the History list beneath it
@@ -273,13 +275,13 @@ export default function CheckoutScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
+  sectionTitle: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  summaryQty: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.primary, minWidth: 28 },
-  summaryName: { fontSize: FONT_SIZE.body, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
-  summaryVariation: { fontSize: FONT_SIZE.micro, color: colors.primary, fontWeight: FONT_WEIGHT.medium, marginTop: SPACING.hairline },
-  summaryPrice: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  summaryQty: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.primary, minWidth: 28 },
+  summaryName: { fontSize: FONT_SIZE.body, color: colors.textPrimary, fontFamily: FONT_FAMILY.medium },
+  summaryVariation: { fontSize: FONT_SIZE.micro, color: colors.primary, fontFamily: FONT_FAMILY.medium, marginTop: SPACING.hairline },
+  summaryPrice: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
   // Same white track as the chip rows and the dashboard period selector.
   payGrid: {
     flexDirection: 'row',
@@ -301,7 +303,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   payPillActive: { backgroundColor: colors.surface, borderColor: colors.primary },
-  payText: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
+  payText: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textSecondary },
   payTextActive: { color: colors.primary },
   footer: {
     paddingHorizontal: SPACING.sm,

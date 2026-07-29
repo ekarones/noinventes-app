@@ -12,7 +12,7 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../api/client';
 import Field from '../components/Field';
@@ -69,6 +69,10 @@ export default function LoginScreen() {
               source={require('../../assets/logo.png')}
               style={styles.logo}
               contentFit="contain"
+              // The mark is a flat single colour on transparent, so tinting it
+              // recolours the whole logo to the brand primary — and it follows
+              // any future change to that token instead of baking a hex into art.
+              tintColor={colors.primary}
             />
           </View>
           <Text style={styles.title}>Bienvenido</Text>
@@ -169,10 +173,10 @@ const styles = StyleSheet.create({
   logo: { width: 68, height: 68 },
   title: {
     fontSize: FONT_SIZE.display,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
   },
-  subtitle: {
+  subtitle: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.body,
     color: colors.textSecondary,
     marginTop: SPACING.sm,
@@ -192,8 +196,8 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginTop: SPACING.lg,
   },
-  errorText: { color: colors.error, fontSize: FONT_SIZE.caption, flex: 1 },
+  errorText: { fontFamily: FONT_FAMILY.regular, color: colors.error, fontSize: FONT_SIZE.caption, flex: 1 },
   button: { marginTop: SPACING['2xl'] },
   demoHint: { alignItems: 'center', marginTop: SPACING['2xl'] },
-  demoHintText: { color: colors.textSecondary, fontSize: FONT_SIZE.micro },
+  demoHintText: { fontFamily: FONT_FAMILY.regular, color: colors.textSecondary, fontSize: FONT_SIZE.micro },
 });

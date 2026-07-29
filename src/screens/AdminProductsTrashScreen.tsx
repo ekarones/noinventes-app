@@ -18,7 +18,7 @@ import {
 } from '../api/admin/products';
 import { usePagedList } from '../hooks/usePagedList';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
@@ -189,11 +189,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md },
-  thumb: { width: 52, height: 52, borderRadius: RADIUS.control, opacity: 0.6 },
+  thumb: { width: SIZE.thumb, height: SIZE.thumb, borderRadius: RADIUS.control, opacity: 0.6 },
   cardInfo: { flex: 1, gap: SPACING.hairline },
-  name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  code: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
-  price: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.bold, color: colors.textSecondary },
+  name: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
+  code: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
+  price: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.bold, color: colors.textSecondary },
   actions: { flexDirection: 'row', gap: SPACING.sm },
   restoreBtn: {
     width: TOUCH_MIN,

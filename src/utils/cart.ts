@@ -1,4 +1,4 @@
-import type { CartItem, Variation } from '../types';
+import type { AttributeValue, CartItem } from '../types';
 
 // Unique cart key per (product, variation).
 export function makeCartKey(productId: number, variationId: number | null): string {
@@ -20,7 +20,9 @@ export function lineImageUrl(item: CartItem): string | null {
   return item.variation?.imageThumbUrl ?? item.product.imageThumbUrl;
 }
 
-// "Rojo · M" — built from the variation's attribute values.
-export function variationLabel(variation: Variation): string {
-  return variation.attributeValues.map((a) => a.value).join(' · ');
+// "Rojo · M" — built from the variation's attribute values, for either role's
+// variation shape (both carry `attributeValues` and `code`). Falls back to the
+// code when there are no attribute values, so a label is never empty.
+export function variationLabel(v: { attributeValues: AttributeValue[]; code: string }): string {
+  return v.attributeValues.map((a) => a.value).join(' · ') || v.code;
 }

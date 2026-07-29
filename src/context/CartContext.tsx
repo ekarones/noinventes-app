@@ -22,6 +22,10 @@ type CartContextValue = {
   updateQuantity: (key: string, quantity: number) => void;
   setDiscount: (amount: number) => void;
   clear: () => void;
+  /** Bumped every time a sale commits, so catalog lists can re-fetch fresh stock
+   *  without each screen having to know a sale happened elsewhere. */
+  stockVersion: number;
+  invalidateStock: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -29,6 +33,9 @@ const CartContext = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [discountInput, setDiscountInput] = useState(0);
+  // A counter, not a boolean: every sale bumps it, so a listener re-runs on each
+  // one rather than only on the first flip.
+  const [stockVersion, setStockVersion] = useState(0);
   // Don't persist until the saved cart has been loaded, otherwise the empty
   // initial state would overwrite it on first mount.
   const hydrated = useRef(false);
@@ -108,6 +115,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setDiscountInput(0);
   }
 
+  function invalidateStock() {
+    setStockVersion((v) => v + 1);
+  }
+
   const totalItems = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
 
   // Summed in cents: `39.90 * 3` in floating point is 119.69999999999999, and the
@@ -143,6 +154,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     updateQuantity,
     setDiscount,
     clear,
+    stockVersion,
+    invalidateStock,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

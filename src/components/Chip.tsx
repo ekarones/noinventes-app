@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { ReactNode } from 'react';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 // A filter chip. Both roles filter their lists the same way (category, status,
 // date range, role), so this is one component — it existed as five identical
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.surface, borderColor: colors.primary },
   text: {
     fontSize: FONT_SIZE.bodySm,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
     color: colors.textSecondary,
   },
   textActive: { color: colors.primary },

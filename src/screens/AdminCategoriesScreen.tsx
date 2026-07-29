@@ -18,7 +18,7 @@ import {
   updateCategory,
 } from '../api/admin/categories';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import { useDebounce } from '../hooks/useDebounce';
 import SearchBar from '../components/SearchBar';
@@ -322,10 +322,10 @@ const styles = StyleSheet.create({
   sep: { height: 1, backgroundColor: colors.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   rowInfo: { flex: 1 },
-  rowName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  rowMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  rowName: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
+  rowMeta: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
   rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
+  label: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -335,6 +335,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     height: CONTROL_HEIGHT.input,
   },
-  selectText: { flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
+  selectText: { fontFamily: FONT_FAMILY.regular, flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   saveBtn: { marginTop: SPACING['2xl'] },
 });

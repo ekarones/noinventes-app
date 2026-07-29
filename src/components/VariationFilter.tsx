@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import BottomSheet from './BottomSheet';
 import Button from './Button';
 import Chip from './Chip';
@@ -159,12 +159,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   btnActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  btnText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
+  btnText: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.medium, color: colors.textSecondary },
   btnTextActive: { color: colors.primary },
   group: { marginBottom: SPACING.lg },
   groupName: {
     fontSize: FONT_SIZE.bodySm,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
     marginBottom: SPACING.sm,
   },

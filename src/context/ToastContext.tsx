@@ -10,6 +10,7 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, SPACING } from '../theme/tokens';
 
 type ToastContextValue = {
   // Shows a floating confirmation message. `icon` defaults to a checkmark.
@@ -97,17 +98,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: SPACING['2xl'],
   },
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: SPACING.sm,
     backgroundColor: colors.textPrimary,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 14,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.control,
     maxWidth: '100%',
   },
-  text: { color: colors.textOnPrimary, fontSize: 15, fontWeight: '600', flexShrink: 1 },
+  text: {
+    color: colors.textOnPrimary,
+    fontSize: FONT_SIZE.body,
+    fontFamily: FONT_FAMILY.medium,
+    flexShrink: 1,
+  },
 });

@@ -2,7 +2,7 @@ import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, HIT_SLOP, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { FONT_FAMILY, FONT_SIZE, HIT_SLOP, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import { hapticAdd } from '../utils/haptics';
 
@@ -59,5 +59,5 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
     flexShrink: 1,
   },
-  text: { fontSize: FONT_SIZE.caption, flexShrink: 1 },
+  text: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, flexShrink: 1 },
 });

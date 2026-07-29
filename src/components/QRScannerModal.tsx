@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   hint: {
     color: colors.textOnPrimary,
     fontSize: FONT_SIZE.body,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
     marginTop: SPACING['2xl'],
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
@@ -131,8 +131,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   permission: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING['3xl'], gap: SPACING.md },
-  permissionTitle: { color: colors.textOnPrimary, fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, marginTop: SPACING.sm },
-  permissionText: { color: '#d1d5db', fontSize: FONT_SIZE.body, textAlign: 'center', lineHeight: 22 },
+  permissionTitle: { color: colors.textOnPrimary, fontSize: FONT_SIZE.titleSm, fontFamily: FONT_FAMILY.bold, marginTop: SPACING.sm },
+  permissionText: { fontFamily: FONT_FAMILY.regular, color: '#d1d5db', fontSize: FONT_SIZE.body, textAlign: 'center', lineHeight: 22 },
   permissionBtn: {
     backgroundColor: colors.primary,
     paddingHorizontal: SPACING['3xl'],
@@ -142,5 +142,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: SPACING.md,
   },
-  permissionBtnText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
+  permissionBtnText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold },
 });

@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import {
+import { SIZE,
   CONTROL_HEIGHT,
   FONT_SIZE,
-  FONT_WEIGHT,
+  FONT_FAMILY,
   HIT_SLOP,
   RADIUS,
   ROW_PRESS_OPACITY,
@@ -32,6 +32,10 @@ type Props<T extends number | string> = {
   onChange: (id: T | null) => void;
   /** Lets the caller size the pill — e.g. `flex: 1` to fill a filter row. */
   style?: StyleProp<ViewStyle>;
+  /** A required choice (e.g. a dashboard period): no "none" row and no clear ×,
+   *  so it reads as a plain combo box rather than a clearable filter. `value` is
+   *  always one of the options and `onChange` never fires with `null`. */
+  mandatory?: boolean;
 };
 
 // A pill that opens a bottom-sheet list to pick one option — the filter control
@@ -46,24 +50,30 @@ export default function Select<T extends number | string>({
   options,
   onChange,
   style,
+  mandatory,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
-  const active = value != null;
-  const selected = active ? options.find((o) => o.id === value) : undefined;
+  // A mandatory select always holds a value, so it never takes the clear
+  // affordance — it's a neutral picker. Only the × / chevron depends on this.
+  const active = value != null && !mandatory;
+  const selected = value != null ? options.find((o) => o.id === value) : undefined;
 
   return (
     <>
       <TouchableOpacity
-        style={[styles.pill, active && styles.pillActive, style]}
+        style={[styles.pill, style]}
         onPress={() => setOpen(true)}
         activeOpacity={ROW_PRESS_OPACITY}
         accessibilityRole="button"
         accessibilityLabel={placeholder}
       >
-        <View style={[styles.disc, active && styles.discActive]}>
-          <Ionicons name={icon} size={16} color={active ? colors.primary : colors.textSecondary} />
+        {/* Every filter across the app wears the same look — a primary-tinted icon
+            disc on a neutral pill — so a set filter reads by its label and ×, not
+            by a colour change of the whole control. */}
+        <View style={[styles.disc, styles.discAccent]}>
+          <Ionicons name={icon} size={16} color={colors.primary} />
         </View>
-        <Text style={[styles.text, active && styles.textActive]} numberOfLines={1}>
+        <Text style={styles.text} numberOfLines={1}>
           {selected?.label ?? placeholder}
         </Text>
         {active ? (
@@ -83,15 +93,18 @@ export default function Select<T extends number | string>({
       </TouchableOpacity>
 
       <BottomSheet visible={open} onClose={() => setOpen(false)} title={placeholder} scrollable>
-        <SheetOption
-          label={placeholder}
-          icon={icon}
-          active={value == null}
-          onPress={() => {
-            onChange(null);
-            setOpen(false);
-          }}
-        />
+        {/* The "none" row only makes sense for a clearable filter. */}
+        {!mandatory && (
+          <SheetOption
+            label={placeholder}
+            icon={icon}
+            active={value == null}
+            onPress={() => {
+              onChange(null);
+              setOpen(false);
+            }}
+          />
+        )}
         {options.map((o) => (
           <SheetOption
             key={o.id}
@@ -120,24 +133,20 @@ const styles = StyleSheet.create({
     paddingRight: SPACING.md,
     height: CONTROL_HEIGHT.pill,
     borderRadius: RADIUS.pill,
-    // Transparent at rest (no visible line), so the selected state can frame the
-    // pill in the primary colour without shifting its size.
+    // A transparent border keeps the pill the same size as the bordered controls
+    // it sits beside (the search field), so the header row lines up.
     borderWidth: 1,
     borderColor: 'transparent',
     backgroundColor: colors.surface,
   },
-  pillActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  // Circular via RADIUS.pill, never width/2. Muted at rest; turns white once the
-  // pill takes its soft fill, so the disc keeps reading against it.
+  // Circular via RADIUS.pill, never width/2 — a soft primary fill behind the glyph.
   disc: {
-    width: 32,
-    height: 32,
+    width: SIZE.disc,
+    height: SIZE.disc,
     borderRadius: RADIUS.pill,
-    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  discActive: { backgroundColor: colors.surface },
-  text: { flex: 1, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  textActive: { color: colors.primary },
+  discAccent: { backgroundColor: colors.primarySoft },
+  text: { flex: 1, fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.medium, color: colors.textSecondary },
 });

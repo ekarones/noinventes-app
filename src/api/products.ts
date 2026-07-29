@@ -8,6 +8,24 @@ export type PaginationMeta = {
   total: number;
 };
 
+// The server's `meta` block, snake_case. Every paginated endpoint returns it and
+// used to normalize it inline — the same four lines pasted ten times.
+export type RawPaginationMeta = {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+};
+
+export function mapMeta(m: RawPaginationMeta): PaginationMeta {
+  return {
+    currentPage: m.current_page,
+    lastPage: m.last_page,
+    perPage: m.per_page,
+    total: m.total,
+  };
+}
+
 // ---- Raw API shapes (as returned by the server) ----
 
 type RawCategoryRef = { id: number; name: string } | null;
@@ -136,12 +154,7 @@ export async function fetchProducts(
   const res = await apiRequest<ProductsResponse>(`/products?${query.toString()}`);
   return {
     items: res.data.map(mapProduct),
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }
 

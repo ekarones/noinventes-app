@@ -20,7 +20,7 @@ import {
 } from '../api/admin/productImages';
 import { pickImages } from '../utils/imagePicker';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
@@ -225,9 +225,9 @@ export default function AdminProductImagesScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  muted: { fontSize: FONT_SIZE.body, color: colors.textSecondary, textAlign: 'center' },
-  productName: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  counter: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline, marginBottom: SPACING.lg },
+  muted: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.body, color: colors.textSecondary, textAlign: 'center' },
+  productName: { fontSize: FONT_SIZE.titleSm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  counter: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline, marginBottom: SPACING.lg },
   emptyBox: { alignItems: 'center', paddingVertical: SPACING['3xl'], gap: SPACING.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
   tile: {
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.badge,
   },
-  featuredText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold },
+  featuredText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.badge, fontFamily: FONT_FAMILY.bold },
   tileActions: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: SPACING.sm },
   tileBtn: { width: 40, height: 34, alignItems: 'center', justifyContent: 'center' },
   uploadBtn: {
@@ -266,6 +266,6 @@ const styles = StyleSheet.create({
     marginTop: SPACING['2xl'],
   },
   uploadBtnDisabled: { opacity: 0.5 },
-  uploadText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.sm, lineHeight: 17 },
+  uploadText: { color: colors.textOnPrimary, fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold },
+  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.sm, lineHeight: 17 },
 });

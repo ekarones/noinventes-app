@@ -2,7 +2,7 @@ import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import EmptyState from '../components/EmptyState';
 import ScreenHeader from '../components/ScreenHeader';
 import { stockColor } from '../utils/stock';
@@ -92,15 +92,15 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
-  caption: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: SPACING.sm, paddingHorizontal: SPACING.xs },
-  footer: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.lg },
+  caption: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: SPACING.sm, paddingHorizontal: SPACING.xs },
+  footer: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.lg },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md },
-  thumb: { width: 52, height: 52, borderRadius: RADIUS.control },
+  thumb: { width: SIZE.thumb, height: SIZE.thumb, borderRadius: RADIUS.control },
   info: { flex: 1, gap: SPACING.hairline },
-  name: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  code: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
+  name: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
+  code: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
   branchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginTop: SPACING.hairline },
-  branch: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, flex: 1 },
+  branch: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, flex: 1 },
   stockPill: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.badge },
-  stockText: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold },
+  stockText: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold },
 });

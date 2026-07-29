@@ -17,6 +17,19 @@ export const CONTROL_HEIGHT = {
   input: 50, // text fields
 } as const;
 
+// Square element sizes — leading icon discs/boxes, thumbnails, product images.
+// Named by role (not by number) so the same kind of element is one size across
+// the whole app: a "list thumbnail" or an "icon box" can't drift to a different
+// pixel size from screen to screen. These are the sizes each role settled on;
+// unlike type/spacing/radius they are roles, not a scale.
+export const SIZE = {
+  disc: 32, // a leading icon disc (search, sort, icon button, select)
+  iconBox: 40, // a square box holding a leading icon / a small avatar / small thumb
+  thumb: 52, // a compact list thumbnail (low-stock, trash)
+  thumbLg: 88, // a large thumbnail / avatar
+  image: 150, // a product image (gallery, picker, preview)
+} as const;
+
 // For taps that genuinely can't be sized up — an "✕" living inside a chip, an
 // icon inside a text field. Everything else should just be `TOUCH_MIN` tall.
 export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 } as const;
@@ -77,8 +90,13 @@ export const FONT_SIZE = {
   nano: 10, // the densest secondary labels in a grid card
 } as const;
 
-export const FONT_WEIGHT = {
-  regular: '400',
-  medium: '600',
-  bold: '700',
+// The app's typeface is Manrope (bundled via @expo-google-fonts/manrope, loaded
+// in App.tsx). React Native does NOT combine a custom fontFamily with a numeric
+// fontWeight — every weight is its own font file — so a weight is expressed as a
+// family: `fontFamily: FONT_FAMILY.bold`, not `fontWeight`. The numbers below
+// are the weights each family carries, kept identical to the old tokens.
+export const FONT_FAMILY = {
+  regular: 'Manrope_400Regular',
+  medium: 'Manrope_600SemiBold',
+  bold: 'Manrope_700Bold',
 } as const;

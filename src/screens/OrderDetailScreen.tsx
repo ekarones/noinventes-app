@@ -1,21 +1,15 @@
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
-import { formatDate, formatPrice } from '../utils/format';
+import { FONT_FAMILY, FONT_SIZE, RADIUS, SPACING } from '../theme/tokens';
+import { formatDate } from '../utils/format';
 import { paymentMethodLabel } from '../utils/payment';
 import { cancelSale, fetchSaleDetail } from '../api/sales';
 import { downloadAndShareBoleta, fetchReceiptPayload } from '../api/boleta';
 import { MetaRow } from '../components/Row';
+import SaleItemsList from '../components/SaleItemsList';
 import SaleTotals from '../components/SaleTotals';
 import Button from '../components/Button';
 import { usePrinter } from '../context/PrinterContext';
@@ -137,33 +131,7 @@ export default function OrderDetailScreen({ route, navigation }: Props) {
         </View>
 
         {/* Items */}
-        <Text style={styles.sectionTitle}>Productos</Text>
-        {loadingItems ? (
-          <ActivityIndicator color={colors.primary} style={{ marginVertical: SPACING.lg }} />
-        ) : items && items.length > 0 ? (
-          <View style={styles.itemsBox}>
-            {items.map((item, idx) => (
-              <View key={item.id} style={[styles.itemRow, idx > 0 && styles.itemBorder]}>
-                <View style={styles.qtyBadge}>
-                  <Text style={styles.qtyText}>{item.quantity}×</Text>
-                </View>
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemName} numberOfLines={2}>
-                    {item.productName}
-                  </Text>
-                  <Text style={styles.itemMeta}>
-                    {item.productCode} · {formatPrice(item.unitPrice)} c/u
-                  </Text>
-                </View>
-                <Text style={styles.itemTotal}>{formatPrice(item.subtotal)}</Text>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.itemsError}>
-            No se pudo cargar el detalle. Puedes descargar la boleta.
-          </Text>
-        )}
+        <SaleItemsList items={items} loading={loadingItems} />
 
         {/* Totals */}
         <SaleTotals subtotal={v.subtotal} discount={v.discount} total={v.total} />
@@ -217,30 +185,7 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     gap: SPACING.md,
   },
-  sectionTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
-  itemsError: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
-  itemsBox: {
-    backgroundColor: colors.surface,
-    borderRadius: RADIUS.card,
-    paddingHorizontal: SPACING.sm,
-  },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.lg },
-  itemBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  qtyBadge: {
-    minWidth: 36,
-    height: 36,
-    borderRadius: RADIUS.badge,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.sm,
-  },
-  qtyText: { color: colors.primary, fontWeight: FONT_WEIGHT.bold, fontSize: FONT_SIZE.bodySm },
-  itemInfo: { flex: 1, gap: SPACING.hairline },
-  itemName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  itemMeta: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
-  itemTotal: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
   actionTop: { marginTop: SPACING['2xl'] },
   actionNext: { marginTop: SPACING.md },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.sm, lineHeight: 17 },
+  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.sm, lineHeight: 17 },
 });

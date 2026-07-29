@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import {
   FONT_SIZE,
-  FONT_WEIGHT,
+  FONT_FAMILY,
   RADIUS,
   ROW_PRESS_OPACITY,
   SPACING,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   pageActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   pageText: {
     fontSize: FONT_SIZE.bodySm,
-    fontWeight: FONT_WEIGHT.medium,
+    fontFamily: FONT_FAMILY.medium,
     color: colors.textSecondary,
   },
   pageTextActive: { color: colors.primary },
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   disabled: { opacity: 0.35 },
-  gap: {
+  gap: { fontFamily: FONT_FAMILY.regular,
     minWidth: SPACING.lg,
     textAlign: 'center',
     fontSize: FONT_SIZE.bodySm,

@@ -2,7 +2,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, SPACING, TOUCH_MIN } from '../theme/tokens';
 
 type Action = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: FONT_SIZE.heading,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
   },
 });

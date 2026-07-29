@@ -19,7 +19,7 @@ import {
   updateBranch,
 } from '../api/admin/branches';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import Field from '../components/Field';
 import LoadingState from '../components/LoadingState';
@@ -280,8 +280,8 @@ const styles = StyleSheet.create({
   sep: { height: 1, backgroundColor: colors.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: SIZE.iconBox,
+    height: SIZE.iconBox,
     borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
@@ -290,15 +290,15 @@ const styles = StyleSheet.create({
   iconBoxOff: { backgroundColor: colors.border },
   rowInfo: { flex: 1 },
   nameLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  rowName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, flexShrink: 1 },
+  rowName: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, flexShrink: 1 },
   inactiveBadge: { backgroundColor: colors.border, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.hairline, borderRadius: RADIUS.badge },
-  inactiveText: { fontSize: FONT_SIZE.badge, fontWeight: FONT_WEIGHT.bold, color: colors.textSecondary },
-  rowAddress: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
-  rowMeta: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  inactiveText: { fontSize: FONT_SIZE.badge, fontFamily: FONT_FAMILY.bold, color: colors.textSecondary },
+  rowAddress: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  rowMeta: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
   rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginTop: SPACING.xl },
-  switchLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  switchHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  switchLabel: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
+  switchHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
+  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
   saveBtn: { marginTop: SPACING['2xl'] },
 });

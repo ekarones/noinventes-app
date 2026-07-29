@@ -11,7 +11,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { AdminHomeNavigation } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -20,14 +20,15 @@ import { fetchAdminProductDetail } from '../api/admin/products';
 import { ApiError } from '../api/client';
 import { fetchAdminBranches } from '../api/admin/branches';
 import Avatar from '../components/Avatar';
-import KpiCard, { KpiGrid } from '../components/KpiCard';
+import FilterPill from '../components/FilterPill';
+import SalesKpiGrid from '../components/SalesKpiGrid';
 import TopProductRow, { topProductKey } from '../components/TopProductRow';
 import SaleRow from '../components/SaleRow';
 import ScreenTitle from '../components/ScreenTitle';
 import SectionHeader from '../components/SectionHeader';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
-import Segmented from '../components/Segmented';
+import Select, { type SelectOption } from '../components/Select';
 import LoadingState from '../components/LoadingState';
 import BottomSheet, { SheetOption } from '../components/BottomSheet';
 import type {
@@ -38,10 +39,10 @@ import type {
   StatsPeriod,
 } from '../types';
 
-const PERIODS: { value: StatsPeriod; label: string }[] = [
-  { value: 'today', label: 'Hoy' },
-  { value: 'week', label: 'Semana' },
-  { value: 'month', label: 'Mes' },
+const PERIOD_OPTIONS: SelectOption<StatsPeriod>[] = [
+  { id: 'today', label: 'Hoy' },
+  { id: 'week', label: 'Semana' },
+  { id: 'month', label: 'Mes' },
 ];
 
 export default function AdminDashboardScreen() {
@@ -160,8 +161,16 @@ export default function AdminDashboardScreen() {
               accessibilityLabel="Perfil"
             />
           }
-        />
-        <Segmented options={PERIODS} value={period} onChange={setPeriod} />
+        >
+          <Select
+            icon="calendar-outline"
+            placeholder="Período"
+            value={period}
+            options={PERIOD_OPTIONS}
+            onChange={(v) => v && setPeriod(v)}
+            mandatory
+          />
+        </ScreenTitle>
       </View>
 
       <ScrollView
@@ -177,37 +186,17 @@ export default function AdminDashboardScreen() {
         }
       >
         {/* Branch scope */}
-        <TouchableOpacity
-          style={[styles.branchSelect, branchId != null && styles.branchSelectActive]}
-          onPress={() => setBranchPickerOpen(true)}
-          activeOpacity={ROW_PRESS_OPACITY}
-        >
-          <Ionicons
-            name="storefront-outline"
-            size={18}
-            color={branchId != null ? colors.primary : colors.textSecondary}
+        <View style={styles.branchRow}>
+          <FilterPill
+            icon="storefront-outline"
+            label={branchName}
+            active={branchId != null}
+            onPress={() => setBranchPickerOpen(true)}
+            onClear={() => setBranchId(null)}
+            chevron
+            accessibilityLabel="Filtrar por sucursal"
           />
-          <Text
-            style={[styles.branchSelectText, branchId != null && styles.branchSelectTextActive]}
-            numberOfLines={1}
-          >
-            {branchName}
-          </Text>
-          {branchId != null ? (
-            // Can't grow to the touch minimum — it lives inside the row it clears —
-            // so it borrows the room around it.
-            <TouchableOpacity
-              onPress={() => setBranchId(null)}
-              hitSlop={HIT_SLOP}
-              activeOpacity={ROW_PRESS_OPACITY}
-              accessibilityLabel="Ver todas las sucursales"
-            >
-              <Ionicons name="close-circle" size={18} color={colors.primary} />
-            </TouchableOpacity>
-          ) : (
-            <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
-          )}
-        </TouchableOpacity>
+        </View>
 
         {loading ? (
           <LoadingState />
@@ -220,25 +209,7 @@ export default function AdminDashboardScreen() {
         ) : (
           <>
             {/* KPI cards */}
-            <KpiGrid>
-              <KpiCard
-                icon="cash-outline"
-                label="Ventas totales"
-                value={formatPrice(summary?.totalSales ?? 0)}
-                highlight
-              />
-              <KpiCard icon="receipt-outline" label="Ventas" value={String(summary?.salesCount ?? 0)} />
-              <KpiCard
-                icon="cube-outline"
-                label="Artículos vendidos"
-                value={String(summary?.itemsSold ?? 0)}
-              />
-              <KpiCard
-                icon="trending-up-outline"
-                label="Ticket promedio"
-                value={formatPrice(summary?.averageTicket ?? 0)}
-              />
-            </KpiGrid>
+            <SalesKpiGrid summary={summary} />
 
             {/* Low stock alert — tap to see the critical products */}
             {data && data.lowStock.count > 0 && (
@@ -265,29 +236,30 @@ export default function AdminDashboardScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Top products */}
-            <SectionHeader
-              icon="trophy-outline"
-              title="Más vendidos"
-              // Always offered, like the seller's. Carries the branch scope so
-              // the list matches what the dashboard is showing.
-              action={{
-                label: 'Ver todas',
-                onPress: () => navigation.navigate('AdminTopProducts', { period, branchId }),
-              }}
-            />
-            {!data || data.topProducts.length === 0 ? (
-              <EmptyState
-                compact
+            {/* Top products — header + list wrapped in one card. */}
+            <Card inset style={styles.sectionCard}>
+              <SectionHeader
+                card
+                dot
                 icon="trophy-outline"
-                message="Nadie vendió nada en este período."
+                title="Más vendidos"
+                // Always offered, like the seller's. Carries the branch scope so
+                // the list matches what the dashboard is showing.
+                action={{
+                  label: 'Ver todas',
+                  onPress: () => navigation.navigate('AdminTopProducts', { period, branchId }),
+                }}
               />
-            ) : (
-              <Card inset>
-                {data.topProducts.map((tp, index) => (
+              {!data || data.topProducts.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon="trophy-outline"
+                  message="Nadie vendió nada en este período."
+                />
+              ) : (
+                data.topProducts.map((tp, index) => (
                   <TopProductRow
                     key={topProductKey(tp)}
-                    rank={index + 1}
                     name={tp.name}
                     variationLabel={tp.variationLabel}
                     imageUri={tp.imageThumbUrl}
@@ -298,78 +270,76 @@ export default function AdminDashboardScreen() {
                     disabled={openingKey !== null}
                     divided={index > 0}
                   />
+                ))
+              )}
+            </Card>
+
+            {/* Sales by branch */}
+            {data && data.salesByBranch.length > 0 && (
+              <Card inset style={styles.sectionCard}>
+                <SectionHeader card dot icon="storefront-outline" title="Por sucursal" />
+                {data.salesByBranch.map((b, index) => (
+                  <View key={b.branchId} style={[styles.breakRow, index > 0 && styles.rowBorder]}>
+                    <View style={styles.iconBox}>
+                      <Ionicons name="storefront-outline" size={20} color={colors.primary} />
+                    </View>
+                    <View style={styles.topInfo}>
+                      <Text style={styles.topName} numberOfLines={1}>
+                        {b.branchName}
+                      </Text>
+                      <Text style={styles.topCategory}>
+                        {b.salesCount} {b.salesCount === 1 ? 'venta' : 'ventas'}
+                      </Text>
+                    </View>
+                    <Text style={styles.orderTotal}>{formatPrice(b.total)}</Text>
+                  </View>
                 ))}
               </Card>
             )}
 
-            {/* Sales by branch */}
-            {data && data.salesByBranch.length > 0 && (
-              <>
-                <SectionHeader icon="storefront-outline" title="Por sucursal" />
-                <Card inset>
-                  {data.salesByBranch.map((b, index) => (
-                    <View key={b.branchId} style={[styles.breakRow, index > 0 && styles.rowBorder]}>
-                      <View style={styles.iconBox}>
-                        <Ionicons name="storefront-outline" size={20} color={colors.primary} />
-                      </View>
-                      <View style={styles.topInfo}>
-                        <Text style={styles.topName} numberOfLines={1}>
-                          {b.branchName}
-                        </Text>
-                        <Text style={styles.topCategory}>
-                          {b.salesCount} {b.salesCount === 1 ? 'venta' : 'ventas'}
-                        </Text>
-                      </View>
-                      <Text style={styles.orderTotal}>{formatPrice(b.total)}</Text>
-                    </View>
-                  ))}
-                </Card>
-              </>
-            )}
-
             {/* Sales by seller */}
             {data && data.salesBySeller.length > 0 && (
-              <>
-                <SectionHeader icon="person-outline" title="Por vendedor" />
-                <Card inset>
-                  {data.salesBySeller.map((s, index) => (
-                    <View key={s.sellerId} style={[styles.breakRow, index > 0 && styles.rowBorder]}>
-                      <Avatar name={s.sellerName} size="sm" />
-                      <View style={styles.topInfo}>
-                        <Text style={styles.topName} numberOfLines={1}>
-                          {s.sellerName}
-                        </Text>
-                        <Text style={styles.topCategory}>
-                          {s.salesCount} {s.salesCount === 1 ? 'venta' : 'ventas'}
-                        </Text>
-                      </View>
-                      <Text style={styles.orderTotal}>{formatPrice(s.total)}</Text>
+              <Card inset style={styles.sectionCard}>
+                <SectionHeader card dot icon="person-outline" title="Por vendedor" />
+                {data.salesBySeller.map((s, index) => (
+                  <View key={s.sellerId} style={[styles.breakRow, index > 0 && styles.rowBorder]}>
+                    <Avatar name={s.sellerName} size="sm" />
+                    <View style={styles.topInfo}>
+                      <Text style={styles.topName} numberOfLines={1}>
+                        {s.sellerName}
+                      </Text>
+                      <Text style={styles.topCategory}>
+                        {s.salesCount} {s.salesCount === 1 ? 'venta' : 'ventas'}
+                      </Text>
                     </View>
-                  ))}
-                </Card>
-              </>
+                    <Text style={styles.orderTotal}>{formatPrice(s.total)}</Text>
+                  </View>
+                ))}
+              </Card>
             )}
 
-            {/* Recent sales */}
-            <SectionHeader
-              icon="receipt-outline"
-              title="Ventas recientes"
-              action={{ label: 'Ver todas', onPress: () => navigation.navigate('AdminSalesTab') }}
-            />
-            {!data || data.recentSales.length === 0 ? (
-              <EmptyState
-                compact
+            {/* Recent sales — header + list wrapped in one card. */}
+            <Card inset style={styles.sectionCard}>
+              <SectionHeader
+                card
+                dot
                 icon="receipt-outline"
-                message="Ningún vendedor registró ventas en este período."
-                action={{
-                  label: 'Ver todas las ventas',
-                  icon: 'receipt-outline',
-                  onPress: () => navigation.navigate('AdminSalesTab'),
-                }}
+                title="Ventas recientes"
+                action={{ label: 'Ver todas', onPress: () => navigation.navigate('AdminSalesTab') }}
               />
-            ) : (
-              <Card inset>
-                {data.recentSales.map((sale, index) => (
+              {!data || data.recentSales.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon="receipt-outline"
+                  message="Ningún vendedor registró ventas en este período."
+                  action={{
+                    label: 'Ver todas las ventas',
+                    icon: 'receipt-outline',
+                    onPress: () => navigation.navigate('AdminSalesTab'),
+                  }}
+                />
+              ) : (
+                data.recentSales.map((sale, index) => (
                   <SaleRow
                     key={sale.id}
                     id={sale.id}
@@ -382,9 +352,9 @@ export default function AdminDashboardScreen() {
                     onPress={() => openSale(sale)}
                     divided={index > 0}
                   />
-                ))}
-              </Card>
-            )}
+                ))
+              )}
+            </Card>
           </>
         )}
       </ScrollView>
@@ -423,29 +393,18 @@ export default function AdminDashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  // A titled card (header + list inside): carries the gap to the block above, and
+  // a bottom pad so the last row isn't flush to the card edge.
+  sectionCard: { marginTop: SPACING.sm, paddingBottom: SPACING.sm },
   // flexGrow lets the loading / error state fill the space left under the header
   // and centre itself in it; without it they collapse to their own height and sit
   // right below the period selector. The bottom tab bar already reserves the
   // safe-area inset, so only a small visual gap is needed here.
-  scroll: { flexGrow: 1, paddingBottom: SPACING['2xl'] },
-  branchSelect: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginHorizontal: SPACING.sm,
-    // It sits between the pinned period bar and the KPIs, and owns the gap below
-    // it — the grid no longer pads its own top now that the bar pads its bottom.
-    marginBottom: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surface,
-  },
-  branchSelectActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  branchSelectText: { flex: 1, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  branchSelectTextActive: { color: colors.primary },
+  scroll: { flexGrow: 1, paddingBottom: SPACING.sm },
+  // Wraps the branch pill so it keeps the screen margin and the gap below it (it
+  // sits between the pinned period bar and the KPIs). The pill itself is a shared
+  // FilterPill, flex:1 to fill this row.
+  branchRow: { flexDirection: 'row', marginHorizontal: SPACING.sm, marginBottom: SPACING.md },
   lowStock: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -466,20 +425,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lowStockText: { flex: 1, fontSize: FONT_SIZE.caption, lineHeight: 18, color: colors.textPrimary },
-  lowStockCount: { fontWeight: FONT_WEIGHT.bold, color: colors.warning },
+  lowStockText: { fontFamily: FONT_FAMILY.regular, flex: 1, fontSize: FONT_SIZE.caption, lineHeight: 18, color: colors.textPrimary },
+  lowStockCount: { fontFamily: FONT_FAMILY.bold, color: colors.warning },
   breakRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.lg },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
   topInfo: { flex: 1 },
-  topName: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  topCategory: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
+  topName: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
+  topCategory: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: SIZE.iconBox,
+    height: SIZE.iconBox,
     borderRadius: RADIUS.control,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  orderTotal: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  orderTotal: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
 });

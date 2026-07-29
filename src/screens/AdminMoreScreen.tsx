@@ -4,7 +4,7 @@ import { ActionRow } from '../components/Row';
 import Card from '../components/Card';
 import ScreenTitle from '../components/ScreenTitle';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, SPACING } from '../theme/tokens';
 import type { AdminMoreStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AdminMoreStackParamList, 'AdminMore'>;
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   overline: {
     fontSize: FONT_SIZE.caption,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,

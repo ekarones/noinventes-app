@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FONT_SIZE.heading,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
     marginBottom: SPACING.md,
   },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   optionPressed: { opacity: ROW_PRESS_OPACITY },
   optionTexts: { flex: 1 },
-  optionLabel: { fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
-  optionLabelActive: { fontWeight: FONT_WEIGHT.bold, color: colors.primary },
-  optionHint: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
+  optionLabel: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
+  optionLabelActive: { fontFamily: FONT_FAMILY.bold, color: colors.primary },
+  optionHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
 });

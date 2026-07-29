@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, SPACING } from '../theme/tokens';
+import { FONT_FAMILY, FONT_SIZE, SPACING } from '../theme/tokens';
 import { usePrinter } from '../context/PrinterContext';
 import BottomSheet, { SheetOption } from './BottomSheet';
 import Button from './Button';
@@ -120,18 +120,18 @@ export default function PrinterSheet({ visible, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  caption: {
+  caption: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.caption,
     color: colors.textSecondary,
     marginTop: SPACING.md,
     marginBottom: SPACING.xs,
   },
-  note: {
+  note: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.bodySm,
     color: colors.textSecondary,
     paddingVertical: SPACING.md,
   },
-  error: {
+  error: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.bodySm,
     color: colors.error,
     marginTop: SPACING.md,

@@ -1,16 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  FlatList,
-  Platform,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   fetchAdminSales,
@@ -22,21 +13,13 @@ import { ApiError } from '../api/client';
 import { usePagedList } from '../hooks/usePagedList';
 import { SALE_DEFAULT_SORT, SALE_SORT_OPTIONS } from '../utils/sortOptions';
 import { colors } from '../theme/colors';
-import {
-  CONTROL_HEIGHT,
-  FONT_SIZE,
-  FONT_WEIGHT,
-  HIT_SLOP,
-  RADIUS,
-  ROW_PRESS_OPACITY,
-  SPACING,
-} from '../theme/tokens';
+import { SPACING } from '../theme/tokens';
 import SaleRow from '../components/SaleRow';
+import FilterPill from '../components/FilterPill';
 import IconButton from '../components/IconButton';
 import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
-import Pagination from '../components/Pagination';
-import LoadingState from '../components/LoadingState';
+import PagedList from '../components/PagedList';
 import BottomSheet, { SheetOption } from '../components/BottomSheet';
 import EmptyState from '../components/EmptyState';
 import Select from '../components/Select';
@@ -175,23 +158,14 @@ export default function AdminSalesScreen({ navigation }: Props) {
     },
     [query, paymentMethod, range, sort, branchId, sellerId]
   );
-  const {
-    items: sales,
-    meta,
-    page,
-    loading,
-    refreshing,
-    error,
-    listRef,
-    loadPage,
-  } = usePagedList<AdminSaleSummary>(fetchPage, 'No se pudieron cargar las ventas.');
+  const list = usePagedList<AdminSaleSummary>(fetchPage, 'No se pudieron cargar las ventas.');
 
   // Runs on focus and whenever a filter changes — either way the result set is
   // new, so it starts at page 1.
   useFocusEffect(
     useCallback(() => {
-      loadPage(1);
-    }, [loadPage])
+      list.loadPage(1);
+    }, [list.loadPage])
   );
 
   function renderItem({ item }: { item: AdminSaleSummary }) {
@@ -217,7 +191,7 @@ export default function AdminSalesScreen({ navigation }: Props) {
       <ScreenTitle
         title="Ventas"
         subtitle={
-          meta ? `${meta.total} ${hasFilters ? 'coinciden' : 'en total'} · ${sort.label}` : undefined
+          list.meta ? `${list.meta.total} ${hasFilters ? 'coinciden' : 'en total'} · ${sort.label}` : undefined
         }
         actions={
           <>
@@ -256,62 +230,22 @@ export default function AdminSalesScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.filterRow}>
-          <TouchableOpacity
-            style={[styles.dateBtn, !!dateFrom && styles.dateBtnActive]}
+          <FilterPill
+            icon="calendar-outline"
+            label={dateFrom ? shortDate(dateFrom) : 'Desde'}
+            active={!!dateFrom}
             onPress={() => pickDate('from')}
-            activeOpacity={ROW_PRESS_OPACITY}
-            accessibilityRole="button"
+            onClear={() => setDateFrom(null)}
             accessibilityLabel="Fecha desde"
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={16}
-              color={dateFrom ? colors.primary : colors.textSecondary}
-            />
-            <Text
-              style={[styles.dateBtnText, !!dateFrom && styles.dateBtnTextActive]}
-              numberOfLines={1}
-            >
-              {dateFrom ? shortDate(dateFrom) : 'Desde'}
-            </Text>
-            {!!dateFrom && (
-              <TouchableOpacity
-                onPress={() => setDateFrom(null)}
-                hitSlop={HIT_SLOP}
-                activeOpacity={ROW_PRESS_OPACITY}
-                accessibilityLabel="Quitar fecha desde"
-              >
-                <Ionicons name="close-circle" size={16} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.dateBtn, !!dateTo && styles.dateBtnActive]}
+          />
+          <FilterPill
+            icon="calendar-outline"
+            label={dateTo ? shortDate(dateTo) : 'Hasta'}
+            active={!!dateTo}
             onPress={() => pickDate('to')}
-            activeOpacity={ROW_PRESS_OPACITY}
-            accessibilityRole="button"
+            onClear={() => setDateTo(null)}
             accessibilityLabel="Fecha hasta"
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={16}
-              color={dateTo ? colors.primary : colors.textSecondary}
-            />
-            <Text style={[styles.dateBtnText, !!dateTo && styles.dateBtnTextActive]} numberOfLines={1}>
-              {dateTo ? shortDate(dateTo) : 'Hasta'}
-            </Text>
-            {!!dateTo && (
-              <TouchableOpacity
-                onPress={() => setDateTo(null)}
-                hitSlop={HIT_SLOP}
-                activeOpacity={ROW_PRESS_OPACITY}
-                accessibilityLabel="Quitar fecha hasta"
-              >
-                <Ionicons name="close-circle" size={16} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
+          />
         </View>
 
         {iosPicking && (
@@ -330,70 +264,43 @@ export default function AdminSalesScreen({ navigation }: Props) {
 
         {/* Branch / seller scope */}
         <View style={styles.scopeRow}>
-          <ScopeChip
+          <FilterPill
             icon="storefront-outline"
             label={branchId == null ? 'Sucursal' : branchName}
             active={branchId != null}
             onPress={() => setPicker('branch')}
             onClear={() => setBranchId(null)}
+            chevron
           />
-          <ScopeChip
+          <FilterPill
             icon="person-outline"
             label={sellerId == null ? 'Vendedor' : sellerName}
             active={sellerId != null}
             onPress={() => setPicker('seller')}
             onClear={() => setSellerId(null)}
+            chevron
           />
         </View>
       </ScreenTitle>
 
-      {loading && sales.length === 0 ? (
-        <LoadingState />
-      ) : error ? (
-        <EmptyState
-          icon="cloud-offline-outline"
-          message={error}
-          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
-        />
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={sales}
-          keyExtractor={(s) => String(s.id)}
-          renderItem={renderItem}
-          contentContainerStyle={sales.length ? styles.list : styles.listEmpty}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => loadPage(page, true)}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
-            />
-          }
-          ListFooterComponent={
-            <Pagination
-              page={page}
-              lastPage={meta?.lastPage ?? 1}
-              onChange={loadPage}
-              loading={loading}
-            />
-          }
-          ListEmptyComponent={
-            <EmptyState
-              icon="receipt-outline"
-              title={hasFilters ? 'Sin resultados' : 'Aún no hay ventas'}
-              message={
-                hasFilters
-                  ? 'Prueba con otros filtros o límpialos.'
-                  : 'Las ventas de todos los vendedores aparecerán aquí.'
-              }
-              action={hasFilters ? { label: 'Limpiar filtros', onPress: clearFilters } : undefined}
-            />
-          }
-        />
-      )}
+      <PagedList
+        list={list}
+        keyExtractor={(s) => String(s.id)}
+        renderItem={renderItem}
+        contentContainerStyle={styles.list}
+        empty={
+          <EmptyState
+            icon="receipt-outline"
+            title={hasFilters ? 'Sin resultados' : 'Aún no hay ventas'}
+            message={
+              hasFilters
+                ? 'Prueba con otros filtros o límpialos.'
+                : 'Las ventas de todos los vendedores aparecerán aquí.'
+            }
+            action={hasFilters ? { label: 'Limpiar filtros', onPress: clearFilters } : undefined}
+          />
+        }
+      />
 
       {/* Branch / seller picker — one sheet, driven by `picker`. */}
       {/* One sheet serves both scopes — they only differ in their options. */}
@@ -434,83 +341,12 @@ export default function AdminSalesScreen({ navigation }: Props) {
   );
 }
 
-// A filter chip that opens a picker, and clears itself when active.
-function ScopeChip({
-  icon,
-  label,
-  active,
-  onPress,
-  onClear,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  active: boolean;
-  onPress: () => void;
-  onClear: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.scopeChip, active && styles.scopeChipActive]}
-      onPress={onPress}
-      activeOpacity={ROW_PRESS_OPACITY}
-    >
-      <Ionicons name={icon} size={14} color={active ? colors.primary : colors.textSecondary} />
-      <Text
-        style={[styles.scopeChipText, active && styles.scopeChipTextActive]}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-      {active ? (
-        <TouchableOpacity onPress={onClear} hitSlop={10} activeOpacity={ROW_PRESS_OPACITY}>
-          <Ionicons name="close-circle" size={16} color={colors.primary} />
-        </TouchableOpacity>
-      ) : (
-        <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
-      )}
-    </TouchableOpacity>
-  );
-}
-
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
   filterItem: { flex: 1 },
-  // A flat pill, like the seller's history. flex:1 so the two dates split the row.
-  dateBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surface,
-  },
-  dateBtnActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  dateBtnText: { flex: 1, fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  dateBtnTextActive: { color: colors.primary },
   scopeRow: { flexDirection: 'row', gap: SPACING.sm, paddingBottom: SPACING.md },
-  scopeChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    height: 38,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surface,
-  },
-  scopeChipActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  scopeChipText: { flex: 1, fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textSecondary },
-  scopeChipTextActive: { color: colors.primary },
   // Each sale is its own card; the list just spaces them and pays the screen
   // margins. flexGrow lets a short list still fill the page.
   list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
-  listEmpty: { flexGrow: 1 },
 });

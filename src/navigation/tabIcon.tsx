@@ -17,13 +17,13 @@ const TAB_ICON = {
 
 type TabKey = keyof typeof TAB_ICON;
 
-// Fills the icon while its tab is focused. Colour alone is a weak signal — half
-// the point of the filled variant is that it reads without relying on it.
+// Always the outline icon; the focused tab is signalled by colour alone — the
+// active tint (primary) tints the same outline glyph rather than swapping it for
+// a filled one.
 export function tabIcon(key: TabKey) {
   const outline = TAB_ICON[key];
-  const filled = outline.replace('-outline', '') as keyof typeof Ionicons.glyphMap;
 
-  return ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
-    <Ionicons name={focused ? filled : outline} size={size} color={color} />
+  return ({ color, size }: { color: string; size: number; focused: boolean }) => (
+    <Ionicons name={outline} size={size} color={color} />
   );
 }

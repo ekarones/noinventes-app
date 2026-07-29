@@ -1,4 +1,5 @@
 import { apiRequest } from './client';
+import { mapMeta } from './products';
 import type { PaginationMeta } from './products';
 import type {
   DashboardStats,
@@ -226,12 +227,7 @@ export async function fetchSales(
 
   return {
     items: res.data.map(mapRow),
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }
 
@@ -274,7 +270,9 @@ type RawStats = {
 // Shared by the inline ranking and the paginated one — same row either way.
 type RawTopProduct = RawStats['top_products'][number];
 
-function mapTopProduct(p: RawTopProduct): DashboardTopProduct {
+// Shared with the admin dashboard: the best-seller row is the same shape on both
+// sides, only the query scope differs.
+export function mapTopProduct(p: RawTopProduct): DashboardTopProduct {
   return {
     productId: p.product_id,
     variationId: p.product_variation_id,
@@ -335,11 +333,6 @@ export async function fetchTopProducts(
 
   return {
     items: res.data.map(mapTopProduct),
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }

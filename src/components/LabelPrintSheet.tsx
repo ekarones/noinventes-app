@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, SPACING } from '../theme/tokens';
 import { usePrinter } from '../context/PrinterContext';
 import { fetchLabelPayload, LABEL_SIZE, type LabelRequestItem } from '../api/admin/labels';
 import { formatPrice } from '../utils/format';
@@ -36,11 +36,6 @@ type LabelRow = {
   productId: number;
   variationId: number | null;
 };
-
-// Bypass de impresora solo para probar el scroll en Expo Go (sin Bluetooth).
-// DEBE quedar en `false` en cualquier build: en `true` el panel dejaría
-// "imprimir" sin impresora conectada.
-const DEV_SKIP_PRINTER = false;
 
 // Choosing what to print and how many of each. The label itself is rendered by
 // the server — layout, QR and printer dialect live there — so this screen only
@@ -155,7 +150,7 @@ export default function LabelPrintSheet({
     }
   }
 
-  const canPrint = DEV_SKIP_PRINTER || (printer.supported && printer.connected);
+  const canPrint = printer.supported && printer.connected;
 
   return (
     <BottomSheet
@@ -177,12 +172,12 @@ export default function LabelPrintSheet({
         )
       }
     >
-      {!DEV_SKIP_PRINTER && !printer.supported ? (
+      {!printer.supported ? (
         <Text style={styles.note}>
           Esta versión de la app no puede usar Bluetooth. Instala el build con soporte de impresora
           para imprimir etiquetas.
         </Text>
-      ) : !DEV_SKIP_PRINTER && !printer.connected ? (
+      ) : !printer.connected ? (
         <Text style={styles.note}>
           No hay una impresora conectada. Conéctala para imprimir las etiquetas de este producto.
         </Text>
@@ -194,8 +189,7 @@ export default function LabelPrintSheet({
           <View style={styles.target}>
             <Ionicons name="print" size={14} color={colors.textSecondary} />
             <Text style={styles.targetText} numberOfLines={1}>
-              {printer.device?.name ?? 'Impresora (local)'} · etiqueta {LABEL_SIZE.widthMm}×
-              {LABEL_SIZE.heightMm}mm
+              {printer.device?.name} · etiqueta {LABEL_SIZE.widthMm}×{LABEL_SIZE.heightMm}mm
             </Text>
           </View>
 
@@ -255,17 +249,17 @@ export default function LabelPrintSheet({
 }
 
 const styles = StyleSheet.create({
-  note: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, paddingVertical: SPACING.md },
+  note: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, paddingVertical: SPACING.md },
   target: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
     paddingBottom: SPACING.md,
   },
-  targetText: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, flexShrink: 1 },
+  targetText: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, flexShrink: 1 },
   attrBlock: { marginBottom: SPACING.xs },
-  attrCaption: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
-  attrHint: {
+  attrCaption: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary },
+  attrHint: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.micro,
     color: colors.textSecondary,
     marginTop: SPACING.xs,
@@ -279,6 +273,6 @@ const styles = StyleSheet.create({
   },
   rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
   info: { flex: 1 },
-  title: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
-  meta: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
+  title: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
+  meta: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
 });

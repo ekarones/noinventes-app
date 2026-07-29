@@ -1,4 +1,6 @@
 import { apiRequest } from '../client';
+import { mapMeta } from '../products';
+import { mapTopProduct } from '../sales';
 import type { PaginationMeta } from '../products';
 import type {
   AdminDashboard,
@@ -77,19 +79,6 @@ type RawAdminDashboard = {
 // the mappers are shared.
 type RawTopProduct = RawAdminDashboard['top_products'][number];
 type RawLowStockItem = NonNullable<RawAdminDashboard['low_stock']['products']>[number];
-
-function mapTopProduct(p: RawTopProduct): DashboardTopProduct {
-  return {
-    productId: p.product_id,
-    variationId: p.product_variation_id,
-    variationLabel: p.variation_label,
-    name: p.name,
-    quantitySold: p.quantity_sold,
-    total: parseFloat(p.total),
-    imageUrl: p.image_url ?? null,
-    imageThumbUrl: p.image_thumb_url,
-  };
-}
 
 function mapLowStockItem(p: RawLowStockItem): LowStockItem {
   return {
@@ -187,12 +176,7 @@ export async function fetchAdminTopProducts(
 
   return {
     items: res.data.map(mapTopProduct),
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }
 
@@ -217,11 +201,6 @@ export async function fetchAdminLowStock(
   return {
     items: res.data.map(mapLowStockItem),
     threshold: res.threshold,
-    meta: {
-      currentPage: res.meta.current_page,
-      lastPage: res.meta.last_page,
-      perPage: res.meta.per_page,
-      total: res.meta.total,
-    },
+    meta: mapMeta(res.meta),
   };
 }

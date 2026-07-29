@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Animated,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchCategories, fetchProducts, lookupByCode } from '../api/products';
@@ -23,14 +15,13 @@ import { useToast } from '../context/ToastContext';
 import { useDebounce } from '../hooks/useDebounce';
 import { hapticAdd } from '../utils/haptics';
 import { PRODUCT_SORT_OPTIONS, SELLER_DEFAULT_SORT } from '../utils/sortOptions';
-import Pagination from '../components/Pagination';
+import PagedList from '../components/PagedList';
 import ProductGridCard from '../components/ProductGridCard';
 import StockBadge from '../components/StockBadge';
 import IconButton from '../components/IconButton';
 import Select from '../components/Select';
 import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
-import LoadingState from '../components/LoadingState';
 import { SortControl } from '../components/FilterControls';
 import EmptyState from '../components/EmptyState';
 import QRScannerModal from '../components/QRScannerModal';
@@ -68,7 +59,7 @@ function AddButton({ onPress, disabled }: { onPress: () => void; disabled?: bool
 }
 
 export default function CatalogScreen({ navigation }: Props) {
-  const { addItem } = useCart();
+  const { addItem, stockVersion } = useCart();
   const { showToast } = useToast();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -115,21 +106,23 @@ export default function CatalogScreen({ navigation }: Props) {
       }),
     [query, categoryId, sort]
   );
-  const {
-    items: products,
-    meta,
-    page,
-    loading,
-    refreshing,
-    error,
-    listRef,
-    loadPage,
-  } = usePagedList<Product>(fetchPage, 'No se pudieron cargar los productos.');
+  const list = usePagedList<Product>(fetchPage, 'No se pudieron cargar los productos.');
 
   // A changed search, category or sort is a different result set — back to page 1.
   useEffect(() => {
-    loadPage(1);
-  }, [loadPage]);
+    list.loadPage(1);
+  }, [list.loadPage]);
+
+  // A sale (from checkout) changed stock — re-fetch so the catalogue reflects it.
+  // Skip the mount run: the effect above already loads the first page.
+  const firstStockRun = useRef(true);
+  useEffect(() => {
+    if (firstStockRun.current) {
+      firstStockRun.current = false;
+      return;
+    }
+    list.loadPage(1);
+  }, [stockVersion]);
 
   // Resolve a scanned QR via GET /lookup and open the product's detail. If the
   // code is a specific variation, it's preselected on the detail screen.
@@ -171,10 +164,11 @@ export default function CatalogScreen({ navigation }: Props) {
         overline={item.category?.name ?? `#${item.code}`}
         name={item.name}
         code={item.code}
+        // Stock rides the code's line as a colour-coded badge beside the code chip.
+        codeRight={<StockBadge stock={item.stock} />}
         // The full range when the variations differ ("S/ 39.90 – S/ 59.90");
         // a single price otherwise.
         price={formatPriceRange(item.finalPrice, item.finalPriceMax)}
-        badge={<StockBadge stock={item.stock} />}
         action={<AddButton onPress={() => handleAdd(item)} disabled={outOfStock} />}
         onPress={() => navigation.navigate('ProductDetail', { product: item })}
       />
@@ -186,8 +180,8 @@ export default function CatalogScreen({ navigation }: Props) {
       <ScreenTitle
         title="Catálogo"
         subtitle={
-          meta
-            ? `${meta.total} ${hasFilters ? 'coinciden' : 'productos'} · ${sort.label}`
+          list.meta
+            ? `${list.meta.total} ${hasFilters ? 'coinciden' : 'productos'} · ${sort.label}`
             : undefined
         }
         actions={
@@ -195,6 +189,7 @@ export default function CatalogScreen({ navigation }: Props) {
             icon="qr-code-outline"
             label="QR"
             onPress={() => setScannerVisible(true)}
+            accent
             accessibilityLabel="Escanear código QR"
           />
         }
@@ -226,57 +221,26 @@ export default function CatalogScreen({ navigation }: Props) {
         </View>
       </ScreenTitle>
 
-      {/* Only the very first load takes over the screen. Once there's a grid,
-          changing page keeps it on screen and just disables the controls. */}
-      {loading && products.length === 0 ? (
-        <LoadingState />
-      ) : error ? (
-        <EmptyState
-          icon="cloud-offline-outline"
-          message={error}
-          action={{ label: 'Reintentar', onPress: () => loadPage(1) }}
-        />
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={products}
-          keyExtractor={(p) => String(p.id)}
-          renderItem={renderItem}
-          numColumns={2}
-          columnWrapperStyle={styles.gridRow}
-          contentContainerStyle={products.length ? styles.grid : styles.listEmpty}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => loadPage(page, true)}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
-            />
-          }
-          ListFooterComponent={
-            <Pagination
-              page={page}
-              lastPage={meta?.lastPage ?? 1}
-              onChange={loadPage}
-              loading={loading}
-            />
-          }
-          ListEmptyComponent={
-            <EmptyState
-              icon={hasFilters ? 'search-outline' : 'cube-outline'}
-              title={hasFilters ? 'Sin resultados' : 'Catálogo vacío'}
-              message={
-                hasFilters
-                  ? 'Prueba con otra búsqueda o límpiala.'
-                  : 'Aún no hay productos en tu sucursal.'
-              }
-              action={hasFilters ? { label: 'Limpiar filtros', onPress: clearFilters } : undefined}
-            />
-          }
-        />
-      )}
+      <PagedList
+        list={list}
+        keyExtractor={(p) => String(p.id)}
+        renderItem={renderItem}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
+        contentContainerStyle={styles.grid}
+        empty={
+          <EmptyState
+            icon={hasFilters ? 'search-outline' : 'cube-outline'}
+            title={hasFilters ? 'Sin resultados' : 'Catálogo vacío'}
+            message={
+              hasFilters
+                ? 'Prueba con otra búsqueda o límpiala.'
+                : 'Aún no hay productos en tu sucursal.'
+            }
+            action={hasFilters ? { label: 'Limpiar filtros', onPress: clearFilters } : undefined}
+          />
+        }
+      />
 
       <QRScannerModal
         visible={scannerVisible}
@@ -297,10 +261,9 @@ const styles = StyleSheet.create({
   filterItem: { flex: 1 },
   // A 2-column grid. The container `gap` spaces the rows; the row's `gap` spaces the
   // two columns (a fixed SPACING.sm). flexGrow lets a short grid fill the page.
-  // paddingTop is a 5px optical nudge below the header — off the grid on purpose.
-  grid: { padding: SPACING.sm, paddingTop: 5, gap: SPACING.sm, flexGrow: 1 },
+  // No top padding — the grid sits flush under the header.
+  grid: { padding: SPACING.sm, paddingTop: 0, gap: SPACING.sm, flexGrow: 1 },
   gridRow: { gap: SPACING.sm },
-  listEmpty: { flexGrow: 1 },
   // A round button beside the price. Circular via RADIUS.pill (never width/2), and
   // sized to the touch minimum since it sits on its own now, not on the image.
   addBtn: {

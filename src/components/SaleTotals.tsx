@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, SPACING } from '../theme/tokens';
+import { FONT_SIZE, FONT_FAMILY, RADIUS, SPACING } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
 
 type Props = {
@@ -52,10 +52,10 @@ const styles = StyleSheet.create({
     marginTop: SPACING['2xl'],
   },
   line: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
-  value: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, fontWeight: FONT_WEIGHT.medium },
-  grandLabel: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  grandValue: { fontSize: FONT_SIZE.title, fontWeight: FONT_WEIGHT.bold, color: colors.primary },
+  label: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
+  value: { fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, fontFamily: FONT_FAMILY.medium },
+  grandLabel: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  grandValue: { fontSize: FONT_SIZE.title, fontFamily: FONT_FAMILY.bold, color: colors.primary },
   discount: { color: colors.success },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: SPACING.md },
 });

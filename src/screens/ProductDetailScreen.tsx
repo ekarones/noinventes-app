@@ -17,7 +17,7 @@ import { fetchProduct, fetchVariations } from '../api/products';
 import type { Variation } from '../types';
 import type { CatalogStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { formatPrice, formatPriceRange } from '../utils/format';
 import { variationLabel } from '../utils/cart';
 import { useCart } from '../context/CartContext';
@@ -26,6 +26,7 @@ import { hapticAdd } from '../utils/haptics';
 import ScreenHeader from '../components/ScreenHeader';
 import ProductImage from '../components/ProductImage';
 import StockBadge from '../components/StockBadge';
+import CodeBadge from '../components/CodeBadge';
 import IconLabel from '../components/IconLabel';
 import VariationFilter, { useVariationFilter } from '../components/VariationFilter';
 import Button from '../components/Button';
@@ -33,7 +34,7 @@ import QuantityStepper from '../components/QuantityStepper';
 
 type Props = NativeStackScreenProps<CatalogStackParamList, 'ProductDetail'>;
 
-// The header thumbnail — a square, so the carousel pages by exactly its width.
+// The header thumbnail's width; its height follows the catalogue card's 4:3 frame.
 const IMG_SIZE = 128;
 
 export default function ProductDetailScreen({ route, navigation }: Props) {
@@ -63,10 +64,12 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     fetchVariations(product.id)
       .then((vs) => {
         setVariations(vs);
-        // Preselect the scanned variation (if any and it has stock).
+        // Preselect the scanned variation, even at 0 stock — otherwise nothing is
+        // selected and its (disabled) row can't be tapped, so the summary shows
+        // "Sin stock" for exactly the variation the code pointed at.
         if (variationId != null) {
           const match = vs.find((v) => v.id === variationId);
-          if (match && match.stock > 0) setSelected(match);
+          if (match) setSelected(match);
         }
       })
       .catch((e: any) => setVariationsError(e?.message ?? 'No se pudieron cargar las variantes.'))
@@ -161,21 +164,22 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           <Text style={styles.name} numberOfLines={2}>
             {product.name}
           </Text>
-          {/* The chosen variation's code once one is picked, else the parent's.
-              Wraps to two lines so a long variation code isn't cut off. */}
-          <IconLabel icon="barcode-outline" text={code} numberOfLines={2} />
-          {/* No variation chosen → the product's full range ("S/ 39.90 – S/ 59.90"
-              when the variations differ). Once one is picked, its exact price. */}
-          <Text style={styles.price} numberOfLines={1}>
-            {formatPriceRange(price, selected ? null : product.finalPriceMax)}
-          </Text>
-          <View style={styles.stockRow}>
+          {/* The same badge pair the catalogue cards show — the neutral code (the
+              chosen variation's once one is picked, else the parent's) beside the
+              colour-coded stock, or the "pick a variation" hint in its place. */}
+          <View style={styles.badgeRow}>
+            <CodeBadge code={code} />
             {needsVariation ? (
               <IconLabel icon="cube-outline" text="Elige variante" />
             ) : (
               <StockBadge stock={stock} />
             )}
           </View>
+          {/* No variation chosen → the product's full range ("S/ 39.90 – S/ 59.90"
+              when the variations differ). Once one is picked, its exact price. */}
+          <Text style={styles.price} numberOfLines={1}>
+            {formatPriceRange(price, selected ? null : product.finalPriceMax)}
+          </Text>
         </View>
       </View>
 
@@ -183,44 +187,50 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           summary or the add-to-cart bar off screen. */}
       {isVariable ? (
         <View style={styles.variantsSection}>
-          <View style={styles.variantsHeader}>
-            <Text style={styles.variantsTitle}>
-              Variantes{variations.length > 0 ? ` (${shownVariations.length})` : ''}
-            </Text>
-            {filter.attributes.length > 0 && <VariationFilter state={filter} />}
-          </View>
-          {loadingVariations ? (
-            <ActivityIndicator color={colors.primary} style={{ marginTop: SPACING['2xl'] }} />
-          ) : variationsError ? (
-            <Text style={styles.errorText}>{variationsError}</Text>
-          ) : (
-            <ScrollView
-              style={styles.variantsScroll}
-              contentContainerStyle={styles.variantsList}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  tintColor={colors.primary}
-                  colors={[colors.primary]}
-                />
-              }
-            >
-              {shownVariations.length === 0 && (
-                <Text style={styles.errorText}>Ninguna variante coincide con el filtro.</Text>
-              )}
-              {shownVariations.map((v) => {
-                const active = selected?.id === v.id;
-                const vOut = v.stock <= 0;
-                return (
-                  <TouchableOpacity
-                    key={v.id}
-                    style={[
-                      styles.variationRow,
-                      active && styles.variationRowActive,
-                      vOut && styles.variationRowDisabled,
-                    ]}
+          {/* The dashboard "best-sellers" look: one card holding the section title
+              and the filter, then flat rows split by hairline dividers. */}
+          <View style={styles.variantsCard}>
+            <View style={styles.variantsHeader}>
+              <View style={styles.variantsTitleRow}>
+                <View style={styles.dot} />
+                <Text style={styles.variantsTitle}>
+                  Variantes{variations.length > 0 ? ` (${shownVariations.length})` : ''}
+                </Text>
+              </View>
+              {filter.attributes.length > 0 && <VariationFilter state={filter} />}
+            </View>
+            {loadingVariations ? (
+              <ActivityIndicator color={colors.primary} style={{ marginTop: SPACING['2xl'] }} />
+            ) : variationsError ? (
+              <Text style={styles.errorText}>{variationsError}</Text>
+            ) : (
+              <ScrollView
+                style={styles.variantsScroll}
+                contentContainerStyle={styles.variantsList}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor={colors.primary}
+                    colors={[colors.primary]}
+                  />
+                }
+              >
+                {shownVariations.length === 0 && (
+                  <Text style={styles.errorText}>Ninguna variante coincide con el filtro.</Text>
+                )}
+                {shownVariations.map((v, index) => {
+                  const active = selected?.id === v.id;
+                  const vOut = v.stock <= 0;
+                  return (
+                    <TouchableOpacity
+                      key={v.id}
+                      style={[
+                        styles.variationRow,
+                        index > 0 && styles.variationDivided,
+                        vOut && styles.variationRowDisabled,
+                      ]}
                     activeOpacity={ROW_PRESS_OPACITY}
                     disabled={vOut}
                     onPress={() => setSelected((cur) => (cur?.id === v.id ? null : v))}
@@ -230,32 +240,37 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
                     <ProductImage
                       uri={v.imageThumbUrl ?? product.imageThumbUrl}
                       style={styles.variationThumb}
-                      iconSize={22}
+                      iconSize={18}
                     />
                     <View style={styles.variationInfo}>
                       <Text style={styles.variationLabel} numberOfLines={1}>
                         {variationLabel(v)}
                       </Text>
+                      {/* Same code + stock badge pair as the catalogue card. */}
                       <View style={styles.variationMetaRow}>
+                        <CodeBadge code={v.code} />
                         <StockBadge stock={v.stock} />
                       </View>
                     </View>
                     <View style={styles.variationRight}>
-                      <Text style={styles.variationPrice}>{formatPrice(v.finalPrice)}</Text>
                       {/* Always rendered, so selecting a variation reveals the check
-                          in place instead of pushing the price up as it appears. */}
+                          in place instead of shifting the price as it appears. It
+                          sits left of the price, keeping the price flush right and
+                          on the card's vertical centre. */}
                       <Ionicons
                         name="checkmark-circle"
                         size={22}
                         color={colors.primary}
                         style={!active && styles.checkHidden}
                       />
+                      <Text style={styles.variationPrice}>{formatPrice(v.finalPrice)}</Text>
                     </View>
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
-          )}
+              </ScrollView>
+            )}
+          </View>
         </View>
       ) : (
         // Simple product: no variants list, but keep a pull-to-refresh region.
@@ -297,6 +312,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
               needsVariation ? 'Elige variante' : stock <= 0 ? 'Sin stock' : 'Agregar al carrito'
             }
             icon="cart-outline"
+            size="md"
             onPress={handleAdd}
             disabled={!canAdd}
             style={styles.addToCart}
@@ -340,7 +356,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: SPACING.sm,
     marginHorizontal: SPACING.sm,
     padding: SPACING.sm,
     backgroundColor: colors.surface,
@@ -348,12 +364,12 @@ const styles = StyleSheet.create({
   },
   imageBox: {
     width: IMG_SIZE,
-    height: IMG_SIZE,
     borderRadius: RADIUS.control,
     overflow: 'hidden',
     backgroundColor: colors.surfaceMuted,
   },
-  image: { width: IMG_SIZE, height: IMG_SIZE },
+  // The catalogue card's frame exactly: full-width of the box, landscape 4:3.
+  image: { width: '100%', aspectRatio: 4 / 3 },
   // A small dark chip in the corner of the thumbnail, so the tap-to-zoom is
   // discoverable without a caption.
   expandHint: {
@@ -384,60 +400,84 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // No blanket gap: the category hugs the name (as on a catalogue card), and the
-  // lines below carry their own spacing.
-  summary: { flex: 1, justifyContent: 'center' },
-  // Matches the catalogue card exactly: a bold near-black code overline, the name
-  // under it, and the price as the biggest thing — all black, no accent colour.
+  // The same reading order, type and rhythm as a catalogue card's body: a grey
+  // uppercase category overline, the name, the code + stock chips, then the price.
+  // `hairline` gap so the lines hug the way they do on the card; centred beside
+  // the image since the compact block is shorter than the thumbnail.
+  summary: { flex: 1, justifyContent: 'center', gap: SPACING.hairline },
   overline: {
-    fontSize: FONT_SIZE.caption,
-    fontWeight: FONT_WEIGHT.bold,
-    color: colors.textPrimary,
+    fontSize: FONT_SIZE.nano,
+    fontFamily: FONT_FAMILY.medium,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  name: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  price: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary, marginTop: SPACING.xs },
-  // A row so the badge sizes to its content instead of stretching the column.
-  // Fixed height so the block doesn't re-centre when the badge (tall) swaps with
-  // the "Elige variante" hint (short) — otherwise picking a variation nudges the
-  // whole summary up or down. 24 is the stock badge's own height.
-  stockRow: { flexDirection: 'row', alignItems: 'center', minHeight: 24, marginTop: SPACING.sm },
+  name: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  price: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  // The code + stock chips on one line, sized to their content. A fixed height so
+  // the block doesn't re-centre when the stock badge swaps with the (shorter)
+  // "Elige variante" hint — otherwise picking a variation nudges the summary up or
+  // down. 24 is the badges' own height.
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    flexWrap: 'wrap',
+    minHeight: 24,
+    marginTop: SPACING.hairline,
+  },
   variantsSection: { flex: 1 },
-  // Title + filter button on one line; the list below carries its own inset.
+  // The section title + filter, inside the card like a dashboard SectionHeader:
+  // side padding to match the rows, a top gap from the card edge and a small gap
+  // to the first row (which pays its own top padding).
   variantsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
   },
-  variantsTitle: { fontSize: FONT_SIZE.heading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  // The flat pill shared by the search/sort/category controls.
+  variantsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexShrink: 1 },
+  // The same primary bullet the dashboard section titles carry.
+  dot: { width: 10, height: 10, borderRadius: RADIUS.pill, backgroundColor: colors.primary },
+  variantsTitle: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
   variantsScroll: { flex: 1 },
-  variantsList: { paddingHorizontal: SPACING.sm, paddingBottom: SPACING.lg, gap: SPACING.sm },
-  errorText: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, paddingHorizontal: SPACING.sm },
-  // A compact picker card: a small thumbnail, the variation and its code+stock in
-  // one column, the price and the selected check aside. Smaller than a catalogue
-  // card because the list is a chooser you scroll, not a shelf you browse.
+  // One card holds the title, filter and rows — the dashboard best-sellers panel:
+  // white surface, rounded, the screen margin on the sides, clipping to it.
+  variantsCard: {
+    flex: 1,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
+    marginHorizontal: SPACING.sm,
+    // The 10 side padding lives on the card (as in the dashboard panels), so the
+    // rows and the dividers between them sit inset from the card edges.
+    paddingHorizontal: SPACING.sm,
+    backgroundColor: colors.surface,
+    borderRadius: RADIUS.card,
+    overflow: 'hidden',
+  },
+  variantsList: { paddingBottom: SPACING.sm },
+  errorText: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, paddingVertical: SPACING.sm },
+  // A flat best-seller-style row: a small thumbnail, the variation with its code +
+  // stock chips, the price and selection check aside. Side padding comes from the
+  // card, so the rows and their top dividers sit inset from the card edges.
   variationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    padding: SPACING.md,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surface,
+    paddingVertical: SPACING.md,
   },
-  variationRowActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  variationDivided: { borderTopWidth: 1, borderTopColor: colors.border },
   variationRowDisabled: { opacity: 0.5 },
-  variationThumb: { width: 56, height: 56, borderRadius: RADIUS.control },
+  variationThumb: { width: SIZE.iconBox, height: SIZE.iconBox, borderRadius: RADIUS.control },
   variationInfo: { flex: 1, gap: SPACING.xs },
-  variationLabel: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  variationMetaRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' },
-  variationRight: { alignItems: 'flex-end', gap: SPACING.sm, flexShrink: 0 },
-  variationPrice: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  variationLabel: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  variationMetaRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, flexWrap: 'wrap' },
+  // Price and its selection check on one line, vertically centred — so the price
+  // lands on the row's vertical centre instead of riding above a check below it.
+  variationRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, flexShrink: 0 },
+  variationPrice: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
   // Keeps the check's slot so the price never jumps; invisible until selected.
   checkHidden: { opacity: 0 },
   footer: {
@@ -453,7 +493,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: SPACING.md,
   },
-  qtyLabel: { fontSize: FONT_SIZE.body, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary },
+  qtyLabel: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
   footerBottom: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -463,10 +503,10 @@ const styles = StyleSheet.create({
   },
   // Never let the total be squeezed or wrapped by the growing button.
   footerTotalBlock: { flexShrink: 0 },
-  footerLabel: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
+  footerLabel: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
   footerTotal: {
     fontSize: FONT_SIZE.title,
-    fontWeight: FONT_WEIGHT.bold,
+    fontFamily: FONT_FAMILY.bold,
     color: colors.textPrimary,
   },
   // Sits next to the total in the footer, so let it take the free space.

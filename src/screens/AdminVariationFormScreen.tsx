@@ -16,7 +16,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createVariation, updateVariation } from '../api/admin/products';
 import { fetchAdminAttributes } from '../api/admin/attributes';
 import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import Field from '../components/Field';
 import ScreenHeader from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
@@ -377,11 +377,11 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  productName: { fontSize: FONT_SIZE.titleSm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  productSub: { fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
-  label: { fontSize: FONT_SIZE.caption, fontWeight: FONT_WEIGHT.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
-  imagePicker: { alignSelf: 'center', width: 150, height: 150, borderRadius: RADIUS.card, marginTop: SPACING.lg },
-  imagePreview: { width: 150, height: 150, borderRadius: RADIUS.card },
+  productName: { fontSize: FONT_SIZE.titleSm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  productSub: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
+  label: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
+  imagePicker: { alignSelf: 'center', width: SIZE.image, height: SIZE.image, borderRadius: RADIUS.card, marginTop: SPACING.lg },
+  imagePreview: { width: SIZE.image, height: SIZE.image, borderRadius: RADIUS.card },
   imageBadge: {
     position: 'absolute',
     right: -4,
@@ -403,8 +403,8 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
   },
   imagePlaceholder: {
-    width: 150,
-    height: 150,
+    width: SIZE.image,
+    height: SIZE.image,
     borderRadius: RADIUS.card,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
@@ -414,9 +414,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderStyle: 'dashed',
   },
-  imageHint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary },
+  imageHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
   attrRow: { marginBottom: SPACING.md },
-  attrName: { fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: SPACING.xs },
+  attrName: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: SPACING.xs },
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -429,10 +429,10 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   selectActive: { borderColor: colors.primary },
-  selectText: { flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
+  selectText: { fontFamily: FONT_FAMILY.regular, flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   selectPlaceholder: { color: colors.textSecondary },
-  warn: { fontSize: FONT_SIZE.bodySm, color: colors.warning, lineHeight: 20 },
-  hint: { fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
+  warn: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.warning, lineHeight: 20 },
+  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
   saveBtn: { marginTop: SPACING['2xl'] },
   doneBtn: { marginTop: SPACING.md },
 });

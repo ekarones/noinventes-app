@@ -1,8 +1,9 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import IconLabel, { IconLabelRow } from './IconLabel';
+import Badge from './Badge';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_WEIGHT, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import { formatDate, formatPrice, formatRelative } from '../utils/format';
 import { paymentMethodLabel } from '../utils/payment';
 import type { PaymentMethod } from '../types';
@@ -95,19 +96,16 @@ export default function SaleRow({
           </IconLabelRow>
         )}
 
-        <IconLabelRow>
-          <IconLabel
-            icon="time-outline"
-            text={relativeDate ? formatRelative(createdAt) : formatDate(createdAt)}
-          />
-        </IconLabelRow>
+        <Badge label={paymentMethodLabel(paymentMethod)} />
       </View>
 
       <View style={styles.right}>
         <Text style={styles.total} numberOfLines={1}>
           {formatPrice(total)}
         </Text>
-        <Text style={styles.payment}>{paymentMethodLabel(paymentMethod)}</Text>
+        <Text style={styles.payment}>
+          {relativeDate ? formatRelative(createdAt) : formatDate(createdAt)}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -130,18 +128,18 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
   },
   iconBox: {
-    width: 40,
-    height: 40,
+    width: SIZE.iconBox,
+    height: SIZE.iconBox,
     borderRadius: RADIUS.control,
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   info: { flex: 1 },
-  title: { fontSize: FONT_SIZE.bodySm, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
+  title: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
   right: { alignItems: 'flex-end', gap: SPACING.xs, flexShrink: 0 },
   // Same style as the best-seller's total and the catalogue's price: one kind of
   // figure, one look, wherever you meet it.
-  total: { fontSize: FONT_SIZE.subheading, fontWeight: FONT_WEIGHT.bold, color: colors.textPrimary },
-  payment: { fontSize: FONT_SIZE.caption, color: colors.textSecondary },
+  total: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  payment: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary },
 });

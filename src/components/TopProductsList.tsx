@@ -35,9 +35,6 @@ export default function TopProductsList({ onBack, fetchPage, onOpenProduct, open
     loadPage(1);
   }, [loadPage]);
 
-  // How many rows the earlier pages already took, so the rank keeps counting.
-  const rankOffset = meta ? (meta.currentPage - 1) * meta.perPage : 0;
-
   return (
     <View style={styles.container}>
       <ScreenHeader title="Más vendidos" onBack={onBack} />
@@ -61,9 +58,6 @@ export default function TopProductsList({ onBack, fetchPage, onOpenProduct, open
           keyExtractor={topProductKey}
           renderItem={({ item, index }) => (
             <TopProductRow
-              // Position in the WHOLE ranking, not in the page: on page 2 this
-              // has to read 21, 22… and not restart at 1.
-              rank={rankOffset + index + 1}
               name={item.name}
               variationLabel={item.variationLabel}
               imageUri={item.imageThumbUrl}
@@ -104,8 +98,15 @@ export default function TopProductsList({ onBack, fetchPage, onOpenProduct, open
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   list: {
+    // A small gap below the header so the card doesn't hug it. Matches the
+    // horizontal screen margin, so the card sits evenly inset on all sides.
+    marginTop: SPACING.sm,
     marginHorizontal: SPACING.sm,
     marginBottom: SPACING['2xl'],
+    // Inner padding so the rows (and their dividers) don't touch the card edges.
+    // The rows only pad vertically; on the dashboard they get this from `Card
+    // inset` instead, which is why it lives here and not on the row.
+    paddingHorizontal: SPACING.sm,
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
     overflow: 'hidden',
