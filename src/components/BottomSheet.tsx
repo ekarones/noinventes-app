@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
 import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Props = {
@@ -42,6 +43,7 @@ export default function BottomSheet({
   footer,
   children,
 }: Props) {
+  const styles = useThemedStyles(makeStyles);
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
   // Measured, not guessed. Three flex/maxHeight approaches failed to bound the
@@ -122,6 +124,7 @@ export function SheetOption({
   multi,
   hint,
   icon,
+  count,
 }: {
   label: string;
   active: boolean;
@@ -135,7 +138,11 @@ export function SheetOption({
   hint?: string;
   /** Leading icon (e.g. the sort presets). Ignored in `multi`, which owns that slot. */
   icon?: keyof typeof Ionicons.glyphMap;
+  /** A trailing count on the right (e.g. products per category). */
+  count?: string;
 }) {
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
   return (
     <Pressable
       style={({ pressed }) => [
@@ -168,12 +175,13 @@ export function SheetOption({
           </Text>
         )}
       </View>
+      {!!count && <Text style={styles.optionCount}>{count}</Text>}
       {!multi && active && <Ionicons name="checkmark" size={20} color={colors.primary} />}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
@@ -220,4 +228,5 @@ const styles = StyleSheet.create({
   optionLabel: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
   optionLabelActive: { fontFamily: FONT_FAMILY.bold, color: colors.primary },
   optionHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginTop: SPACING.hairline },
+  optionCount: { fontFamily: FONT_FAMILY.extrabold, fontSize: FONT_SIZE.caption, color: 'rgba(22, 33, 58, 0.45)' },
 });

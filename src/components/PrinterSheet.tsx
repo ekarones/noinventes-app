@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
 import { FONT_FAMILY, FONT_SIZE, SPACING } from '../theme/tokens';
 import { usePrinter } from '../context/PrinterContext';
 import BottomSheet, { SheetOption } from './BottomSheet';
@@ -16,6 +17,8 @@ type Props = {
 // in Android settings — pairing itself (with its PIN prompt) belongs to the OS,
 // and re-implementing discovery here would be a worse version of it.
 export default function PrinterSheet({ visible, onClose }: Props) {
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
   const { supported, device, connected, connecting, devices, refreshDevices, connect, disconnect } =
     usePrinter();
   const [loading, setLoading] = useState(false);
@@ -119,7 +122,7 @@ export default function PrinterSheet({ visible, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   caption: { fontFamily: FONT_FAMILY.regular,
     fontSize: FONT_SIZE.caption,
     color: colors.textSecondary,

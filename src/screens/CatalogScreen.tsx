@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchCategories, fetchProducts, lookupByCode } from '../api/products';
@@ -7,8 +7,9 @@ import { usePagedList } from '../hooks/usePagedList';
 import { ApiError } from '../api/client';
 import type { Category, Product } from '../types';
 import type { CatalogStackParamList } from '../navigation/types';
-import { colors } from '../theme/colors';
-import { RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { formatPriceRange } from '../utils/format';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
@@ -18,7 +19,6 @@ import { PRODUCT_SORT_OPTIONS, SELLER_DEFAULT_SORT } from '../utils/sortOptions'
 import PagedList from '../components/PagedList';
 import ProductGridCard from '../components/ProductGridCard';
 import StockBadge from '../components/StockBadge';
-import IconButton from '../components/IconButton';
 import Select from '../components/Select';
 import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
@@ -33,6 +33,8 @@ const PER_PAGE = 20;
 // Quick "+" button with a tap pop. Out of stock it stays put, greyed and inert:
 // the row keeps its shape down the list, and the badge above already says why.
 function AddButton({ onPress, disabled }: { onPress: () => void; disabled?: boolean }) {
+  const colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const scale = useRef(new Animated.Value(1)).current;
   function handlePress() {
     Animated.sequence([
@@ -52,13 +54,15 @@ function AddButton({ onPress, disabled }: { onPress: () => void; disabled?: bool
         accessibilityLabel={disabled ? 'Sin stock' : 'Agregar al carrito'}
         accessibilityState={{ disabled: !!disabled }}
       >
-        <Ionicons name="add" size={22} color={colors.textOnPrimary} />
+        <Ionicons name="add" size={20} color={disabled ? 'rgba(22, 33, 58, 0.35)' : colors.textOnPrimary} />
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
 export default function CatalogScreen({ navigation }: Props) {
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
   const { addItem, stockVersion } = useCart();
   const { showToast } = useToast();
 
@@ -153,7 +157,10 @@ export default function CatalogScreen({ navigation }: Props) {
     }
     addItem(product);
     hapticAdd();
-    showToast(`${product.name} agregado`, 'cart');
+    showToast(`${product.name} agregado al carrito`, 'checkmark-circle', {
+      label: 'VER CARRITO',
+      onPress: () => navigation.getParent()?.navigate('CartTab'),
+    });
   }
 
   function renderItem({ item }: { item: Product }) {
@@ -181,27 +188,34 @@ export default function CatalogScreen({ navigation }: Props) {
         title="Catálogo"
         subtitle={
           list.meta
-            ? `${list.meta.total} ${hasFilters ? 'coinciden' : 'productos'} · ${sort.label}`
+            ? `${list.meta.total} ${hasFilters ? 'coinciden' : 'productos'}`
             : undefined
         }
         actions={
-          <IconButton
-            icon="qr-code-outline"
-            label="QR"
+          <TouchableOpacity
+            style={styles.qrBtn}
             onPress={() => setScannerVisible(true)}
-            accent
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
             accessibilityLabel="Escanear código QR"
-          />
+          >
+            <Ionicons name="qr-code-outline" size={17} color={colors.onChrome} />
+            <Text style={styles.qrText}>QR</Text>
+          </TouchableOpacity>
         }
-      >
+      />
+
+      {/* Filters below the header, on a white band. The search leads (full width),
+          then the category picker and sort. */}
+      <View style={styles.filters}>
         <SearchBar
           value={searchText}
           onChangeText={setSearchText}
           placeholder="Buscar por nombre o código..."
+          bordered
         />
 
-        {/* Category picker and sort share one line: the category button takes the
-            room, sort sits compact beside it. */}
+        {/* Category picker and sort share one line, equal width. */}
         <View style={styles.filterRow}>
           <Select
             icon="folder-outline"
@@ -219,7 +233,7 @@ export default function CatalogScreen({ navigation }: Props) {
             style={styles.filterItem}
           />
         </View>
-      </ScreenTitle>
+      </View>
 
       <PagedList
         list={list}
@@ -252,27 +266,51 @@ export default function CatalogScreen({ navigation }: Props) {
 }
 
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  // Category picker + sort on one line. The gap between them and the lift off the
-  // search bar both use `sm`, matching the gap between the cards below.
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
-  // Category picker and sort share the row equally, with a `sm` (10) gap between.
+  // The filter band (5a): a full-width white band under the header, closed by a
+  // hairline. `gap` spaces the search from the pickers.
+  filters: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    gap: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  // Category picker + sort on one line, sharing the row equally.
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   filterItem: { flex: 1 },
-  // A 2-column grid. The container `gap` spaces the rows; the row's `gap` spaces the
-  // two columns (a fixed SPACING.sm). flexGrow lets a short grid fill the page.
-  // No top padding — the grid sits flush under the header.
-  grid: { padding: SPACING.sm, paddingTop: 0, gap: SPACING.sm, flexGrow: 1 },
-  gridRow: { gap: SPACING.sm },
-  // A round button beside the price. Circular via RADIUS.pill (never width/2), and
-  // sized to the touch minimum since it sits on its own now, not on the image.
+  // A 2-column grid, 12 between cards and rows.
+  grid: { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 18, gap: 12, flexGrow: 1 },
+  gridRow: { gap: 12 },
+  // The "+" overlaid on the card image's bottom-right corner (5a): a navy square
+  // with a white glyph; greyed and inert when out of stock.
   addBtn: {
-    width: TOUCH_MIN,
-    height: TOUCH_MIN,
-    borderRadius: RADIUS.pill,
+    width: 36,
+    height: 36,
+    borderRadius: 13,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#16213a',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
-  addBtnDisabled: { backgroundColor: colors.primaryLight, opacity: 0.5 },
+  addBtnDisabled: { backgroundColor: 'rgba(255, 255, 255, 0.7)', shadowOpacity: 0, elevation: 0 },
+  // The 5a header QR button: a white card with a navy icon + label.
+  qrBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    height: 44,
+    paddingHorizontal: 14,
+    borderRadius: 15,
+    backgroundColor: colors.chromeButtonBg,
+    borderWidth: 2,
+    borderColor: colors.chromeButtonBorder,
+  },
+  qrText: { fontSize: 14, fontFamily: FONT_FAMILY.black, color: colors.onChrome },
 });

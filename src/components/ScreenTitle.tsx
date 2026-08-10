@@ -1,34 +1,39 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_FAMILY, SPACING } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY } from '../theme/tokens';
 
 type Props = {
   /** A short line ABOVE the title — the greeting on the dashboards. */
   overline?: string;
   title: string;
-  /** The line under the title (count, active sort…). */
+  /** The line under the title (branch / global context, count, active sort…). */
   subtitle?: string;
-  /** Controls on the right: sort, clear, QR, trash, "+"… */
+  /** Controls on the right: the profile button, sort, QR… aligned to the title. */
   actions?: ReactNode;
   /** Search bar, filter chips — anything that belongs to the header block. */
   children?: ReactNode;
 };
 
-// The header of a tab-root screen (Inicio, Catálogo, Ventas): a big title, an
-// optional greeting above it and summary line below it, and the screen's actions
-// on the right.
+// The header of a tab-root screen (Inicio, Catálogo, Ventas) in the 5a language: a
+// colour panel with a decorative corner circle, a big title with an optional
+// greeting above and context line below, and the screen's actions on the right.
 //
 // The seller and the admin see the same screens with different scopes, so their
-// headers must be the same object — not two that merely look alike. They had
-// already started to drift (one had 8px of bottom padding, the other 4).
+// headers are the same object — the panel colour is what tells the roles apart
+// (amber for the seller, navy for the admin).
 export default function ScreenTitle({ overline, title, subtitle, actions, children }: Props) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + SPACING.md }]}>
-      <View style={[styles.row, !!overline && styles.rowCentered, !!children && styles.rowSpaced]}>
+    <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+      {/* A solid disc, clipped to the header — a bright arc in the top-right. */}
+      <View style={styles.circle} pointerEvents="none" />
+
+      <View style={[styles.row, !!children && styles.rowSpaced]}>
         <View style={styles.texts}>
           {!!overline && <Text style={styles.overline}>{overline}</Text>}
           <Text style={styles.title}>{title}</Text>
@@ -47,30 +52,47 @@ export default function ScreenTitle({ overline, title, subtitle, actions, childr
   );
 }
 
-const styles = StyleSheet.create({
-  // paddingBottom gives the content below a small gap from the header.
-  header: { paddingHorizontal: SPACING.sm, paddingBottom: SPACING.sm },
-  row: {
-    flexDirection: 'row',
-    // Actions hang off the title itself, so they line up with it and not with the
-    // subtitle that trails underneath.
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: SPACING.sm,
-  },
-  // With an overline the title block is taller than the action beside it, and
-  // top-aligning would pin the action to the greeting instead of the title.
-  rowCentered: { alignItems: 'center' },
-  // The gap only exists to separate the title from what the header holds below it
-  // (a search bar, a chip row). With no children there is nothing to separate.
-  rowSpaced: { marginBottom: SPACING.md },
-  texts: { flex: 1 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  overline: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.body, color: colors.textSecondary, marginBottom: SPACING.hairline },
-  title: {
-    fontSize: FONT_SIZE.screenTitle,
-    fontFamily: FONT_FAMILY.bold,
-    color: colors.textPrimary,
-  },
-  subtitle: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    header: {
+      paddingHorizontal: 22,
+      paddingBottom: 20,
+      backgroundColor: colors.chromeFill,
+      overflow: 'hidden',
+    },
+    circle: {
+      position: 'absolute',
+      width: 270,
+      height: 270,
+      borderRadius: 999,
+      backgroundColor: colors.headerCircle,
+      top: -120,
+      right: -90,
+    },
+    row: {
+      flexDirection: 'row',
+      // Actions align to the title's top edge, not the greeting or context.
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    // The gap only exists to separate the title block from what the header holds
+    // below it (a search bar, a chip row).
+    rowSpaced: { marginBottom: 12 },
+    texts: { flex: 1 },
+    actions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    overline: { fontFamily: FONT_FAMILY.bold, fontSize: 14.5, color: colors.onChromeMuted },
+    title: {
+      fontSize: 30,
+      letterSpacing: -0.9,
+      fontFamily: FONT_FAMILY.black,
+      color: colors.onChrome,
+      marginTop: 2,
+    },
+    subtitle: {
+      fontFamily: FONT_FAMILY.bold,
+      fontSize: 12.5,
+      color: colors.onChromeMuted,
+      marginTop: 4,
+    },
+  });

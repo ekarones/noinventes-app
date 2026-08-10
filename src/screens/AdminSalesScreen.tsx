@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
@@ -13,10 +14,9 @@ import { ApiError } from '../api/client';
 import { usePagedList } from '../hooks/usePagedList';
 import { SALE_DEFAULT_SORT, SALE_SORT_OPTIONS } from '../utils/sortOptions';
 import { colors } from '../theme/colors';
-import { SPACING } from '../theme/tokens';
+import { FONT_FAMILY, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import SaleRow from '../components/SaleRow';
 import FilterPill from '../components/FilterPill';
-import IconButton from '../components/IconButton';
 import ScreenTitle from '../components/ScreenTitle';
 import SearchBar from '../components/SearchBar';
 import PagedList from '../components/PagedList';
@@ -174,7 +174,6 @@ export default function AdminSalesScreen({ navigation }: Props) {
         card
         id={item.id}
         customerName={item.customerName}
-        itemsCount={item.itemsCount}
         total={item.total}
         paymentMethod={item.paymentMethod}
         createdAt={item.createdAt}
@@ -191,22 +190,31 @@ export default function AdminSalesScreen({ navigation }: Props) {
       <ScreenTitle
         title="Ventas"
         subtitle={
-          list.meta ? `${list.meta.total} ${hasFilters ? 'coinciden' : 'en total'} · ${sort.label}` : undefined
+          list.meta ? `${list.meta.total} ${hasFilters ? 'coinciden' : 'en total'}` : undefined
         }
         actions={
-          <>
-            <IconButton
-              icon="trash-outline"
-              onPress={() => navigation.navigate('AdminSalesTrash')}
-              accessibilityLabel="Papelera"
-            />
-          </>
+          <TouchableOpacity
+            style={styles.papeleraBtn}
+            onPress={() => navigation.navigate('AdminSalesTrash')}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel="Papelera"
+          >
+            <Ionicons name="trash-outline" size={17} color="#16213A" />
+            <Text style={styles.papeleraText}>Papelera</Text>
+          </TouchableOpacity>
         }
-      >
+      />
+
+      {/* Filters below the header, on a white band. The search leads (full width),
+          then the pickers, dates and scope. */}
+      <View style={styles.filters}>
         <SearchBar
           value={searchText}
           onChangeText={setSearchText}
           placeholder="Buscar por cliente o N° de venta..."
+          bordered
+          badge={/^\d+$/.test(searchText.trim()) ? 'N° EXACTO' : undefined}
         />
 
         {/* Rows 1 and 2 mirror the seller's history exactly, so both roles read
@@ -236,6 +244,8 @@ export default function AdminSalesScreen({ navigation }: Props) {
             active={!!dateFrom}
             onPress={() => pickDate('from')}
             onClear={() => setDateFrom(null)}
+            accent
+            bordered
             accessibilityLabel="Fecha desde"
           />
           <FilterPill
@@ -244,6 +254,8 @@ export default function AdminSalesScreen({ navigation }: Props) {
             active={!!dateTo}
             onPress={() => pickDate('to')}
             onClear={() => setDateTo(null)}
+            accent
+            bordered
             accessibilityLabel="Fecha hasta"
           />
         </View>
@@ -270,7 +282,8 @@ export default function AdminSalesScreen({ navigation }: Props) {
             active={branchId != null}
             onPress={() => setPicker('branch')}
             onClear={() => setBranchId(null)}
-            chevron
+            accent
+            bordered
           />
           <FilterPill
             icon="person-outline"
@@ -278,10 +291,11 @@ export default function AdminSalesScreen({ navigation }: Props) {
             active={sellerId != null}
             onPress={() => setPicker('seller')}
             onClear={() => setSellerId(null)}
-            chevron
+            accent
+            bordered
           />
         </View>
-      </ScreenTitle>
+      </View>
 
       <PagedList
         list={list}
@@ -343,10 +357,38 @@ export default function AdminSalesScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
-  filterItem: { flex: 1 },
-  scopeRow: { flexDirection: 'row', gap: SPACING.sm, paddingBottom: SPACING.md },
+  // The filter block, below the header, on a white band — same as the catalogue.
+  // `gap` spaces its rows; the padding insets them.
+  filters: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  // Each filter carries the "botón bordeado" grey border — same as the catalogue.
+  filterItem: { flex: 1, borderColor: colors.border },
+  scopeRow: { flexDirection: 'row', gap: SPACING.sm },
   // Each sale is its own card; the list just spaces them and pays the screen
   // margins. flexGrow lets a short list still fill the page.
-  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
+  list: { padding: SPACING.sm, gap: SPACING.sm, flexGrow: 1 },
+  // The amber "Papelera" pill on the navy header — a navy border + shadow so it
+  // reads as a raised chip over the amber decorative circle.
+  papeleraBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    height: 44,
+    paddingHorizontal: 13,
+    borderRadius: 15,
+    backgroundColor: '#FFC20E',
+    borderWidth: 2,
+    borderColor: '#16213A',
+    shadowColor: '#0A0F1C',
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  papeleraText: { fontSize: 13, fontFamily: FONT_FAMILY.black, color: '#16213A' },
 });

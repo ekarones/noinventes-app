@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useThemedStyles } from '../theme/theme';
+import { FONT_SIZE, FONT_FAMILY, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import BottomSheet from './BottomSheet';
 import Button from './Button';
 import Chip from './Chip';
@@ -92,22 +93,21 @@ export function useVariationFilter<T extends HasAttributes>(
 // to show.
 export default function VariationFilter<T>({ state }: { state: VariationFilterState<T> }) {
   const { attributes, count, filters, open, setOpen, toggle, clear } = state;
+  const styles = useThemedStyles(makeStyles);
 
   return (
     <>
       <TouchableOpacity
-        style={[styles.btn, count > 0 && styles.btnActive]}
+        style={styles.btn}
         onPress={() => setOpen(true)}
         activeOpacity={ROW_PRESS_OPACITY}
         accessibilityRole="button"
         accessibilityLabel="Filtrar variantes"
       >
-        <Ionicons
-          name="options-outline"
-          size={16}
-          color={count > 0 ? colors.primary : colors.textSecondary}
-        />
-        <Text style={[styles.btnText, count > 0 && styles.btnTextActive]}>
+        {/* 5a: a leading filter glyph, then the label — a bordered white control
+            matching the catalogue's sort/category controls. */}
+        <Ionicons name="options-outline" size={15} color="rgba(22, 33, 58, 0.5)" />
+        <Text style={styles.btnText} numberOfLines={1}>
           {count > 0 ? `Filtros · ${count}` : 'Filtrar'}
         </Text>
       </TouchableOpacity>
@@ -144,23 +144,20 @@ export default function VariationFilter<T>({ state }: { state: VariationFilterSt
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
+  // A bordered white control (5a): a leading glyph + the label, sized to content.
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xs,
-    paddingHorizontal: SPACING.md,
-    height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.pill,
-    // Transparent at rest, primary frame + soft fill when active — the selectable
-    // style the whole app uses.
-    borderWidth: 1,
-    borderColor: 'transparent',
+    gap: 8,
+    paddingHorizontal: 12,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.controlBorder,
     backgroundColor: colors.surface,
   },
-  btnActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  btnText: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.medium, color: colors.textSecondary },
-  btnTextActive: { color: colors.primary },
+  btnText: { flexShrink: 1, fontSize: 13.5, fontFamily: FONT_FAMILY.extrabold, color: colors.primary },
   group: { marginBottom: SPACING.lg },
   groupName: {
     fontSize: FONT_SIZE.bodySm,

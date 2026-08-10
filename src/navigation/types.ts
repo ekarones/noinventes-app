@@ -135,6 +135,8 @@ export type AdminMoreStackParamList = {
   AdminUsers: undefined;
   // `user` absent = creating a new one.
   AdminUserForm: { user?: AdminUser };
+  // The issuer/company singleton used for the receipt header (settings form).
+  AdminCompany: undefined;
 };
 
 export type AdminTabParamList = {

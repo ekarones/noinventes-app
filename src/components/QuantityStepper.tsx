@@ -1,7 +1,8 @@
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 
 type Props = {
   value: number;
@@ -13,13 +14,12 @@ type Props = {
   /** When given, the count is an editable field (the cart lets you type a number);
    * omit it and the count is display-only text (the product detail just steps). */
   onChangeText?: (text: string) => void;
+  /** ~Half the size — for a dense list like the cart. */
+  compact?: boolean;
 };
 
-// One control, not two floating buttons around a number: a soft pill holding a
-// muted "−", the count, and a muted "+". The cart and the product detail had each
-// rolled their own — one with 40px buttons and a typed field, the other with
-// bigger buttons and plain text — so a "− 4 +" looked like two different controls
-// depending on where you met it.
+// One control (5a): a soft grey track holding a white "−" button, the count, and a
+// white "+" button. The cart and the product detail share it.
 export default function QuantityStepper({
   value,
   onDecrement,
@@ -27,25 +27,28 @@ export default function QuantityStepper({
   canDecrement = true,
   canIncrement = true,
   onChangeText,
+  compact,
 }: Props) {
+  const colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const iconSize = compact ? 17 : 20;
+
   return (
-    <View style={styles.stepper}>
+    <View style={[styles.track, compact && styles.trackCompact]}>
       <TouchableOpacity
-        style={[styles.btn, !canDecrement && styles.btnDisabled]}
+        style={[styles.btn, compact && styles.btnCompact, !canDecrement && styles.btnDisabled]}
         onPress={onDecrement}
         disabled={!canDecrement}
         activeOpacity={ROW_PRESS_OPACITY}
         accessibilityRole="button"
         accessibilityLabel="Quitar una unidad"
       >
-        <View style={styles.circle}>
-          <Ionicons name="remove" size={18} color={colors.textSecondary} />
-        </View>
+        <Ionicons name="remove" size={iconSize} color={colors.primary} />
       </TouchableOpacity>
 
       {onChangeText ? (
         <TextInput
-          style={styles.count}
+          style={[styles.count, compact && styles.countCompact]}
           value={String(value)}
           onChangeText={onChangeText}
           keyboardType="number-pad"
@@ -53,61 +56,52 @@ export default function QuantityStepper({
           maxLength={4}
         />
       ) : (
-        <Text style={styles.count}>{value}</Text>
+        <Text style={[styles.count, compact && styles.countCompact]}>{value}</Text>
       )}
 
       <TouchableOpacity
-        style={[styles.btn, !canIncrement && styles.btnDisabled]}
+        style={[styles.btn, compact && styles.btnCompact, !canIncrement && styles.btnDisabled]}
         onPress={onIncrement}
         disabled={!canIncrement}
         activeOpacity={ROW_PRESS_OPACITY}
         accessibilityRole="button"
         accessibilityLabel="Agregar una unidad"
       >
-        <View style={styles.circle}>
-          <Ionicons name="add" size={18} color={colors.textSecondary} />
-        </View>
+        <Ionicons name="add" size={iconSize} color={colors.primary} />
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: CONTROL_HEIGHT.pill,
-    borderRadius: RADIUS.pill,
-    // A muted fill instead of a border, so the stepper reads as a control even
-    // sitting on a white card — and so the white discs inside it read as buttons.
-    backgroundColor: colors.surfaceMuted,
-    // Keeps the discs off the pill's edge.
-    paddingHorizontal: SPACING.xs,
-  },
-  // The tappable area stays the full 44 tall (TOUCH_MIN); the disc inside it is
-  // just what you see. Shrinking the button to the disc would put the target
-  // under the minimum, and this one gets hammered at the till.
-  btn: { width: 40, height: '100%', alignItems: 'center', justifyContent: 'center' },
-  btnDisabled: { opacity: 0.35 },
-  circle: {
-    width: 34,
-    height: 34,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // No dividers walling it in: the muted signs on either side already read as the
-  // buttons, and the count is the only dark thing in the pill.
-  count: {
-    minWidth: 32,
-    height: '100%',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    fontSize: FONT_SIZE.body,
-    fontFamily: FONT_FAMILY.medium,
-    color: colors.textPrimary,
-    paddingVertical: 0,
-    paddingHorizontal: SPACING.xs,
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    track: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      backgroundColor: colors.fill,
+      borderRadius: 14,
+      padding: 4,
+    },
+    trackCompact: { borderRadius: 12 },
+    btn: {
+      width: 38,
+      height: 38,
+      borderRadius: 11,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    btnCompact: { width: 30, height: 30, borderRadius: 9 },
+    btnDisabled: { opacity: 0.4 },
+    count: {
+      minWidth: 38,
+      textAlign: 'center',
+      fontSize: 16,
+      fontFamily: FONT_FAMILY.black,
+      color: colors.primary,
+      paddingVertical: 0,
+      paddingHorizontal: 4,
+    },
+    countCompact: { minWidth: 30, fontSize: 14 },
+  });

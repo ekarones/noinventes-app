@@ -1,34 +1,42 @@
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
-import { SIZE, FONT_FAMILY, CONTROL_HEIGHT, FONT_SIZE, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
 
 type Props = {
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
+  /** Kept for call-site compatibility; the 5a box is always bordered. */
+  bordered?: boolean;
+  /** A small amber chip before "LIMPIAR" — e.g. "N° EXACTO" when the query is a
+   *  sale number. Omit for none. */
+  badge?: string | null;
 };
 
-// The search box of every list screen. The clear "✕" only appears once there's
-// something to clear, and it's the reason this is a component: six screens each
-// re-implemented it, and each had to remember its own hit slop and label.
-export default function SearchBar({ value, onChangeText, placeholder }: Props) {
+// The search box of every list screen (5a): a leading magnifier, the input, an
+// optional context chip, and a "LIMPIAR" text button that only appears once
+// there's something to clear.
+export default function SearchBar({ value, onChangeText, placeholder, badge }: Props) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.box}>
-      <View style={styles.disc}>
-        <Ionicons name="search" size={18} color={colors.primary} />
-      </View>
-
+      <Ionicons name="search" size={17} color="rgba(22, 33, 58, 0.45)" />
       <TextInput
         style={styles.input}
         placeholder={placeholder}
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor="rgba(22, 33, 58, 0.4)"
         value={value}
         onChangeText={onChangeText}
         autoCorrect={false}
         returnKeyType="search"
       />
-
+      {!!badge && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge}</Text>
+        </View>
+      )}
       {value.length > 0 && (
         <TouchableOpacity
           onPress={() => onChangeText('')}
@@ -37,43 +45,36 @@ export default function SearchBar({ value, onChangeText, placeholder }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Borrar búsqueda"
         >
-          <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+          <Text style={styles.clear}>LIMPIAR</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  box: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    // Same box as the filter pills: white with a transparent border, fully
-    // rounded, and the same `pill` height — so the whole header row lines up.
-    backgroundColor: colors.surface,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    // The disc brings its own visual margin, so the left padding shrinks.
-    paddingLeft: SPACING.xs,
-    paddingRight: SPACING.md,
-    height: CONTROL_HEIGHT.pill,
-  },
-  // Circular via RADIUS.pill, never width/2 — the same primary-tinted disc the
-  // filter and sort pills carry, so the whole header row reads as one family.
-  disc: {
-    width: SIZE.disc,
-    height: SIZE.disc,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  input: { fontFamily: FONT_FAMILY.regular,
-    flex: 1,
-    height: '100%',
-    fontSize: FONT_SIZE.subheading,
-    color: colors.textPrimary,
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    box: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+      height: 46,
+      paddingHorizontal: 14,
+      borderRadius: 15,
+      borderWidth: 1.5,
+      borderColor: '#e6e8ee',
+      backgroundColor: colors.background,
+    },
+    input: {
+      flex: 1,
+      height: '100%',
+      fontSize: 15,
+      fontFamily: FONT_FAMILY.bold,
+      color: colors.primary,
+    },
+    clear: { fontSize: 12, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.5)' },
+    // Themed so it reads on either role's header band: amber-soft for the seller,
+    // navy-light for the admin.
+    badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.tabActiveBg },
+    badgeText: { fontSize: 10, fontFamily: FONT_FAMILY.black, color: colors.primary },
+  });

@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -19,14 +20,13 @@ import {
   renameAttributeValue,
   updateAttribute,
 } from '../api/admin/attributes';
-import { colors } from '../theme/colors';
-import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
-import Field from '../components/Field';
 import LoadingState from '../components/LoadingState';
 import BottomSheet from '../components/BottomSheet';
-import Button from '../components/Button';
-import ScreenHeader from '../components/ScreenHeader';
+import PushedHeader from '../components/PushedHeader';
 import EmptyState from '../components/EmptyState';
 import type { AdminAttribute } from '../types';
 import type { AdminMoreStackParamList } from '../navigation/types';
@@ -39,6 +39,8 @@ type ValueDraft = { id: number | null; text: string; original: string };
 
 export default function AdminAttributesScreen({ navigation }: Props) {
   const { showToast } = useToast();
+  const colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [attributes, setAttributes] = useState<AdminAttribute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,10 +156,7 @@ export default function AdminAttributesScreen({ navigation }: Props) {
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <View style={styles.iconBox}>
-            <Ionicons name="options-outline" size={18} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
+          <View style={styles.cardTexts}>
             <Text style={styles.cardName}>{item.name}</Text>
             <Text style={styles.cardMeta}>
               {item.values.length} {item.values.length === 1 ? 'valor' : 'valores'}
@@ -165,21 +164,21 @@ export default function AdminAttributesScreen({ navigation }: Props) {
           </View>
           <TouchableOpacity
             onPress={() => openEdit(item)}
-            style={styles.rowBtn}
+            style={styles.editBtn}
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
             accessibilityLabel={`Editar atributo ${item.name}`}
           >
-            <Ionicons name="create-outline" size={20} color={colors.primary} />
+            <Ionicons name="create-outline" size={15} color={colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => confirmDelete(item)}
-            style={styles.rowBtn}
+            style={styles.deleteBtn}
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
             accessibilityLabel={`Eliminar atributo ${item.name}`}
           >
-            <Ionicons name="trash-outline" size={20} color={colors.error} />
+            <Ionicons name="trash-outline" size={15} color={colors.error} />
           </TouchableOpacity>
         </View>
         {item.values.length > 0 && (
@@ -197,10 +196,11 @@ export default function AdminAttributesScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader
+      <PushedHeader
         title="Atributos"
+        subtitle="Base de las variaciones"
         onBack={() => navigation.goBack()}
-        action={{ icon: 'add', onPress: openCreate, label: 'Nuevo atributo' }}
+        addAction={{ label: 'Nuevo', onPress: openCreate }}
       />
 
       {loading ? (
@@ -241,33 +241,63 @@ export default function AdminAttributesScreen({ navigation }: Props) {
         onClose={() => setFormOpen(false)}
         title={editing ? 'Editar atributo' : 'Nuevo atributo'}
         keyboardAware
+        footer={
+          <View style={styles.sheetActions}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => setFormOpen(false)}
+              activeOpacity={ROW_PRESS_OPACITY}
+              accessibilityRole="button"
+            >
+              <Text style={styles.cancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.saveBtn, !canSave && styles.saveBtnOff]}
+              onPress={save}
+              disabled={!canSave}
+              activeOpacity={ROW_PRESS_OPACITY}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.saveText, !canSave && styles.saveTextOff]}>
+                {saving ? 'Guardando…' : 'Guardar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        }
       >
         {/* The value list can grow long, so this form scrolls inside the sheet. */}
         <ScrollView keyboardShouldPersistTaps="handled">
-          <Field
-            label="Nombre"
+          <Text style={styles.fieldLabel}>Nombre</Text>
+          <TextInput
+            style={styles.input}
             value={name}
             onChangeText={setName}
             placeholder="Ej. Color"
+            placeholderTextColor="rgba(22, 33, 58, 0.35)"
           />
 
-          <Text style={styles.label}>Valores</Text>
+          <View style={styles.valuesHeader}>
+            <Text style={styles.fieldLabelInline}>Valores</Text>
+            <Text style={styles.valuesHint}>El orden define la posición</Text>
+          </View>
           {values.map((v, i) => (
             <View key={`${v.id ?? 'new'}-${i}`} style={styles.valueRow}>
-              <Field
+              <Text style={styles.valuePos}>{i + 1}</Text>
+              <TextInput
+                style={styles.valueInput}
                 value={v.text}
                 onChangeText={(t) => setValueText(i, t)}
-                placeholder={`Valor ${i + 1}`}
-                containerStyle={styles.valueInput}
+                placeholder="Valor"
+                placeholderTextColor="rgba(22, 33, 58, 0.35)"
               />
               <TouchableOpacity
                 onPress={() => removeValueRow(i)}
-                style={styles.rowBtn}
+                style={styles.valueRemove}
                 activeOpacity={ROW_PRESS_OPACITY}
                 accessibilityRole="button"
                 accessibilityLabel="Quitar este valor"
               >
-                <Ionicons name="close-circle-outline" size={22} color={colors.error} />
+                <Ionicons name="close" size={13} color="rgba(22, 33, 58, 0.6)" />
               </TouchableOpacity>
             </View>
           ))}
@@ -278,67 +308,101 @@ export default function AdminAttributesScreen({ navigation }: Props) {
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
           >
-            <Ionicons name="add" size={18} color={colors.primary} />
-            <Text style={styles.addValueText}>Añadir valor</Text>
+            <Text style={styles.addValueText}>+ Añadir valor</Text>
           </TouchableOpacity>
 
           <Text style={styles.hint}>
-            El orden define la posición. Quitar un valor en uso por alguna variación será rechazado
+            Renombrar mantiene el vínculo con las variaciones. Quitar un valor en uso será rechazado
             por el servidor.
           </Text>
-
-          <Button
-            label={editing ? 'Guardar' : 'Crear'}
-            onPress={save}
-            loading={saving}
-            disabled={!canSave}
-            style={styles.saveBtn}
-          />
         </ScrollView>
       </BottomSheet>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
-  card: { backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  iconBox: {
-    width: SIZE.iconBox,
-    height: SIZE.iconBox,
-    borderRadius: RADIUS.control,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardName: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
-  cardMeta: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
-  rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
-  valueChips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.md },
-  valueChip: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.badge,
-  },
-  valueChipText: { fontSize: FONT_SIZE.micro, fontFamily: FONT_FAMILY.medium, color: colors.primary },
-  label: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
-  valueRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
-  // The row owns the vertical rhythm here, so the field must not add its own.
-  valueInput: { flex: 1, marginBottom: 0 },
-  addValueBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    height: 44,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primarySoft,
-    marginTop: SPACING.xs,
-  },
-  addValueText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold },
-  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
-  saveBtn: { marginTop: SPACING['2xl'] },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    list: { padding: 18, gap: 12, flexGrow: 1 },
+
+    // ---- Attribute card ----
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 16,
+      gap: 11,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.07,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    cardTexts: { flex: 1, minWidth: 0 },
+    cardName: { fontSize: 16.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+    cardMeta: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.5)', marginTop: 2 },
+    editBtn: { width: 36, height: 36, borderRadius: 12, borderWidth: 1.5, borderColor: colors.controlBorder, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+    deleteBtn: { width: 36, height: 36, borderRadius: 12, borderWidth: 1.5, borderColor: '#F3CFC6', backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center' },
+    valueChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+    valueChip: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 11, backgroundColor: colors.fill },
+    valueChipText: { fontSize: 12.5, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.7)' },
+
+    // ---- Sheet form ----
+    fieldLabel: {
+      fontSize: 12,
+      fontFamily: FONT_FAMILY.black,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: 'rgba(22, 33, 58, 0.45)',
+      marginBottom: 7,
+    },
+    input: {
+      height: 54,
+      paddingHorizontal: 15,
+      borderWidth: 1.5,
+      borderColor: colors.controlBorder,
+      borderRadius: 16,
+      fontSize: 16,
+      fontFamily: FONT_FAMILY.extrabold,
+      color: colors.primary,
+    },
+    valuesHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 16, marginBottom: 9 },
+    fieldLabelInline: { fontSize: 12, fontFamily: FONT_FAMILY.black, letterSpacing: 0.6, textTransform: 'uppercase', color: 'rgba(22, 33, 58, 0.45)' },
+    valuesHint: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.45)' },
+    valueRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+      height: 50,
+      paddingLeft: 14,
+      paddingRight: 6,
+      marginBottom: 8,
+      borderWidth: 1.5,
+      borderColor: colors.controlBorder,
+      borderRadius: 15,
+    },
+    valuePos: { fontSize: 12, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.35)' },
+    valueInput: { flex: 1, minWidth: 0, fontSize: 15, fontFamily: FONT_FAMILY.extrabold, color: colors.primary, padding: 0 },
+    valueRemove: { width: 34, height: 34, borderRadius: 11, backgroundColor: colors.fill, alignItems: 'center', justifyContent: 'center' },
+    addValueBtn: {
+      height: 48,
+      borderRadius: 15,
+      borderWidth: 1.5,
+      borderColor: '#C9CFDB',
+      borderStyle: 'dashed',
+      backgroundColor: '#FAFBFC',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 1,
+    },
+    addValueText: { fontSize: 14, fontFamily: FONT_FAMILY.black, color: colors.primary },
+    hint: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.45)', marginTop: 10, lineHeight: 16 },
+    sheetActions: { flexDirection: 'row', gap: 10 },
+    cancelBtn: { height: 54, paddingHorizontal: 20, borderRadius: 17, borderWidth: 1.5, borderColor: colors.controlBorder, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+    cancelText: { fontSize: 15, fontFamily: FONT_FAMILY.black, color: colors.primary },
+    saveBtn: { flex: 1, height: 54, borderRadius: 17, backgroundColor: '#FFC20E', alignItems: 'center', justifyContent: 'center' },
+    saveBtnOff: { backgroundColor: '#EDEFF3' },
+    saveText: { fontSize: 16, fontFamily: FONT_FAMILY.black, color: '#16213A' },
+    saveTextOff: { color: 'rgba(22, 33, 58, 0.35)' },
+  });

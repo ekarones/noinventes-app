@@ -1,11 +1,21 @@
 import { useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { CartStackParamList } from '../navigation/types';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CartStackParamList, TabParamList } from '../navigation/types';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
-import { SIZE, FONT_SIZE, FONT_FAMILY, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, HIT_SLOP, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { formatPrice, roundMoney, toCents } from '../utils/format';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
@@ -13,15 +23,11 @@ import { lookupByCode } from '../api/products';
 import { ApiError } from '../api/client';
 import { linePrice, lineImageUrl, lineStock, variationLabel } from '../utils/cart';
 import { hapticAdd } from '../utils/haptics';
-import Button from '../components/Button';
 import BottomSheet from '../components/BottomSheet';
-import Field from '../components/Field';
-import IconButton from '../components/IconButton';
 import ScreenTitle from '../components/ScreenTitle';
 import QuantityStepper from '../components/QuantityStepper';
 import DashedLine from '../components/DashedLine';
 import ReceiptEdge from '../components/ReceiptEdge';
-import EmptyState from '../components/EmptyState';
 import ProductImage from '../components/ProductImage';
 import QRScannerModal from '../components/QRScannerModal';
 import type { CartItem } from '../types';
@@ -41,6 +47,8 @@ export default function CartScreen() {
   } = useCart();
   const { showToast } = useToast();
   const navigation = useNavigation<NativeStackNavigationProp<CartStackParamList>>();
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
   const [scannerVisible, setScannerVisible] = useState(false);
 
   // The discount sheet edits a draft: the cart only takes it on "Aplicar", so
@@ -52,6 +60,7 @@ export default function CartScreen() {
   // Compared in cents: a 100% discount typed as the exact subtotal would fail a
   // plain `>` on floats (119.7 > 119.69999999999999).
   const draftTooBig = toCents(draftValue) > toCents(totalPrice);
+  const applyDisabled = draftTooBig || !discountDraft;
 
   function openDiscountSheet() {
     setDiscountDraft(discount > 0 ? String(discount) : '');
@@ -59,7 +68,7 @@ export default function CartScreen() {
   }
 
   function applyDiscount() {
-    if (draftTooBig) return;
+    if (applyDisabled) return;
     setDiscount(draftValue);
     setDiscountSheetOpen(false);
   }
@@ -104,6 +113,11 @@ export default function CartScreen() {
     navigation.navigate('Checkout');
   }
 
+  // Jump to the sibling Catálogo tab (the empty state's secondary action).
+  function goToCatalog() {
+    navigation.getParent<BottomTabNavigationProp<TabParamList>>()?.navigate('CatalogTab');
+  }
+
   function confirmClear() {
     Alert.alert('Vaciar carrito', '¿Quitar todos los productos del carrito?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -118,28 +132,63 @@ export default function CartScreen() {
     if (!Number.isNaN(n) && n > 0) updateQuantity(key, n);
   }
 
+  const countLabel = `${totalItems} ${totalItems === 1 ? 'artículo' : 'artículos'}`;
+
+  // The two header actions: a white-card "Vaciar" and a navy-filled "QR" (navy,
+  // not amber — an amber button would vanish on the amber header).
+  const headerActions = (
+    <>
+      <TouchableOpacity
+        style={styles.headerBtn}
+        onPress={confirmClear}
+        activeOpacity={ROW_PRESS_OPACITY}
+        accessibilityRole="button"
+        accessibilityLabel="Vaciar carrito"
+      >
+        <Ionicons name="trash-outline" size={18} color={colors.primary} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.qrBtn}
+        onPress={() => setScannerVisible(true)}
+        activeOpacity={ROW_PRESS_OPACITY}
+        accessibilityRole="button"
+        accessibilityLabel="Escanear código QR"
+      >
+        <Ionicons name="qr-code-outline" size={16} color={colors.chromeFill} />
+        <Text style={styles.qrText}>QR</Text>
+      </TouchableOpacity>
+    </>
+  );
+
   function renderItem({ item }: { item: CartItem }) {
     const price = linePrice(item);
-    // The stepper only steps. Removing a line goes through the trash button, so a
-    // stray "−" tap can't silently drop it; "+" stops at the stock we can actually sell.
-    const canDecrease = item.quantity > 1;
-    const canIncrease = item.quantity < lineStock(item);
+    const stock = lineStock(item);
+    const atMax = item.quantity >= stock;
+    // The stepper only steps. Removing a line goes through the "×", so a stray
+    // "−" tap can't silently drop it; "+" stops at the stock we can actually sell.
     return (
-      <View style={styles.row}>
-        <ProductImage uri={lineImageUrl(item)} style={styles.image} iconSize={22} />
+      <View style={styles.line}>
+        <View style={styles.lineTop}>
+          <ProductImage uri={lineImageUrl(item)} style={styles.lineImg} iconSize={18} />
 
-        {/* Name, unit price and the line's own action stack up on the left. */}
-        <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={2}>
-            {item.product.name}
-          </Text>
-
-          <Text style={styles.meta} numberOfLines={1}>
-            {item.variation && (
-              <Text style={styles.variation}>{variationLabel(item.variation)} · </Text>
-            )}
-            {formatPrice(price)} c/u
-          </Text>
+          <View style={styles.lineInfo}>
+            <Text style={styles.lineName} numberOfLines={2}>
+              {item.product.name}
+            </Text>
+            <Text style={styles.lineDetail} numberOfLines={1}>
+              {item.variation && (
+                <Text style={styles.lineVariation}>{variationLabel(item.variation)} · </Text>
+              )}
+              {formatPrice(price)} c/u
+            </Text>
+            {/* Tells the seller how much room is left before the "+" locks. */}
+            <Text
+              style={[styles.stockNote, atMax && styles.stockNoteMax]}
+              numberOfLines={1}
+            >
+              {atMax ? 'Máximo disponible en tu sucursal' : `${stock} uds. en tu sucursal`}
+            </Text>
+          </View>
 
           <TouchableOpacity
             style={styles.removeBtn}
@@ -149,21 +198,21 @@ export default function CartScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Quitar ${item.product.name} del carrito`}
           >
-            <Ionicons name="trash-outline" size={16} color={colors.textSecondary} />
+            <Ionicons name="close" size={15} color="rgba(22, 33, 58, 0.6)" />
           </TouchableOpacity>
         </View>
 
-        {/* Stepper over the line total, so the sum reads itself: 3 × S/ 50 = S/ 150. */}
-        <View style={styles.qtyCol}>
+        {/* The stepper reads with the line total: 3 × S/ 50 = S/ 150. */}
+        <View style={styles.lineBottom}>
           <QuantityStepper
             value={item.quantity}
             onDecrement={() => updateQuantity(item.key, item.quantity - 1)}
             onIncrement={() => updateQuantity(item.key, item.quantity + 1)}
-            canDecrement={canDecrease}
-            canIncrement={canIncrease}
+            canDecrement={item.quantity > 1}
+            canIncrement={item.quantity < stock}
             onChangeText={(t) => onQtyText(item.key, t)}
+            compact
           />
-
           <Text style={styles.lineTotal} numberOfLines={1}>
             {formatPrice(price * item.quantity)}
           </Text>
@@ -175,17 +224,38 @@ export default function CartScreen() {
   if (items.length === 0) {
     return (
       <View style={styles.container}>
-        <ScreenTitle title="Carrito" />
-        <EmptyState
-          icon="cart-outline"
-          title="Tu carrito está vacío"
-          message="Agrega productos desde el catálogo o escanea un código QR."
-          action={{
-            label: 'Escanear código QR',
-            icon: 'qr-code-outline',
-            onPress: () => setScannerVisible(true),
-          }}
-        />
+        <ScreenTitle title="Carrito" subtitle="0 artículos" />
+
+        <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Ionicons name="cart-outline" size={42} color="rgba(22, 33, 58, 0.3)" />
+          </View>
+          <View style={styles.emptyTexts}>
+            <Text style={styles.emptyTitle}>Tu carrito está vacío</Text>
+            <Text style={styles.emptyMsg}>
+              Agrega productos desde el catálogo o escanea un código QR.
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.emptyBtn}
+            onPress={() => setScannerVisible(true)}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel="Escanear código QR"
+          >
+            <Ionicons name="qr-code-outline" size={17} color={colors.chromeFill} />
+            <Text style={styles.emptyBtnText}>Escanear código QR</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.emptyLink}
+            onPress={goToCatalog}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+          >
+            <Text style={styles.emptyLinkText}>Ir al catálogo</Text>
+          </TouchableOpacity>
+        </View>
+
         <QRScannerModal
           visible={scannerVisible}
           onClose={() => setScannerVisible(false)}
@@ -197,89 +267,79 @@ export default function CartScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenTitle
-        title="Carrito"
-        subtitle={`${totalItems} artículos`}
-        actions={
-          <>
-            <IconButton
-              icon="trash-outline"
-              label="Vaciar"
-              muted
-              onPress={confirmClear}
-              accessibilityLabel="Vaciar carrito"
-            />
-            <IconButton
-              icon="qr-code-outline"
-              label="QR"
-              onPress={() => setScannerVisible(true)}
-              accessibilityLabel="Escanear código QR"
-            />
-          </>
-        }
-      />
+      <ScreenTitle title="Carrito" subtitle={countLabel} actions={headerActions} />
 
+      {/* The lines live in one white "ticket": a rounded sheet with the rows told
+          apart by a dashed rule instead of each being its own card. */}
       <FlatList
         data={items}
         keyExtractor={(i) => i.key}
         renderItem={renderItem}
-        ItemSeparatorComponent={() => <DashedLine style={styles.separator} />}
-        style={styles.listPanel}
-        contentContainerStyle={styles.list}
+        ItemSeparatorComponent={() => <DashedLine style={styles.lineSep} />}
+        style={styles.scroll}
+        contentContainerStyle={styles.sheet}
         showsVerticalScrollIndicator={false}
       />
 
-      {/* The totals read as the torn-off stub of a ticket: notched edge, dashed
-          rules, the grand total under the line. */}
+      {/* The totals read as the torn-off stub of the ticket: a notched edge, dashed
+          rules, the grand total under the line. Fixed, so it never scrolls away. */}
       <View style={styles.footer}>
         <ReceiptEdge />
+        <View style={styles.footerBody}>
+          {/* Only worth a line once there's something to subtract from. */}
+          {discount > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.subtotalLabel}>Subtotal</Text>
+              <Text style={styles.subtotalValue}>{formatPrice(totalPrice)}</Text>
+            </View>
+          )}
 
-        <View style={[styles.footerBody, { paddingBottom: SPACING.lg }]}>
-          <View style={styles.totals}>
-            {/* Only worth a line once there's something to subtract from — with no
-                discount the subtotal is the total, and printing it twice is noise. */}
-            {discount > 0 && (
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Subtotal</Text>
-                <Text style={styles.totalCount}>{formatPrice(totalPrice)}</Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={[styles.totalRow, styles.discountRow]}
-              onPress={openDiscountSheet}
-              activeOpacity={ROW_PRESS_OPACITY}
-              accessibilityRole="button"
-              accessibilityLabel={
-                discount > 0 ? `Descuento ${formatPrice(discount)}, editar` : 'Agregar descuento'
-              }
-            >
-              <View style={styles.discountLabel}>
-                <Ionicons
-                  name={discount > 0 ? 'pricetag' : 'add-circle-outline'}
-                  size={16}
-                  color={discount > 0 ? colors.success : colors.textSecondary}
-                />
-                <Text style={[styles.totalLabel, discount > 0 && styles.discountOn]}>
-                  {discount > 0 ? 'Descuento' : 'Agregar descuento'}
-                </Text>
-              </View>
+          <TouchableOpacity
+            style={styles.discountRow}
+            onPress={openDiscountSheet}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel={
+              discount > 0 ? `Descuento ${formatPrice(discount)}, editar` : 'Agregar descuento'
+            }
+          >
+            <View style={styles.discountLabel}>
+              <Ionicons
+                name="pricetag-outline"
+                size={16}
+                color={discount > 0 ? colors.error : colors.primary}
+              />
+              <Text
+                style={[styles.discountText, { color: discount > 0 ? colors.error : colors.primary }]}
+              >
+                {discount > 0 ? 'Descuento' : 'Agregar descuento'}
+              </Text>
+            </View>
+            <View style={styles.discountRight}>
               {discount > 0 && (
-                <Text style={[styles.totalCount, styles.discountOn]}>
-                  - {formatPrice(discount)}
+                <Text style={[styles.discountValue, { color: colors.error }]}>
+                  − {formatPrice(discount)}
                 </Text>
               )}
-            </TouchableOpacity>
-
-            <DashedLine />
-
-            <View style={styles.totalRow}>
-              <Text style={styles.grandLabel}>TOTAL</Text>
-              <Text style={styles.totalValue}>{formatPrice(total)}</Text>
+              <Ionicons name="chevron-forward" size={14} color="rgba(22, 33, 58, 0.3)" />
             </View>
+          </TouchableOpacity>
+
+          <DashedLine style={styles.totalDash} />
+
+          <View style={styles.totalRow}>
+            <Text style={styles.grandLabel}>TOTAL</Text>
+            <Text style={styles.grandValue}>{formatPrice(total)}</Text>
           </View>
 
-          <Button label="Continuar al cobro" size="lg" onPress={goToCheckout} />
+          <TouchableOpacity
+            style={styles.cta}
+            onPress={goToCheckout}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+          >
+            <Text style={styles.ctaText}>Continuar al cobro</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -291,35 +351,49 @@ export default function CartScreen() {
         footer={
           <View style={styles.sheetActions}>
             {discount > 0 && (
-              <Button
-                label="Quitar"
-                variant="outline"
-                style={styles.sheetAction}
+              <TouchableOpacity
+                style={styles.removeDiscountBtn}
                 onPress={() => {
                   setDiscount(0);
                   setDiscountSheetOpen(false);
                 }}
-              />
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityRole="button"
+              >
+                <Text style={styles.removeDiscountText}>Quitar</Text>
+              </TouchableOpacity>
             )}
-            <Button
-              label="Aplicar"
-              style={styles.sheetAction}
+            <TouchableOpacity
+              style={[styles.applyBtn, applyDisabled && styles.applyBtnOff]}
               onPress={applyDiscount}
-              disabled={draftTooBig}
-            />
+              disabled={applyDisabled}
+              activeOpacity={ROW_PRESS_OPACITY}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.applyText, applyDisabled && styles.applyTextOff]}>Aplicar</Text>
+            </TouchableOpacity>
           </View>
         }
       >
-        <Field
-          icon="pricetag-outline"
-          placeholder="0"
-          keyboardType="decimal-pad"
-          value={discountDraft}
-          onChangeText={setDiscountDraft}
-          autoFocus
-          hint={`Subtotal ${formatPrice(totalPrice)}`}
-          error={draftTooBig ? 'El descuento no puede ser mayor al subtotal.' : undefined}
-        />
+        <Text style={styles.sheetHint}>Subtotal {formatPrice(totalPrice)}</Text>
+        <View style={[styles.amountField, draftTooBig && styles.amountFieldErr]}>
+          <Text style={styles.amountPrefix}>S/</Text>
+          <TextInput
+            style={styles.amountInput}
+            value={discountDraft}
+            onChangeText={setDiscountDraft}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor="rgba(22, 33, 58, 0.3)"
+            autoFocus
+          />
+        </View>
+        {draftTooBig && (
+          <View style={styles.errorBand}>
+            <Ionicons name="alert-circle" size={16} color={colors.error} />
+            <Text style={styles.errorText}>El descuento no puede superar el subtotal.</Text>
+          </View>
+        )}
       </BottomSheet>
 
       <QRScannerModal
@@ -331,77 +405,215 @@ export default function CartScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  // The lines and the totals are one continuous white ticket, inset from the screen
-  // edge by the usual `sm` margin: the rows sit flat on it, told apart by a dashed
-  // rule instead of each being its own floating card. The panel is rounded at the
-  // top only — the footer below closes the same sheet of paper with the bottom two.
-  // overflow:hidden so the scrolling rows are clipped by those corners.
-  listPanel: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    marginHorizontal: SPACING.sm,
-    borderTopLeftRadius: RADIUS.card,
-    borderTopRightRadius: RADIUS.card,
-    overflow: 'hidden',
-  },
-  list: { paddingVertical: SPACING.xs, flexGrow: 1 },
-  separator: { marginHorizontal: SPACING.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.md,
-  },
-  image: { width: 64, height: 64, borderRadius: RADIUS.control },
-  info: { flex: 1, gap: SPACING.hairline },
-  name: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
-  meta: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
-  variation: { color: colors.primary, fontFamily: FONT_FAMILY.medium },
-  // A round icon button under the price. Below TOUCH_MIN on purpose — it can't
-  // grow without pushing the row taller than its own thumbnail, so it keeps a slop.
-  removeBtn: {
-    width: SIZE.disc,
-    height: SIZE.disc,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: SPACING.xs,
-  },
-  qtyCol: { alignItems: 'flex-end', gap: SPACING.xs },
-  lineTotal: {
-    fontSize: FONT_SIZE.subheading,
-    fontFamily: FONT_FAMILY.bold,
-    color: colors.textPrimary,
-  },
-  // No top border: the notched edge is the seam between the lines and the stub.
-  // Same inset as the panel above, closing the ticket with the bottom corners.
-  footer: {
-    backgroundColor: colors.surface,
-    marginHorizontal: SPACING.sm,
-    marginBottom: SPACING.sm,
-    borderBottomLeftRadius: RADIUS.card,
-    borderBottomRightRadius: RADIUS.card,
-  },
-  footerBody: { paddingHorizontal: SPACING.sm, paddingTop: SPACING.lg },
-  totals: { gap: SPACING.sm, marginBottom: SPACING.lg },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  // The one interactive line of the block, so it carries the full touch target —
-  // which also makes it read as tappable next to the static rows.
-  discountRow: { minHeight: TOUCH_MIN },
-  discountLabel: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
-  discountOn: { color: colors.success, fontFamily: FONT_FAMILY.medium },
-  sheetActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.lg },
-  sheetAction: { flex: 1 },
-  totalLabel: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
-  totalCount: {
-    fontSize: FONT_SIZE.bodySm,
-    fontFamily: FONT_FAMILY.medium,
-    color: colors.textPrimary,
-  },
-  grandLabel: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
-  totalValue: { fontSize: FONT_SIZE.sectionValue, fontFamily: FONT_FAMILY.bold, color: colors.primary },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+
+    // ---- Header actions ----
+    headerBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 15,
+      backgroundColor: colors.chromeButtonBg,
+      borderWidth: 2,
+      borderColor: colors.chromeButtonBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    qrBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      height: 44,
+      paddingHorizontal: 14,
+      borderRadius: 15,
+      backgroundColor: colors.primary,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      shadowColor: '#0A0F1C',
+      shadowOpacity: 0.25,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 5,
+    },
+    qrText: { color: '#fff', fontFamily: FONT_FAMILY.black, fontSize: 14 },
+
+    // ---- Ticket ----
+    scroll: { flex: 1 },
+    // One white sheet holds every line; the rows sit flat on it, told apart by a
+    // dashed rule. It hugs its content (no flexGrow) so a short cart isn't a tall
+    // blank card.
+    sheet: {
+      backgroundColor: colors.surface,
+      marginHorizontal: 18,
+      marginTop: 14,
+      marginBottom: 14,
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 2,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.07,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    lineSep: { marginVertical: 0 },
+    line: { paddingVertical: 14, gap: 10 },
+    lineTop: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+    lineImg: { width: 52, height: 52, borderRadius: 15 },
+    lineInfo: { flex: 1, minWidth: 0 },
+    lineName: { fontSize: 15, fontFamily: FONT_FAMILY.extrabold, color: colors.primary, lineHeight: 19 },
+    lineDetail: { fontSize: 12, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.5)', marginTop: 3 },
+    lineVariation: { color: colors.primary },
+    stockNote: { fontSize: 11.5, fontFamily: FONT_FAMILY.extrabold, color: 'rgba(22, 33, 58, 0.42)', marginTop: 3 },
+    stockNoteMax: { color: '#8A6400' },
+    // A grey "×" chip in the row's top-right corner.
+    removeBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 10,
+      backgroundColor: colors.fill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    lineBottom: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    lineTotal: { flex: 1, textAlign: 'right', fontSize: 17, fontFamily: FONT_FAMILY.black, color: colors.primary, letterSpacing: -0.4 },
+
+    // ---- Receipt footer ----
+    footer: { backgroundColor: colors.surface },
+    footerBody: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 12 },
+    totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    subtotalLabel: { fontSize: 13.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.6)', paddingVertical: 7 },
+    subtotalValue: { fontSize: 14.5, fontFamily: FONT_FAMILY.extrabold, color: colors.primary },
+    // The one interactive line of the block, so it carries a full touch target.
+    discountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      minHeight: 44,
+    },
+    discountLabel: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    discountText: { fontSize: 13.5, fontFamily: FONT_FAMILY.black },
+    discountRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    discountValue: { fontSize: 14.5, fontFamily: FONT_FAMILY.black },
+    totalDash: { marginTop: 6, marginBottom: 10 },
+    grandLabel: {
+      fontSize: 12.5,
+      fontFamily: FONT_FAMILY.black,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: 'rgba(22, 33, 58, 0.5)',
+    },
+    grandValue: { fontSize: 28, fontFamily: FONT_FAMILY.black, color: colors.primary, letterSpacing: -1 },
+    cta: {
+      height: 58,
+      borderRadius: 18,
+      backgroundColor: colors.chromeFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 14,
+      marginBottom: 12,
+      shadowColor: '#FFC20E',
+      shadowOpacity: 0.5,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 4,
+    },
+    ctaText: { fontSize: 17, fontFamily: FONT_FAMILY.black, color: colors.onChrome },
+
+    // ---- Empty state ----
+    empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34, gap: 16 },
+    emptyIcon: {
+      width: 96,
+      height: 96,
+      borderRadius: 32,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#16213a',
+      shadowOpacity: 0.07,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    emptyTexts: { alignItems: 'center' },
+    emptyTitle: { fontSize: 20, fontFamily: FONT_FAMILY.black, color: colors.primary, letterSpacing: -0.4 },
+    emptyMsg: {
+      fontSize: 14,
+      fontFamily: FONT_FAMILY.bold,
+      color: 'rgba(22, 33, 58, 0.5)',
+      textAlign: 'center',
+      lineHeight: 20,
+      marginTop: 7,
+    },
+    emptyBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 9,
+      height: 54,
+      paddingHorizontal: 22,
+      borderRadius: 17,
+      backgroundColor: colors.primary,
+      marginTop: 4,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.28,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 5,
+    },
+    emptyBtnText: { fontSize: 15.5, fontFamily: FONT_FAMILY.black, color: '#fff' },
+    emptyLink: { borderBottomWidth: 2, borderBottomColor: colors.chromeFill, paddingBottom: 2 },
+    emptyLinkText: { fontSize: 13.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+
+    // ---- Discount sheet ----
+    sheetHint: { fontSize: 12.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.5)', marginTop: 4 },
+    amountField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      height: 58,
+      paddingHorizontal: 16,
+      marginTop: 14,
+      borderWidth: 1.5,
+      borderColor: colors.controlBorder,
+      borderRadius: 16,
+    },
+    amountFieldErr: { borderColor: '#E8836B' },
+    amountPrefix: { fontSize: 19, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.45)' },
+    amountInput: { flex: 1, minWidth: 0, fontSize: 22, fontFamily: FONT_FAMILY.black, color: colors.primary, padding: 0 },
+    errorBand: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 10,
+      paddingVertical: 11,
+      paddingHorizontal: 13,
+      borderRadius: 14,
+      backgroundColor: colors.errorSoft,
+    },
+    errorText: { flex: 1, fontSize: 12.5, fontFamily: FONT_FAMILY.extrabold, color: colors.error },
+    sheetActions: { flexDirection: 'row', gap: 10 },
+    removeDiscountBtn: {
+      height: 54,
+      paddingHorizontal: 20,
+      borderRadius: 17,
+      borderWidth: 1.5,
+      borderColor: '#F3CFC6',
+      backgroundColor: colors.errorSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    removeDiscountText: { fontSize: 15.5, fontFamily: FONT_FAMILY.black, color: colors.error },
+    applyBtn: {
+      flex: 1,
+      height: 54,
+      borderRadius: 17,
+      backgroundColor: colors.chromeFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    applyBtnOff: { backgroundColor: '#EDEFF3' },
+    applyText: { fontSize: 16, fontFamily: FONT_FAMILY.black, color: colors.onChrome },
+    applyTextOff: { color: 'rgba(22, 33, 58, 0.35)' },
+  });

@@ -7,7 +7,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useTheme } from '../theme/theme';
 import { CONTROL_HEIGHT, FONT_FAMILY, RADIUS, SPACING } from '../theme/tokens';
 
 // primary   — the one thing the screen wants you to do (filled brand).
@@ -41,7 +42,7 @@ export default function Button({
   disabled = false,
   style,
 }: Props) {
-  const v = VARIANTS[variant];
+  const v = makeVariants(useTheme())[variant];
   const isDisabled = disabled || loading;
 
   return (
@@ -78,14 +79,15 @@ export default function Button({
   );
 }
 
-const VARIANTS: Record<
-  ButtonVariant,
-  { bg: string; pressedBg: string; fg: string; border?: string }
-> = {
+const makeVariants = (
+  colors: Palette
+): Record<ButtonVariant, { bg: string; pressedBg: string; fg: string; border?: string }> => ({
   primary: {
-    bg: colors.primary,
-    pressedBg: colors.primaryDark,
-    fg: colors.textOnPrimary,
+    // The chrome fill: amber for the seller (navy label), navy for the admin
+    // (white label) — the same surface as the header bars.
+    bg: colors.chromeFill,
+    pressedBg: colors.chromeFillPressed,
+    fg: colors.onChrome,
   },
   secondary: {
     bg: colors.primarySoft,
@@ -104,7 +106,7 @@ const VARIANTS: Record<
     fg: colors.error,
     border: colors.error,
   },
-};
+});
 
 const styles = StyleSheet.create({
   base: {

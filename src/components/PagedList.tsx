@@ -7,7 +7,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/theme';
 import { usePagedList } from '../hooks/usePagedList';
 import LoadingState from './LoadingState';
 import EmptyState from './EmptyState';
@@ -43,6 +43,7 @@ export default function PagedList<T>({
   contentContainerStyle,
   empty,
 }: Props<T>) {
+  const colors = useTheme();
   const { items, meta, page, loading, refreshing, error, listRef, loadPage } = list;
 
   // Only the very first load takes over the screen. Once there's a list,

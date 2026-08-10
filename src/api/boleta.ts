@@ -2,7 +2,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { API_BASE_URL } from './config';
 import { apiRequest } from './client';
-import { getSessionToken } from './session';
+import { getSessionTenant, getSessionToken } from './session';
 import type { PrintPayload } from '../types';
 
 // The paper the thermal printer is loaded with. A constant rather than a magic
@@ -31,12 +31,19 @@ export async function fetchReceiptPayloadFrom(
 // sharing and archiving.
 export async function downloadAndShareBoletaFrom(basePath: string, saleId: number): Promise<void> {
   const token = getSessionToken();
+  const tenant = getSessionTenant();
   const url = `${API_BASE_URL}${basePath}/${saleId}/pdf`;
   const filename = `boleta-${String(saleId).padStart(6, '0')}.pdf`;
   const destination = new File(Paths.cache, filename);
 
+  // This download bypasses apiRequest, so it must attach both headers itself:
+  // the Bearer token AND the tenant subdomain the multitenant backend requires.
   const file = await File.downloadFileAsync(url, destination, {
-    headers: { Authorization: `Bearer ${token ?? ''}`, Accept: 'application/pdf' },
+    headers: {
+      Authorization: `Bearer ${token ?? ''}`,
+      Accept: 'application/pdf',
+      'X-Tenant': tenant ?? '',
+    },
     idempotent: true, // overwrite if a previous download exists
   });
 

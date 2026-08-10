@@ -18,7 +18,8 @@ export type Category = {
 };
 
 export type ProductType = 'simple' | 'variable';
-export type ProductStatus = 'public' | 'published';
+// The seller only ever receives visible products, so a single state.
+export type ProductStatus = 'public';
 
 // One image of a product's gallery. Only the product DETAIL endpoint returns
 // these — the listing sends just the featured image, so `images` is empty there.
@@ -54,6 +55,11 @@ export type Product = {
   stock: number; // stock at the seller's branch
   variationsCount: number;
   category: CategoryRef | null;
+  // Descriptions and tags: only the DETAIL endpoint (`GET /products/{id}`) fills
+  // these; the listing leaves them empty. Shown behind the detail's "info" button.
+  description: string | null;
+  shortDescription: string | null;
+  tags: { id: number; name: string }[];
 };
 
 export type AttributeValue = {
@@ -278,7 +284,7 @@ export type AdminSaleDetail = SaleDetail & {
 // Admins see the master catalog: statuses include `private` (hidden from
 // sellers), and stock is broken down per branch rather than branch-scoped.
 
-export type AdminProductStatus = 'private' | 'public' | 'published';
+export type AdminProductStatus = 'private' | 'public';
 
 // Stock for one branch — shared by product- and variation-level breakdowns.
 export type StockByBranch = {
@@ -392,6 +398,23 @@ export type AdminBranch = {
   address: string | null;
   active: boolean;
   sellersCount: number;
+};
+
+// ---- Empresa / emisor (singleton por tenant) ----
+
+// The issuer data (RUC + names + fiscal address) the server prints on the
+// receipt/invoice header. The API returns `null` until the admin configures it
+// for the first time; `isConfigured` flips to true once saved.
+export type AdminCompany = {
+  ruc: string;
+  razonSocial: string;
+  nombreComercial: string;
+  direccion: string | null;
+  distrito: string | null;
+  provincia: string | null;
+  departamento: string | null;
+  ubigeo: string | null;
+  isConfigured: boolean;
 };
 
 export type AdminUserRole = 'seller' | 'admin';

@@ -36,7 +36,7 @@ type RawProduct = {
   name: string;
   slug: string | null;
   type: 'simple' | 'variable';
-  status: 'public' | 'published';
+  status: 'public';
   unit_value: string;
   final_price: string;
   // Top of the price range for a variable product ("hasta"); null for simple ones.
@@ -55,6 +55,11 @@ type RawProduct = {
   stock: number;
   variations_count: number;
   category: RawCategoryRef;
+  // Detail-only; absent in the listing response (and not yet in the detail one —
+  // pending the API adding them to GET /products/{id}).
+  description?: string | null;
+  short_description?: string | null;
+  tags?: { id: number; name: string }[];
 };
 
 type RawVariation = {
@@ -108,6 +113,9 @@ function mapProduct(p: RawProduct): Product {
     stock: p.stock,
     variationsCount: p.variations_count,
     category: p.category,
+    description: p.description ?? null,
+    shortDescription: p.short_description ?? null,
+    tags: p.tags ?? [],
   };
 }
 

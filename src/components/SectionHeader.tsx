@@ -1,7 +1,8 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_FAMILY, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -20,6 +21,8 @@ type Props = {
 // link to the full list. Owns its own rhythm, so the six of them across the two
 // dashboards can't drift apart.
 export default function SectionHeader({ icon, title, action, card, dot }: Props) {
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
   return (
     <View style={[styles.header, card && styles.headerCard]}>
       <View style={styles.titleRow}>
@@ -43,14 +46,16 @@ export default function SectionHeader({ icon, title, action, card, dot }: Props)
           hitSlop={HIT_SLOP}
           accessibilityRole="button"
         >
-          <Text style={styles.link}>{action.label}</Text>
+          <View style={styles.linkWrap}>
+            <Text style={styles.link}>{action.label}</Text>
+          </View>
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -70,13 +75,15 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xs,
   },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexShrink: 1 },
-  // A small primary bullet in the icon's slot. `RADIUS.pill` keeps it a circle at
-  // any size; ~10dp reads as an intentional mark next to the 18dp title.
-  dot: { width: 10, height: 10, borderRadius: RADIUS.pill, backgroundColor: colors.primary },
+  // A bullet in the role's chrome colour (amber for the seller, navy for the
+  // admin). `RADIUS.pill` keeps it a circle at any size.
+  dot: { width: 8, height: 8, borderRadius: RADIUS.pill, backgroundColor: colors.chromeFill },
   title: {
-    fontSize: FONT_SIZE.heading,
-    fontFamily: FONT_FAMILY.bold,
-    color: colors.textPrimary,
+    fontSize: 16.5,
+    fontFamily: FONT_FAMILY.black,
+    color: colors.primary,
   },
-  link: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.medium, color: colors.primary },
+  // "Ver todas": navy label underlined in amber.
+  linkWrap: { borderBottomWidth: 2, borderBottomColor: colors.chromeFill, paddingBottom: 2 },
+  link: { fontSize: 13, fontFamily: FONT_FAMILY.extrabold, color: colors.primary },
 });

@@ -16,7 +16,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchProduct, fetchVariations } from '../api/products';
 import type { Variation } from '../types';
 import type { CatalogStackParamList } from '../navigation/types';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
 import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
 import { formatPrice, formatPriceRange } from '../utils/format';
 import { variationLabel } from '../utils/cart';
@@ -24,6 +25,7 @@ import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { hapticAdd } from '../utils/haptics';
 import ScreenHeader from '../components/ScreenHeader';
+import BottomSheet from '../components/BottomSheet';
 import ProductImage from '../components/ProductImage';
 import StockBadge from '../components/StockBadge';
 import CodeBadge from '../components/CodeBadge';
@@ -41,6 +43,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { addItem } = useCart();
   const { showToast } = useToast();
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
   const { variationId } = route.params;
 
   // Local copy so pull-to-refresh can replace it with fresh stock/price, without
@@ -58,6 +62,14 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   // Tapping the header thumbnail opens the photo full-screen.
   const [zoomed, setZoomed] = useState(false);
+  // The product-info sheet (descriptions + tags).
+  const [infoOpen, setInfoOpen] = useState(false);
+
+  // Load the full product on open: the listing omits descriptions and tags, so we
+  // fetch the detail to back the info sheet (and refresh stock/price meanwhile).
+  useEffect(() => {
+    fetchProduct(route.params.product.id).then(setProduct).catch(() => {});
+  }, [route.params.product.id]);
 
   useEffect(() => {
     if (!isVariable) return;
@@ -112,6 +124,10 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     setQuantity((q) => Math.min(Math.max(1, q), Math.max(1, stock)));
   }, [stock]);
 
+  // Only offer the info button when there's something to show.
+  const hasInfo =
+    !!product.description || !!product.shortDescription || product.tags.length > 0;
+
   const needsVariation = isVariable && !selected;
   const canAdd = !needsVariation && stock > 0;
   const canDecrease = quantity > 1;
@@ -128,8 +144,21 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Same header as the sale detail: back chevron, centred title. */}
-      <ScreenHeader title="Detalle del producto" onBack={() => navigation.goBack()} />
+      {/* Same header as the sale detail: back chevron, centred title, and — when
+          the product carries any — an "info" button for its descriptions + tags. */}
+      <ScreenHeader
+        title="Detalle del producto"
+        onBack={() => navigation.goBack()}
+        action={
+          hasInfo
+            ? {
+                icon: 'information-circle-outline',
+                onPress: () => setInfoOpen(true),
+                label: 'Información del producto',
+              }
+            : undefined
+        }
+      />
 
       {/* Header: the image and the summary side by side, so the variants below get
           the room instead of being squeezed under a full-width image. The summary
@@ -235,10 +264,10 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
                     disabled={vOut}
                     onPress={() => setSelected((cur) => (cur?.id === v.id ? null : v))}
                   >
-                    {/* Variation thumb; falls back to the parent's so the row is
-                        never a bare placeholder when only the product has a photo. */}
+                    {/* Each variation shows ITS OWN image only — no fallback to the
+                        parent's; with none, the ProductImage draws its placeholder. */}
                     <ProductImage
-                      uri={v.imageThumbUrl ?? product.imageThumbUrl}
+                      uri={v.imageThumbUrl}
                       style={styles.variationThumb}
                       iconSize={18}
                     />
@@ -253,17 +282,16 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
                       </View>
                     </View>
                     <View style={styles.variationRight}>
-                      {/* Always rendered, so selecting a variation reveals the check
-                          in place instead of shifting the price as it appears. It
-                          sits left of the price, keeping the price flush right and
-                          on the card's vertical centre. */}
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={22}
-                        color={colors.primary}
-                        style={!active && styles.checkHidden}
-                      />
+                      {/* Price first, then the selection circle on the far right —
+                          a radio always present so the row never shifts: an empty
+                          bordered ring when idle, a filled navy disc with an amber
+                          tick once chosen. */}
                       <Text style={styles.variationPrice}>{formatPrice(v.finalPrice)}</Text>
+                      <View style={[styles.check, active && styles.checkOn]}>
+                        {active && (
+                          <Ionicons name="checkmark" size={15} color={colors.chromeFill} />
+                        )}
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -345,11 +373,44 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           <Ionicons name="close" size={26} color="#fff" />
         </TouchableOpacity>
       </Modal>
+
+      {/* Product info: short + long description and tags. */}
+      <BottomSheet
+        visible={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        title="Información del producto"
+        scrollable
+      >
+        {!!product.shortDescription && (
+          <View style={styles.infoBlock}>
+            <Text style={styles.infoLabel}>Descripción corta</Text>
+            <Text style={styles.infoText}>{product.shortDescription}</Text>
+          </View>
+        )}
+        {!!product.description && (
+          <View style={styles.infoBlock}>
+            <Text style={styles.infoLabel}>Descripción</Text>
+            <Text style={styles.infoText}>{product.description}</Text>
+          </View>
+        )}
+        {product.tags.length > 0 && (
+          <View style={styles.infoBlock}>
+            <Text style={styles.infoLabel}>Etiquetas</Text>
+            <View style={styles.tags}>
+              {product.tags.map((t) => (
+                <View key={t.id} style={styles.tag}>
+                  <Text style={styles.tagText}>{t.name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+      </BottomSheet>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   // The image + summary sit inside a bordered card, same chrome as a catalogue
   // card: white surface, rounded, padded, the picture rounded inside it.
@@ -358,9 +419,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     marginHorizontal: SPACING.sm,
+    marginTop: SPACING.sm,
     padding: SPACING.sm,
     backgroundColor: colors.surface,
-    borderRadius: RADIUS.card,
+    borderRadius: 20,
   },
   imageBox: {
     width: IMG_SIZE,
@@ -412,8 +474,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  name: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
-  price: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  name: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.extrabold, color: colors.primary },
+  price: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.black, color: colors.primary },
   // The code + stock chips on one line, sized to their content. A fixed height so
   // the block doesn't re-centre when the stock badge swaps with the (shorter)
   // "Elige variante" hint — otherwise picking a variation nudges the summary up or
@@ -440,8 +502,8 @@ const styles = StyleSheet.create({
   },
   variantsTitleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexShrink: 1 },
   // The same primary bullet the dashboard section titles carry.
-  dot: { width: 10, height: 10, borderRadius: RADIUS.pill, backgroundColor: colors.primary },
-  variantsTitle: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  dot: { width: 8, height: 8, borderRadius: RADIUS.pill, backgroundColor: colors.chromeFill },
+  variantsTitle: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.black, color: colors.primary },
   variantsScroll: { flex: 1 },
   // One card holds the title, filter and rows — the dashboard best-sellers panel:
   // white surface, rounded, the screen margin on the sides, clipping to it.
@@ -450,11 +512,12 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     marginBottom: SPACING.sm,
     marginHorizontal: SPACING.sm,
-    // The 10 side padding lives on the card (as in the dashboard panels), so the
-    // rows and the dividers between them sit inset from the card edges.
-    paddingHorizontal: SPACING.sm,
+    // The 16 side padding lives on the card (matching the dashboard panels), so the
+    // section dot, header and rows sit inset from the card edges by the same
+    // distance as every other 5a card.
+    paddingHorizontal: SPACING.lg,
     backgroundColor: colors.surface,
-    borderRadius: RADIUS.card,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   variantsList: { paddingBottom: SPACING.sm },
@@ -468,23 +531,33 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     paddingVertical: SPACING.md,
   },
-  variationDivided: { borderTopWidth: 1, borderTopColor: colors.border },
+  variationDivided: { borderTopWidth: 1, borderTopColor: colors.separator },
   variationRowDisabled: { opacity: 0.5 },
   variationThumb: { width: SIZE.iconBox, height: SIZE.iconBox, borderRadius: RADIUS.control },
   variationInfo: { flex: 1, gap: SPACING.xs },
-  variationLabel: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  variationLabel: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.extrabold, color: colors.primary },
   variationMetaRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, flexWrap: 'wrap' },
   // Price and its selection check on one line, vertically centred — so the price
   // lands on the row's vertical centre instead of riding above a check below it.
-  variationRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, flexShrink: 0 },
-  variationPrice: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
-  // Keeps the check's slot so the price never jumps; invisible until selected.
-  checkHidden: { opacity: 0 },
+  variationRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, flexShrink: 0 },
+  variationPrice: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.black, color: colors.primary },
+  // A radio: an empty bordered ring, filled navy with an amber tick when selected.
+  check: {
+    width: 24,
+    height: 24,
+    borderRadius: RADIUS.pill,
+    borderWidth: 2,
+    borderColor: colors.controlBorder,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   footer: {
     paddingHorizontal: SPACING.sm,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.separator,
     backgroundColor: colors.surface,
   },
   qtyRow: {
@@ -493,7 +566,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: SPACING.md,
   },
-  qtyLabel: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
+  qtyLabel: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.extrabold, color: colors.primary },
   footerBottom: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -503,12 +576,33 @@ const styles = StyleSheet.create({
   },
   // Never let the total be squeezed or wrapped by the growing button.
   footerTotalBlock: { flexShrink: 0 },
-  footerLabel: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
+  footerLabel: { fontFamily: FONT_FAMILY.bold, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
   footerTotal: {
     fontSize: FONT_SIZE.title,
-    fontFamily: FONT_FAMILY.bold,
-    color: colors.textPrimary,
+    fontFamily: FONT_FAMILY.black,
+    color: colors.primary,
   },
   // Sits next to the total in the footer, so let it take the free space.
   addToCart: { flex: 1 },
+  // The product-info sheet: one block per section (short desc, desc, tags).
+  infoBlock: { marginBottom: SPACING.lg },
+  infoLabel: {
+    fontSize: FONT_SIZE.caption,
+    fontFamily: FONT_FAMILY.bold,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: SPACING.xs,
+  },
+  infoText: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.regular, color: colors.textPrimary, lineHeight: 21 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs },
+  tag: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tagText: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.medium, color: colors.textSecondary },
 });

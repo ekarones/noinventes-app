@@ -1,5 +1,5 @@
 import { API_BASE_URL } from './config';
-import { getSessionToken, notifyUnauthorized } from './session';
+import { getSessionTenant, getSessionToken, notifyUnauthorized } from './session';
 
 // Shape of Laravel-style validation errors: { field: ["msg", ...] }
 type FieldErrors = Record<string, string[]>;
@@ -59,6 +59,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (effectiveBody !== undefined && !isMultipart) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
+  // Multitenant backend: the tenant subdomain scopes every request (login too).
+  // It's set in memory before any request goes out; without it the server 400s.
+  const tenant = getSessionTenant();
+  if (tenant) headers['X-Tenant'] = tenant;
 
   const controller = timeoutMs ? new AbortController() : undefined;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : undefined;

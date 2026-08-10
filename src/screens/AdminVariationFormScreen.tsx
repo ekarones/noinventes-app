@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -15,13 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createVariation, updateVariation } from '../api/admin/products';
 import { fetchAdminAttributes } from '../api/admin/attributes';
-import { colors } from '../theme/colors';
-import { SIZE, CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
-import Field from '../components/Field';
-import ScreenHeader from '../components/ScreenHeader';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
+import PushedHeader from '../components/PushedHeader';
 import { useToast } from '../context/ToastContext';
-import BottomSheet, { SheetOption } from '../components/BottomSheet';
-import Button from '../components/Button';
 import { pickImages } from '../utils/imagePicker';
 import type { AdminAttribute } from '../types';
 import type { AdminProductsStackParamList } from '../navigation/types';
@@ -30,20 +29,13 @@ type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminVariation
 
 export default function AdminVariationFormScreen({ route, navigation }: Props) {
   const { showToast } = useToast();
-  const {
-    productId,
-    productName,
-    productUnitValue,
-    productFinalPrice,
-    variation,
-    attributeIds,
-  } = route.params;
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
+  const { productId, productName, productUnitValue, productFinalPrice, variation, attributeIds } =
+    route.params;
   const editing = !!variation;
 
-  // Blank while creating: the server generates it from the product code and the
-  // chosen values unless the admin types one.
   const [code, setCode] = useState(variation?.code ?? '');
-  // On create, inherit the parent's unit value / price as editable defaults.
   const [unitValue, setUnitValue] = useState(
     editing ? String(variation!.unitValue) : productUnitValue != null ? String(productUnitValue) : '1'
   );
@@ -55,18 +47,13 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
   const [loadingAttrs, setLoadingAttrs] = useState(!editing);
   // attributeId → selected value id
   const [selection, setSelection] = useState<Record<number, number>>({});
-  const [picker, setPicker] = useState<AdminAttribute | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Used only when the product has no variations yet and none were pre-chosen:
-  // the admin picks which attributes this product will use.
+  // When the product has no variations yet and none were pre-chosen, the admin
+  // picks which attributes this product will use.
   const [chosenIds, setChosenIds] = useState<number[]>([]);
-  const [attributePickerOpen, setAttributePickerOpen] = useState(false);
 
-  // Newly-picked reference image (local URI). Null means "no new pick": on edit
-  // the existing remote image is shown instead. Only sent to the server when set.
   const [imageUri, setImageUri] = useState<string | null>(null);
-  // The preview is only 150px, so prefer the thumbnail over the full original.
   const previewUri = imageUri ?? variation?.imageThumbUrl ?? null;
 
   async function pickImage() {
@@ -74,7 +61,6 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
     if (uri) setImageUri(uri);
   }
 
-  // Attributes are only needed when creating (the combo is immutable on edit).
   useEffect(() => {
     if (editing) return;
     fetchAdminAttributes()
@@ -83,29 +69,21 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
       .finally(() => setLoadingAttrs(false));
   }, [editing]);
 
-  // The product's existing variations pin the attribute set: a new variation must
-  // supply exactly one value per attribute already in use. If the product has no
-  // variations yet, this first one establishes the set, so any attributes go.
+  // The product's existing variations pin the attribute set. If it has none, this
+  // first variation establishes it, so any attributes go.
   const requiredAttributes = useMemo(() => {
     if (!attributeIds || attributeIds.length === 0) return null;
     const wanted = new Set(attributeIds);
     return attributes.filter((a) => wanted.has(a.id));
   }, [attributes, attributeIds]);
 
-  // Either the set is pinned by the product, or the admin picks it here.
   const pickable = requiredAttributes ?? attributes.filter((a) => chosenIds.includes(a.id));
-
-  // Every attribute in play needs exactly one value.
   const comboReady = pickable.length > 0 && pickable.every((a) => selection[a.id] != null);
-
-  // Selected value ids, in attribute order — the order the server also uses to
-  // build the code when we leave it blank.
   const orderedValueIds = pickable.map((a) => selection[a.id]).filter((id) => id != null);
 
   function toggleAttribute(id: number) {
     setChosenIds((prev) => {
       if (!prev.includes(id)) return [...prev, id];
-      // Dropping an attribute must drop its value too, or it'd be sent anyway.
       setSelection((sel) => {
         const next = { ...sel };
         delete next[id];
@@ -118,7 +96,6 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
   const price = parseFloat(finalPrice);
   const unit = parseFloat(unitValue);
   const canSubmit =
-    // Required only when editing — on create a blank code means "generate it".
     (!editing || code.trim().length > 0) &&
     Number.isFinite(price) &&
     Number.isFinite(unit) &&
@@ -132,31 +109,21 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
       if (editing) {
         await updateVariation(
           variation!.id,
-          {
-            code: code.trim(),
-            unitValue: unit,
-            finalPrice: price,
-          },
+          { code: code.trim(), unitValue: unit, finalPrice: price },
           imageUri ?? undefined
         );
         showToast('Variación actualizada', 'checkmark-circle');
       } else {
         await createVariation(
           productId,
-          {
-            code: code.trim() || undefined,
-            unitValue: unit,
-            finalPrice: price,
-            attributeValueIds: orderedValueIds,
-          },
+          { code: code.trim() || undefined, unitValue: unit, finalPrice: price, attributeValueIds: orderedValueIds },
           imageUri ?? undefined
         );
         showToast('Variación creada', 'checkmark-circle');
       }
       navigation.goBack();
     } catch (e: any) {
-      // 422 covers: not a variable product, wrong attribute set, duplicate combo,
-      // duplicate code. The server message says which.
+      // 422: not a variable product, wrong set, duplicate combo, duplicate code.
       Alert.alert('No se pudo guardar', e?.message ?? 'Inténtalo de nuevo.');
     } finally {
       setSaving(false);
@@ -164,275 +131,281 @@ export default function AdminVariationFormScreen({ route, navigation }: Props) {
   }
 
   const comboLabel = variation?.attributeValues.map((a) => a.value).join(' · ');
+  const combo = comboReady
+    ? pickable.map((a) => a.values.find((v) => v.id === selection[a.id])?.value).join(' · ')
+    : 'Elige un valor por atributo';
+  const generatedHint =
+    comboReady && pickable.length > 0
+      ? `Se genera con el producto y los valores (${pickable
+          .map((a) => a.values.find((v) => v.id === selection[a.id])?.value?.charAt(0) ?? '')
+          .join('')})`
+      : 'Se genera solo';
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScreenHeader
+      <PushedHeader
         title={editing ? 'Editar variación' : 'Nueva variación'}
+        subtitle={editing && comboLabel ? `${productName} · ${comboLabel}` : productName}
         onBack={() => navigation.goBack()}
+        titleSize={22}
       />
 
       <ScrollView
-        contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
+        contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.productName}>{productName}</Text>
-        {editing && !!comboLabel && <Text style={styles.productSub}>{comboLabel}</Text>}
-
-        {/* Reference image — same look as the product form. On edit it preloads
-            the existing photo; the ✕ only undoes a fresh pick. */}
-        <TouchableOpacity style={styles.imagePicker} onPress={pickImage} activeOpacity={ROW_PRESS_OPACITY}>
-          {previewUri ? (
-            <Image
-              source={previewUri}
-              style={styles.imagePreview}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              transition={150}
-            />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={34} color={colors.textSecondary} />
-              <Text style={styles.imageHint}>Imagen de referencia</Text>
-            </View>
-          )}
-          {imageUri && (
-            <TouchableOpacity
-              style={styles.imageRemove}
-              onPress={() => setImageUri(null)}
-              hitSlop={8}
-              activeOpacity={ROW_PRESS_OPACITY}
-            >
-              <Ionicons name="close-circle" size={24} color={colors.error} />
+        {/* Reference image */}
+        <View style={styles.card}>
+          <View style={styles.imageRow}>
+            <TouchableOpacity style={styles.imageBox} onPress={pickImage} activeOpacity={ROW_PRESS_OPACITY}>
+              {previewUri ? (
+                <Image source={previewUri} style={styles.imagePreview} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+              ) : (
+                <>
+                  <Ionicons name="image-outline" size={20} color="rgba(22, 33, 58, 0.45)" />
+                  <Text style={styles.imagePick}>Elegir</Text>
+                </>
+              )}
             </TouchableOpacity>
-          )}
-          <View style={styles.imageBadge}>
-            <Ionicons name="camera-outline" size={16} color={colors.textOnPrimary} />
+            <View style={styles.imageTexts}>
+              <Text style={styles.imageTitle}>Imagen de referencia</Text>
+              <Text style={styles.imageHint}>Opcional. Si no la pones, se usa la del producto.</Text>
+              {imageUri && (
+                <TouchableOpacity onPress={() => setImageUri(null)} activeOpacity={ROW_PRESS_OPACITY}>
+                  <Text style={styles.imageRemove}>Quitar imagen</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        </TouchableOpacity>
+        </View>
 
         {/* Attribute combo — only when creating */}
         {!editing && (
-          <>
-            <Text style={styles.label}>Combinación</Text>
+          <View style={styles.card}>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Combinación</Text>
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>inmutable al editar</Text>
+              </View>
+            </View>
+
             {loadingAttrs ? (
-              <ActivityIndicator color={colors.primary} style={{ marginVertical: SPACING.md }} />
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: 8 }} />
             ) : attributes.length === 0 ? (
               <Text style={styles.warn}>
                 No hay atributos creados. Créalos primero en Gestión → Atributos.
               </Text>
             ) : (
               <>
-                {/* No pinned set → the admin chooses which attributes apply. */}
                 {!requiredAttributes && (
-                  <View style={styles.attrRow}>
+                  <View>
                     <Text style={styles.attrName}>Atributos de este producto</Text>
-                    <TouchableOpacity
-                      style={[styles.select, chosenIds.length > 0 && styles.selectActive]}
-                      onPress={() => setAttributePickerOpen(true)}
-                      activeOpacity={ROW_PRESS_OPACITY}
-                    >
-                      <Text
-                        style={[styles.selectText, chosenIds.length === 0 && styles.selectPlaceholder]}
-                        numberOfLines={1}
-                      >
-                        {chosenIds.length === 0
-                          ? 'Selecciona los atributos'
-                          : pickable.map((a) => a.name).join(' · ')}
-                      </Text>
-                      <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
-                    </TouchableOpacity>
+                    <View style={styles.chips}>
+                      {attributes.map((a) => {
+                        const on = chosenIds.includes(a.id);
+                        return (
+                          <TouchableOpacity key={a.id} style={[styles.chip, on && styles.chipOn]} onPress={() => toggleAttribute(a.id)} activeOpacity={ROW_PRESS_OPACITY}>
+                            <Text style={[styles.chipText, on && styles.chipTextOn]}>{a.name}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   </View>
                 )}
 
-                {pickable.map((a) => {
-                  const chosen = a.values.find((v) => v.id === selection[a.id]);
-                  return (
-                    <View key={a.id} style={styles.attrRow}>
-                      <Text style={styles.attrName}>{a.name}</Text>
-                      <TouchableOpacity
-                        style={[styles.select, chosen && styles.selectActive]}
-                        onPress={() => setPicker(a)}
-                        activeOpacity={ROW_PRESS_OPACITY}
-                      >
-                        <Text
-                          style={[styles.selectText, !chosen && styles.selectPlaceholder]}
-                          numberOfLines={1}
-                        >
-                          {chosen?.value ?? 'Selecciona'}
-                        </Text>
-                        <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
-                      </TouchableOpacity>
+                {pickable.map((a) => (
+                  <View key={a.id}>
+                    <Text style={styles.attrName}>{a.name}</Text>
+                    <View style={styles.chips}>
+                      {a.values.map((v) => {
+                        const on = selection[a.id] === v.id;
+                        return (
+                          <TouchableOpacity
+                            key={v.id}
+                            style={[styles.chip, on && styles.chipOn]}
+                            onPress={() => setSelection((prev) => ({ ...prev, [a.id]: v.id }))}
+                            activeOpacity={ROW_PRESS_OPACITY}
+                          >
+                            <Text style={[styles.chipText, on && styles.chipTextOn]}>{v.value}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
-                  );
-                })}
-                <Text style={styles.hint}>
-                  {requiredAttributes
-                    ? 'Debes elegir un valor por cada atributo del producto.'
-                    : 'Esta primera variación fija los atributos del producto. Elige un valor por cada uno.'}
-                </Text>
+                  </View>
+                ))}
+
+                <View style={styles.resultBlock}>
+                  <Text style={styles.resultLabel}>Resultado</Text>
+                  <Text style={[styles.resultValue, !comboReady && styles.resultValueOff]} numberOfLines={1}>
+                    {combo}
+                  </Text>
+                </View>
               </>
             )}
-          </>
+          </View>
         )}
 
-        <Field
-          label="Código"
-          value={code}
-          onChangeText={setCode}
-          placeholder={editing ? 'Ej. POL-001-RJ-M' : 'Se genera solo'}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          hint={
-            editing
-              ? undefined
-              : 'Déjalo vacío y el servidor lo genera con el producto y los valores.'
-          }
-        />
+        {/* Code */}
+        <View style={styles.card}>
+          <View>
+            <Text style={styles.label}>Código</Text>
+            <TextInput
+              style={styles.input}
+              value={code}
+              onChangeText={setCode}
+              placeholder={editing ? 'Ej. POL-114-RM' : generatedHint}
+              placeholderTextColor="rgba(22, 33, 58, 0.35)"
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+            {!editing && (
+              <Text style={styles.hint}>
+                Si lo dejas vacío, el servidor lo genera con el producto y los valores.
+              </Text>
+            )}
+          </View>
 
-        <Field
-          label="Precio final"
-          value={finalPrice}
-          onChangeText={setFinalPrice}
-          placeholder="39.90"
-          keyboardType="decimal-pad"
-        />
+          <View style={styles.twoCols}>
+            <View style={styles.col}>
+              <Text style={styles.label}>Precio final</Text>
+              <View style={styles.priceField}>
+                <Text style={styles.pricePrefix}>S/</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  value={finalPrice}
+                  onChangeText={setFinalPrice}
+                  placeholder="0.00"
+                  placeholderTextColor="rgba(22, 33, 58, 0.35)"
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
+            <View style={styles.col}>
+              <Text style={styles.label}>Valor unitario</Text>
+              <TextInput
+                style={styles.input}
+                value={unitValue}
+                onChangeText={setUnitValue}
+                placeholder="1"
+                placeholderTextColor="rgba(22, 33, 58, 0.35)"
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
 
-        <Field
-          label="Valor unitario"
-          value={unitValue}
-          onChangeText={setUnitValue}
-          placeholder="1"
-          keyboardType="decimal-pad"
-        />
-
-        {!editing && (
-          <Text style={styles.hint}>
-            La variación se crea con stock 0. Podrás asignarlo desde el detalle del producto.
-          </Text>
-        )}
-
-        <Button
-          label={editing ? 'Guardar cambios' : 'Crear variación'}
-          onPress={save}
-          loading={saving}
-          disabled={!canSubmit}
-          style={styles.saveBtn}
-        />
+          {!editing && (
+            <Text style={styles.hint}>
+              Heredados del producto; edítalos si esta variación cuesta distinto. Nace con stock 0.
+            </Text>
+          )}
+        </View>
       </ScrollView>
 
-      {/* Attribute value picker */}
-      <BottomSheet
-        visible={picker !== null}
-        onClose={() => setPicker(null)}
-        title={picker?.name ?? ''}
-        scrollable
-      >
-        {picker?.values.map((v) => (
-          <SheetOption
-            key={v.id}
-            label={v.value}
-            active={selection[picker.id] === v.id}
-            onPress={() => {
-              setSelection((prev) => ({ ...prev, [picker.id]: v.id }));
-              setPicker(null);
-            }}
-          />
-        ))}
-      </BottomSheet>
-
-      {/* Attribute multi-select (only when the set isn't pinned yet) */}
-      <BottomSheet
-        visible={attributePickerOpen}
-        onClose={() => setAttributePickerOpen(false)}
-        title="Atributos del producto"
-        scrollable
-        footer={
-          <Button
-            label="Listo"
-            size="md"
-            onPress={() => setAttributePickerOpen(false)}
-            style={styles.doneBtn}
-          />
-        }
-      >
-        {attributes.map((a) => (
-          <SheetOption
-            key={a.id}
-            label={a.name}
-            hint={a.values.map((v) => v.value).join(', ')}
-            multi
-            active={chosenIds.includes(a.id)}
-            onPress={() => toggleAttribute(a.id)}
-          />
-        ))}
-      </BottomSheet>
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.cta, !canSubmit && styles.ctaOff]}
+          onPress={save}
+          disabled={!canSubmit}
+          activeOpacity={ROW_PRESS_OPACITY}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.ctaText, !canSubmit && styles.ctaTextOff]}>
+            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear variación'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  productName: { fontSize: FONT_SIZE.titleSm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
-  productSub: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, marginTop: SPACING.hairline },
-  label: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, marginTop: SPACING.lg, marginBottom: SPACING.sm },
-  imagePicker: { alignSelf: 'center', width: SIZE.image, height: SIZE.image, borderRadius: RADIUS.card, marginTop: SPACING.lg },
-  imagePreview: { width: SIZE.image, height: SIZE.image, borderRadius: RADIUS.card },
-  imageBadge: {
-    position: 'absolute',
-    right: -4,
-    bottom: -4,
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.background,
-  },
-  imageRemove: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: colors.surface,
-    borderRadius: RADIUS.pill,
-  },
-  imagePlaceholder: {
-    width: SIZE.image,
-    height: SIZE.image,
-    borderRadius: RADIUS.card,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-  },
-  imageHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
-  attrRow: { marginBottom: SPACING.md },
-  attrName: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: SPACING.xs },
-  select: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.primarySoft,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: SPACING.md,
-    height: CONTROL_HEIGHT.input,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  selectActive: { borderColor: colors.primary },
-  selectText: { fontFamily: FONT_FAMILY.regular, flex: 1, fontSize: FONT_SIZE.subheading, color: colors.textPrimary },
-  selectPlaceholder: { color: colors.textSecondary },
-  warn: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.warning, lineHeight: 20 },
-  hint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.sm, lineHeight: 17 },
-  saveBtn: { marginTop: SPACING['2xl'] },
-  doneBtn: { marginTop: SPACING.md },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    scroll: { padding: 18, gap: 12, paddingBottom: 24 },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 16,
+      gap: 14,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.07,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+
+    // ---- Image ----
+    imageRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
+    imageBox: {
+      width: 76,
+      height: 76,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: '#C9CFDB',
+      borderStyle: 'dashed',
+      backgroundColor: '#FAFBFC',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      overflow: 'hidden',
+    },
+    imagePreview: { width: 76, height: 76 },
+    imagePick: { fontSize: 10, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.5)' },
+    imageTexts: { flex: 1, minWidth: 0 },
+    imageTitle: { fontSize: 13.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+    imageHint: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.5)', marginTop: 3, lineHeight: 16 },
+    imageRemove: { fontSize: 12, fontFamily: FONT_FAMILY.black, color: colors.error, marginTop: 5 },
+
+    // ---- Combination ----
+    label: { fontSize: 11.5, fontFamily: FONT_FAMILY.black, letterSpacing: 0.6, textTransform: 'uppercase', color: 'rgba(22, 33, 58, 0.45)', marginBottom: 6 },
+    labelRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+    tag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, backgroundColor: '#FFF3CF' },
+    tagText: { fontSize: 10.5, fontFamily: FONT_FAMILY.black, color: '#8A6400' },
+    warn: { fontSize: 13.5, fontFamily: FONT_FAMILY.bold, color: colors.warning, lineHeight: 19 },
+    attrName: { fontSize: 13, fontFamily: FONT_FAMILY.black, color: colors.primary, marginBottom: 8 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+    chip: { height: 40, paddingHorizontal: 14, borderRadius: 13, borderWidth: 1.5, borderColor: colors.controlBorder, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+    chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+    chipText: { fontSize: 13.5, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.62)' },
+    chipTextOn: { color: '#fff' },
+    resultBlock: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#F7F8FA', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11 },
+    resultLabel: { fontSize: 11.5, fontFamily: FONT_FAMILY.black, letterSpacing: 0.6, textTransform: 'uppercase', color: 'rgba(22, 33, 58, 0.45)' },
+    resultValue: { flex: 1, textAlign: 'right', fontSize: 14.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+    resultValueOff: { color: 'rgba(22, 33, 58, 0.4)' },
+
+    // ---- Inputs ----
+    input: {
+      height: 50,
+      paddingHorizontal: 14,
+      borderWidth: 1.5,
+      borderColor: colors.controlBorder,
+      borderRadius: 15,
+      fontSize: 15.5,
+      fontFamily: FONT_FAMILY.extrabold,
+      color: colors.primary,
+    },
+    twoCols: { flexDirection: 'row', gap: 10 },
+    col: { flex: 1 },
+    priceField: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 50, paddingHorizontal: 12, borderWidth: 1.5, borderColor: colors.controlBorder, borderRadius: 15 },
+    pricePrefix: { fontSize: 14, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.45)' },
+    priceInput: { flex: 1, minWidth: 0, fontSize: 16, fontFamily: FONT_FAMILY.black, color: colors.primary, padding: 0 },
+    hint: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.5)', marginTop: 7, lineHeight: 16 },
+
+    // ---- Footer ----
+    footer: {
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: '#E9EBF0',
+      paddingHorizontal: 18,
+      paddingTop: 12,
+      paddingBottom: 16,
+    },
+    cta: { height: 58, borderRadius: 18, backgroundColor: '#FFC20E', alignItems: 'center', justifyContent: 'center' },
+    ctaOff: { backgroundColor: '#EDEFF3' },
+    ctaText: { fontSize: 17, fontFamily: FONT_FAMILY.black, color: '#16213A' },
+    ctaTextOff: { color: 'rgba(22, 33, 58, 0.35)' },
+  });

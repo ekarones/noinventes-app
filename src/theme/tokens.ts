@@ -90,13 +90,16 @@ export const FONT_SIZE = {
   nano: 10, // the densest secondary labels in a grid card
 } as const;
 
-// The app's typeface is Manrope (bundled via @expo-google-fonts/manrope, loaded
-// in App.tsx). React Native does NOT combine a custom fontFamily with a numeric
+// The app's typeface is Nunito (bundled via @expo-google-fonts/nunito, loaded in
+// App.tsx). React Native does NOT combine a custom fontFamily with a numeric
 // fontWeight — every weight is its own font file — so a weight is expressed as a
-// family: `fontFamily: FONT_FAMILY.bold`, not `fontWeight`. The numbers below
-// are the weights each family carries, kept identical to the old tokens.
+// family: `fontFamily: FONT_FAMILY.bold`, not `fontWeight`. The numbers below are
+// the weights each family carries. `extrabold` (800) and `black` (900) are the
+// heavy display weights used by the login's brand handoff.
 export const FONT_FAMILY = {
-  regular: 'Manrope_400Regular',
-  medium: 'Manrope_600SemiBold',
-  bold: 'Manrope_700Bold',
+  regular: 'Nunito_400Regular',
+  medium: 'Nunito_600SemiBold',
+  bold: 'Nunito_700Bold',
+  extrabold: 'Nunito_800ExtraBold',
+  black: 'Nunito_900Black',
 } as const;

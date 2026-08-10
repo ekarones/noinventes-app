@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,7 +17,8 @@ import {
   fetchAdminProductDetail,
   fetchAdminProductVariations,
 } from '../api/admin/products';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
 import { SIZE, FONT_SIZE, FONT_FAMILY, HIT_SLOP, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
@@ -37,11 +39,14 @@ import type { AdminProductsStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<AdminProductsStackParamList, 'AdminProductDetail'>;
 
 export default function AdminProductDetailScreen({ route, navigation }: Props) {
+  const colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { showToast } = useToast();
   const { product } = route.params;
   const [detail, setDetail] = useState<AdminProductDetail | null>(null);
   const [variations, setVariations] = useState<AdminVariation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The attribute set a new variation must match. Empty = unknown, so the
   // variation form lets the admin choose it.
@@ -51,8 +56,8 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [printerOpen, setPrinterOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
+    isRefresh ? setRefreshing(true) : setLoading(true);
     setError(null);
     try {
       const d = await fetchAdminProductDetail(product.id);
@@ -78,6 +83,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
       setError(e?.message ?? 'No se pudo cargar el producto.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [product.id]);
 
@@ -142,15 +148,22 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
       <ScreenHeader
         title={product.name}
         onBack={() => navigation.goBack()}
-        // The detail is still loading (or failed): there's nothing to edit yet.
-        action={
-          d
-            ? {
-                icon: 'create-outline',
-                label: 'Editar producto',
-                onPress: () => navigation.navigate('AdminProductForm', { product: d }),
-              }
-            : undefined
+        // The signature 8b element: an amber "Editar" pill on the navy header —
+        // the one primary action of the screen. Hidden until the detail loads
+        // (there's nothing to edit yet).
+        actions={
+          d ? (
+            <TouchableOpacity
+              style={styles.editorBtn}
+              onPress={() => navigation.navigate('AdminProductForm', { product: d })}
+              activeOpacity={ROW_PRESS_OPACITY}
+              accessibilityRole="button"
+              accessibilityLabel="Editar producto"
+            >
+              <Ionicons name="create-outline" size={17} color="#16213A" />
+              <Text style={styles.editorBtnText}>Editar</Text>
+            </TouchableOpacity>
+          ) : undefined
         }
       />
 
@@ -166,12 +179,22 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
         <ScrollView
           contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => load(true)}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
-          {/* Images */}
+          {/* Gallery — a horizontal strip inside a vertical scroll needs an
+              explicit height (flex:none + a min height), or it collapses. */}
           {d.images.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={styles.galleryStrip}
               contentContainerStyle={styles.gallery}
             >
               {d.images.map((img) => (
@@ -179,7 +202,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                   <ProductImage uri={img.thumbUrl} style={styles.galleryImg} iconSize={28} />
                   {img.isFeatured && (
                     <View style={styles.featuredBadge}>
-                      <Ionicons name="star" size={11} color={colors.textOnPrimary} />
+                      <Ionicons name="star" size={11} color="#16213A" />
                     </View>
                   )}
                 </View>
@@ -190,7 +213,7 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
           )}
 
           {/* The two product-level actions, side by side and equal: neither is
-              the primary thing to do on this screen. */}
+              the primary thing to do on this screen. Bordered white cards. */}
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={styles.actionBtn}
@@ -199,25 +222,28 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
               }
               activeOpacity={ROW_PRESS_OPACITY}
             >
-              <Ionicons name="images-outline" size={16} color={colors.primary} />
-              <Text style={styles.editText}>Imágenes ({d.images.length})</Text>
+              <Ionicons name="images-outline" size={17} color={colors.primary} />
+              <Text style={styles.actionText}>Imágenes ({d.images.length})</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionBtn}
               onPress={() => setLabelsOpen(true)}
               activeOpacity={ROW_PRESS_OPACITY}
             >
-              <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
-              <Text style={styles.editText}>Etiquetas</Text>
+              <Ionicons name="pricetag-outline" size={17} color={colors.primary} />
+              <Text style={styles.actionText}>Etiquetas</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Identity */}
-          <View style={styles.titleBlock}>
+          {/* Identity — one white card: name, code, badges, price, and (when
+              present) description and tags separated by hairlines. */}
+          <View style={styles.card}>
             <Text style={styles.name}>{d.name}</Text>
-            <CopyableCode code={d.code} />
+            <View style={styles.codeRow}>
+              <CopyableCode code={d.code} />
+            </View>
             <View style={styles.badges}>
-              <View style={[styles.statusBadge, statusStyle(d.status)]}>
+              <View style={[styles.statusBadge, statusStyle(d.status, colors)]}>
                 <Text style={[styles.statusText, { color: productStatusColor(d.status) }]}>
                   {PRODUCT_STATUS_LABEL[d.status] ?? d.status}
                 </Text>
@@ -235,32 +261,36 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
               {formatPrice(d.finalPrice)}
               {d.type === 'variable' ? ' desde' : ''}
             </Text>
-          </View>
 
-          {/* Description */}
-          {!!d.description && (
-            <>
-              <Text style={styles.sectionTitle}>Descripción</Text>
-              <Text style={styles.description}>{d.description}</Text>
-            </>
-          )}
+            {!!d.description && (
+              <View style={styles.cardBlock}>
+                <Text style={styles.blockLabel}>Descripción</Text>
+                <Text style={styles.description}>{d.description}</Text>
+              </View>
+            )}
 
-          {/* Tags */}
-          {d.tags.length > 0 && (
-            <View style={styles.tagRow}>
-              {d.tags.map((t) => (
-                <View key={t.id} style={styles.tag}>
-                  <Text style={styles.tagText}>{t.name}</Text>
+            {d.tags.length > 0 && (
+              <View style={styles.cardBlock}>
+                <Text style={styles.blockLabel}>Etiquetas</Text>
+                <View style={styles.tagRow}>
+                  {d.tags.map((t) => (
+                    <View key={t.id} style={styles.tag}>
+                      <Text style={styles.tagText}>{t.name}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
-          )}
+              </View>
+            )}
+          </View>
 
           {/* Stock — simple product */}
           {d.type === 'simple' && (
             <>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Stock por sucursal</Text>
+                <View style={styles.sectionTitleRow}>
+                  <View style={styles.sectionDot} />
+                  <Text style={styles.sectionTitle}>Stock por sucursal</Text>
+                </View>
                 <TouchableOpacity
                   style={styles.editBtn}
                   onPress={() =>
@@ -285,10 +315,13 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
           {d.type === 'variable' && (
             <>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitleInline}>
-                  Variaciones y stock
-                  {variations.length > 0 ? ` (${filter.shown.length})` : ''}
-                </Text>
+                <View style={styles.sectionTitleRow}>
+                  <View style={styles.sectionDot} />
+                  <Text style={styles.sectionTitle} numberOfLines={1}>
+                    Variaciones y stock
+                    {variations.length > 0 ? ` (${filter.shown.length})` : ''}
+                  </Text>
+                </View>
                 <View style={styles.sectionActions}>
                   {filter.attributes.length > 0 && <VariationFilter state={filter} />}
                   <TouchableOpacity
@@ -412,6 +445,8 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
 }
 
 function StockList({ stock, compact }: { stock: StockByBranch[]; compact?: boolean }) {
+  const colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
   if (stock.length === 0) {
     return <Text style={styles.muted}>Sin sucursales configuradas.</Text>;
   }
@@ -434,20 +469,40 @@ function StockList({ stock, compact }: { stock: StockByBranch[]; compact?: boole
   );
 }
 
-// The badge answers one question — ¿lo ve el vendedor? — and `public` and
-// `published` answer it the same way: ambos llegan al catálogo. Pintarlos de
-// distinto color sugería dos niveles de visibilidad que no existen; lo que los
-// separa es el flag de destacado, y eso ya lo dice la etiqueta.
-function statusStyle(status: AdminProductStatus) {
+// The badge answers one question — ¿lo ve el vendedor? `public` llega al
+// catálogo (verde), `private` queda oculto (gris).
+function statusStyle(status: AdminProductStatus, colors: Palette) {
   if (status === 'private') return { backgroundColor: colors.border };
   return { backgroundColor: colors.successSoft };
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  gallery: { gap: SPACING.md, paddingRight: SPACING.sm },
-  galleryImg: { width: SIZE.image, height: SIZE.image, borderRadius: RADIUS.card, backgroundColor: colors.surfaceMuted },
-  heroPlaceholder: { width: '100%', height: 200, borderRadius: RADIUS.card },
+  // The amber "Editar" pill on the navy header. A navy hairline + soft shadow so
+  // it reads as a raised chip over the dark panel.
+  editorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 42,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: '#FFC20E',
+    borderWidth: 2,
+    borderColor: '#16213A',
+    shadowColor: '#0A0F1C',
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  editorBtnText: { color: '#16213A', fontFamily: FONT_FAMILY.black, fontSize: 14, letterSpacing: -0.2 },
+  // A horizontal strip inside the vertical scroll: flexGrow 0 so it takes only its
+  // content height instead of stretching.
+  galleryStrip: { flexGrow: 0 },
+  gallery: { gap: SPACING.sm, paddingRight: SPACING.md },
+  galleryImg: { width: 132, height: 132, borderRadius: 18, backgroundColor: colors.surfaceMuted },
+  heroPlaceholder: { width: '100%', height: 200, borderRadius: 20, backgroundColor: colors.surfaceMuted },
   featuredBadge: {
     position: 'absolute',
     top: 8,
@@ -455,120 +510,160 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: RADIUS.pill,
-    backgroundColor: colors.primary,
+    backgroundColor: '#FFC20E',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleBlock: { marginTop: SPACING.xl, gap: SPACING.sm },
-  name: { fontSize: FONT_SIZE.title, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xs },
-  statusBadge: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, borderRadius: RADIUS.badge },
-  statusText: { fontSize: FONT_SIZE.micro, fontFamily: FONT_FAMILY.bold },
-  typeBadge: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.badge,
-  },
-  typeText: { fontSize: FONT_SIZE.micro, fontFamily: FONT_FAMILY.medium, color: colors.textSecondary },
-  price: { fontSize: FONT_SIZE.sectionValue, fontFamily: FONT_FAMILY.bold, color: colors.primary },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: SPACING['2xl'],
-    marginBottom: SPACING.md,
-  },
-  // The filter and "Agregar" share the right side of the section header.
-  sectionActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  sectionTitle: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
-  sectionTitleInline: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
-  description: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, lineHeight: 20 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.lg },
-  tag: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.badge,
-  },
-  tagText: { fontSize: FONT_SIZE.caption, color: colors.primary, fontFamily: FONT_FAMILY.medium },
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: SPACING.md,
-    height: 34,
-    borderRadius: RADIUS.pill,
-  },
-  editText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold },
   actionRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.lg },
+  // Bordered white cards — two equal secondary actions, neither primary.
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    height: 42,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primarySoft,
+    height: 48,
+    borderRadius: RADIUS.card,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.controlBorder,
   },
+  actionText: { color: colors.primary, fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold },
+  // Identity: one raised white card.
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: SPACING.lg,
+    marginTop: SPACING.lg,
+    shadowColor: '#0A0F1C',
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  name: { fontSize: FONT_SIZE.title, fontFamily: FONT_FAMILY.black, color: colors.primary, letterSpacing: -0.4 },
+  codeRow: { flexDirection: 'row', marginTop: SPACING.sm },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.md },
+  statusBadge: { paddingHorizontal: SPACING.md, paddingVertical: 5, borderRadius: RADIUS.badge },
+  statusText: { fontSize: FONT_SIZE.micro, fontFamily: FONT_FAMILY.extrabold },
+  typeBadge: {
+    backgroundColor: colors.fill,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 5,
+    borderRadius: RADIUS.badge,
+  },
+  typeText: { fontSize: FONT_SIZE.micro, fontFamily: FONT_FAMILY.bold, color: colors.textSecondary },
+  price: { fontSize: FONT_SIZE.sectionValue, fontFamily: FONT_FAMILY.black, color: colors.primary, marginTop: SPACING.md, letterSpacing: -0.5 },
+  // A sub-block inside the identity card (description, tags), split by a hairline.
+  cardBlock: { marginTop: SPACING.lg, paddingTop: SPACING.lg, borderTopWidth: 1, borderTopColor: colors.separator },
+  blockLabel: {
+    fontSize: FONT_SIZE.micro,
+    fontFamily: FONT_FAMILY.extrabold,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: SPACING.sm,
+  },
+  description: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.primary, lineHeight: 21 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  tag: {
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.badge,
+  },
+  tagText: { fontSize: FONT_SIZE.caption, color: colors.primary, fontFamily: FONT_FAMILY.bold },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+    marginTop: SPACING['2xl'],
+    marginBottom: SPACING.md,
+  },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexShrink: 1 },
+  sectionDot: { width: 8, height: 8, borderRadius: RADIUS.pill, backgroundColor: colors.chromeFill },
+  sectionTitle: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.black, color: colors.primary, flexShrink: 1 },
+  // The filter and "Agregar" share the right side of the section header.
+  sectionActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  // A small bordered-white control (Editar / Agregar / Editar stock).
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.controlBorder,
+    paddingHorizontal: SPACING.md,
+    height: 36,
+    borderRadius: 11,
+  },
+  editText: { color: colors.primary, fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.bold },
   deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
     height: 54,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1.5,
-    borderColor: colors.error,
+    borderRadius: RADIUS.card,
+    backgroundColor: colors.errorSoft,
     marginTop: SPACING['3xl'],
   },
-  deleteText: { color: colors.error, fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold },
-  deleteHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.md },
+  deleteText: { color: colors.error, fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.extrabold },
+  deleteHint: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.sm },
+  // Simple product: a bordered white card of branch rows.
   stockBox: {
     backgroundColor: colors.surface,
     borderRadius: RADIUS.card,
-    paddingHorizontal: SPACING.sm,
+    borderWidth: 1,
+    borderColor: colors.separator,
+    paddingHorizontal: SPACING.md,
   },
-  stockBoxCompact: { marginTop: SPACING.md },
+  // Inside a variation card: a grey inset block instead of a bordered card.
+  stockBoxCompact: {
+    backgroundColor: colors.fill,
+    borderWidth: 0,
+    marginTop: SPACING.md,
+  },
   stockRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
-  stockBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  stockBranch: { flex: 1, fontSize: FONT_SIZE.bodySm, color: colors.textPrimary, fontFamily: FONT_FAMILY.medium },
-  stockPill: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, borderRadius: RADIUS.badge },
-  stockPillText: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.bold },
-  muted: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary },
+  stockBorder: { borderTopWidth: 1, borderTopColor: colors.controlBorder },
+  stockBranch: { flex: 1, fontSize: FONT_SIZE.bodySm, color: colors.primary, fontFamily: FONT_FAMILY.bold },
+  stockPill: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: RADIUS.badge },
+  stockPillText: { fontSize: FONT_SIZE.caption, fontFamily: FONT_FAMILY.extrabold },
+  muted: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.bodySm, color: colors.textSecondary, lineHeight: 20 },
   varCard: {
     backgroundColor: colors.surface,
-    borderRadius: RADIUS.card,
-    padding: SPACING.sm,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.separator,
+    padding: SPACING.md,
     marginBottom: SPACING.md,
   },
   // The same anatomy as a catalogue product card: a big thumbnail, then a column
   // that reads top-down (code → which variation → price), and the actions aside.
   varHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md },
-  varThumb: { width: SIZE.thumbLg, height: SIZE.thumbLg, borderRadius: RADIUS.control },
+  varThumb: { width: SIZE.thumbLg, height: SIZE.thumbLg, borderRadius: RADIUS.card },
   varInfo: { flex: 1 },
-  varOverline: { marginBottom: SPACING.hairline },
-  varName: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
+  varOverline: { flexDirection: 'row', marginBottom: SPACING.hairline },
+  varName: { fontSize: FONT_SIZE.subheading, fontFamily: FONT_FAMILY.extrabold, color: colors.primary, marginTop: SPACING.xs },
   varPrice: {
     fontSize: FONT_SIZE.subheading,
-    fontFamily: FONT_FAMILY.bold,
-    color: colors.textPrimary,
+    fontFamily: FONT_FAMILY.black,
+    color: colors.primary,
     marginTop: SPACING.xs,
   },
-  varActions: { flexDirection: 'row', flexShrink: 0 },
-  varIconBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  varActions: { flexDirection: 'row', flexShrink: 0, gap: SPACING.hairline },
+  varIconBtn: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   stockEditBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    height: 40,
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.primarySoft,
+    height: 44,
+    borderRadius: RADIUS.control,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.controlBorder,
     marginTop: SPACING.md,
   },
 });

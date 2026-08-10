@@ -13,15 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { deleteUser, fetchAdminUsers } from '../api/admin/users';
 import { usePagedList } from '../hooks/usePagedList';
-import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import Avatar from '../components/Avatar';
-import Chip, { ChipRow } from '../components/Chip';
 import SearchBar from '../components/SearchBar';
 import LoadingState from '../components/LoadingState';
-import ScreenHeader from '../components/ScreenHeader';
+import PushedHeader from '../components/PushedHeader';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import { useDebounce } from '../hooks/useDebounce';
@@ -43,7 +42,8 @@ const ROLE_FILTERS: { value: RoleFilter; label: string }[] = [
 export default function AdminUsersScreen({ navigation }: Props) {
   const { showToast } = useToast();
   const { user: me } = useAuth();
-
+  const colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [searchText, setSearchText] = useState('');
   const query = useDebounce(searchText, 400);
@@ -85,7 +85,6 @@ export default function AdminUsersScreen({ navigation }: Props) {
     try {
       await deleteUser(u.id);
       showToast('Usuario eliminado', 'checkmark-circle');
-      // Stay on the page you were looking at; loadPage steps back if it emptied.
       loadPage(page);
     } catch (e: any) {
       // The server 422s on self-deletion; its message explains why.
@@ -95,12 +94,17 @@ export default function AdminUsersScreen({ navigation }: Props) {
 
   function renderItem({ item }: { item: AdminUser }) {
     const isMe = me?.id === item.id;
+    const isAdmin = item.role === 'admin';
     return (
-      <View style={styles.row}>
-        <Avatar name={item.name} style={item.role === 'admin' && styles.avatarAdmin} />
-        <View style={styles.rowInfo}>
+      <View style={styles.card}>
+        <View style={[styles.avatar, isAdmin ? styles.avatarAdmin : styles.avatarSeller]}>
+          <Text style={[styles.avatarText, isAdmin ? styles.avatarTextAdmin : styles.avatarTextSeller]}>
+            {item.name.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.info}>
           <View style={styles.nameLine}>
-            <Text style={styles.rowName} numberOfLines={1}>
+            <Text style={styles.name} numberOfLines={1}>
               {item.name}
             </Text>
             {isMe && (
@@ -109,18 +113,17 @@ export default function AdminUsersScreen({ navigation }: Props) {
               </View>
             )}
           </View>
-          <Text style={styles.rowEmail} numberOfLines={1}>
+          <Text style={styles.email} numberOfLines={1}>
             {item.email}
           </Text>
           <View style={styles.badges}>
-            <View style={[styles.roleBadge, item.role === 'admin' && styles.roleBadgeAdmin]}>
-              <Text style={[styles.roleText, item.role === 'admin' && styles.roleTextAdmin]}>
-                {item.role === 'admin' ? 'Administrador' : 'Vendedor'}
+            <View style={[styles.roleBadge, isAdmin ? styles.roleBadgeAdmin : styles.roleBadgeSeller]}>
+              <Text style={[styles.roleText, isAdmin ? styles.roleTextAdmin : styles.roleTextSeller]}>
+                {isAdmin ? 'Administrador' : 'Vendedor'}
               </Text>
             </View>
             {item.branch && (
               <View style={styles.branchBadge}>
-                <Ionicons name="storefront-outline" size={11} color={colors.textSecondary} />
                 <Text style={styles.branchText} numberOfLines={1}>
                   {item.branch.name}
                 </Text>
@@ -130,23 +133,23 @@ export default function AdminUsersScreen({ navigation }: Props) {
         </View>
         <TouchableOpacity
           onPress={() => navigation.navigate('AdminUserForm', { user: item })}
-          style={styles.rowBtn}
+          style={styles.editBtn}
           activeOpacity={ROW_PRESS_OPACITY}
           accessibilityRole="button"
           accessibilityLabel={`Editar usuario ${item.name}`}
         >
-          <Ionicons name="create-outline" size={20} color={colors.primary} />
+          <Ionicons name="create-outline" size={15} color={colors.primary} />
         </TouchableOpacity>
         {/* Deleting yourself is rejected by the server — don't even offer it. */}
         {!isMe && (
           <TouchableOpacity
             onPress={() => confirmDelete(item)}
-            style={styles.rowBtn}
+            style={styles.deleteBtn}
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
             accessibilityLabel={`Eliminar usuario ${item.name}`}
           >
-            <Ionicons name="trash-outline" size={20} color={colors.error} />
+            <Ionicons name="trash-outline" size={15} color={colors.error} />
           </TouchableOpacity>
         )}
       </View>
@@ -155,14 +158,11 @@ export default function AdminUsersScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader
+      <PushedHeader
         title="Usuarios"
+        subtitle={meta ? `${meta.total} en el equipo` : undefined}
         onBack={() => navigation.goBack()}
-        action={{
-          icon: 'add',
-          onPress: () => navigation.navigate('AdminUserForm', {}),
-          label: 'Nuevo usuario',
-        }}
+        addAction={{ label: 'Nuevo', onPress: () => navigation.navigate('AdminUserForm', {}) }}
       />
 
       <View style={styles.filters}>
@@ -170,17 +170,24 @@ export default function AdminUsersScreen({ navigation }: Props) {
           value={searchText}
           onChangeText={setSearchText}
           placeholder="Buscar por nombre..."
+          bordered
         />
-        <ChipRow>
-          {ROLE_FILTERS.map((r) => (
-            <Chip
-              key={r.value}
-              label={r.label}
-              active={role === r.value}
-              onPress={() => setRole(r.value)}
-            />
-          ))}
-        </ChipRow>
+        <View style={styles.roleChips}>
+          {ROLE_FILTERS.map((r) => {
+            const on = role === r.value;
+            return (
+              <TouchableOpacity
+                key={r.value}
+                style={[styles.roleChip, on && styles.roleChipOn]}
+                onPress={() => setRole(r.value)}
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.roleChipText, on && styles.roleChipTextOn]}>{r.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {loading && users.length === 0 ? (
@@ -198,7 +205,6 @@ export default function AdminUsersScreen({ navigation }: Props) {
           keyExtractor={(u) => String(u.id)}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={styles.sep} />}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
@@ -219,8 +225,8 @@ export default function AdminUsersScreen({ navigation }: Props) {
           ListEmptyComponent={
             <EmptyState
               icon="people-outline"
-              title="Sin usuarios"
-              message="Prueba con otra búsqueda o filtro."
+              title="Sin resultados"
+              message="Prueba con otro nombre o cambia el rol."
             />
           }
         />
@@ -229,36 +235,58 @@ export default function AdminUsersScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  filters: { paddingHorizontal: SPACING.sm },
-  list: { paddingHorizontal: SPACING.sm, paddingBottom: SPACING['2xl'], flexGrow: 1 },
-  sep: { height: 1, backgroundColor: colors.border },
-  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
-  avatarAdmin: { backgroundColor: colors.textPrimary },
-  rowInfo: { flex: 1 },
-  nameLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  rowName: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary, flexShrink: 1 },
-  meBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.hairline, borderRadius: RADIUS.badge },
-  meText: { fontSize: FONT_SIZE.badge, fontFamily: FONT_FAMILY.bold, color: colors.primary },
-  rowEmail: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, marginTop: SPACING.hairline },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.xs },
-  roleBadge: { backgroundColor: colors.primarySoft, paddingHorizontal: SPACING.sm, paddingVertical: SPACING.hairline, borderRadius: RADIUS.badge },
-  roleBadgeAdmin: { backgroundColor: '#e5e7eb' },
-  roleText: { fontSize: FONT_SIZE.badge, fontFamily: FONT_FAMILY.bold, color: colors.primary },
-  roleTextAdmin: { color: colors.textPrimary },
-  branchBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.hairline,
-    borderRadius: RADIUS.badge,
-    maxWidth: 140,
-  },
-  branchText: { fontSize: FONT_SIZE.badge, color: colors.textSecondary, fontFamily: FONT_FAMILY.medium },
-  rowBtn: { width: TOUCH_MIN, height: TOUCH_MIN, alignItems: 'center', justifyContent: 'center' },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    filters: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      gap: 9,
+      borderBottomWidth: 1,
+      borderBottomColor: '#E9EBF0',
+    },
+    roleChips: { flexDirection: 'row', gap: 7 },
+    roleChip: { height: 34, paddingHorizontal: 14, borderRadius: 11, borderWidth: 1.5, borderColor: colors.controlBorder, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+    roleChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+    roleChipText: { fontSize: 12.5, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.6)' },
+    roleChipTextOn: { color: '#fff' },
+
+    list: { padding: 18, gap: 10, flexGrow: 1 },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: colors.surface,
+      borderRadius: 18,
+      padding: 14,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.07,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    avatar: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    avatarAdmin: { backgroundColor: colors.primary },
+    avatarSeller: { backgroundColor: '#FFC20E' },
+    avatarText: { fontSize: 16, fontFamily: FONT_FAMILY.black },
+    avatarTextAdmin: { color: '#FFC20E' },
+    avatarTextSeller: { color: '#16213A' },
+    info: { flex: 1, minWidth: 0 },
+    nameLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    name: { fontSize: 15, fontFamily: FONT_FAMILY.black, color: colors.primary, flexShrink: 1 },
+    meBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: '#FFC20E' },
+    meText: { fontSize: 10, fontFamily: FONT_FAMILY.black, color: '#16213A' },
+    email: { fontSize: 12, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.5)', marginTop: 2 },
+    badges: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 5 },
+    roleBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+    roleBadgeAdmin: { backgroundColor: '#E8EBF2' },
+    roleBadgeSeller: { backgroundColor: colors.fill },
+    roleText: { fontSize: 10.5, fontFamily: FONT_FAMILY.black },
+    roleTextAdmin: { color: colors.primary },
+    roleTextSeller: { color: 'rgba(22, 33, 58, 0.6)' },
+    branchBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: '#FFF3CF', maxWidth: 150 },
+    branchText: { fontSize: 10.5, fontFamily: FONT_FAMILY.black, color: '#8A6400' },
+    editBtn: { width: 34, height: 34, borderRadius: 11, borderWidth: 1.5, borderColor: colors.controlBorder, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+    deleteBtn: { width: 34, height: 34, borderRadius: 11, borderWidth: 1.5, borderColor: '#F3CFC6', backgroundColor: colors.errorSoft, alignItems: 'center', justifyContent: 'center' },
+  });

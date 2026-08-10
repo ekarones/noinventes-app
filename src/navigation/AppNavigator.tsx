@@ -10,7 +10,8 @@ import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import TopProductsScreen from '../screens/TopProductsScreen';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/theme';
+import { FONT_FAMILY } from '../theme/tokens';
 import { useCart } from '../context/CartContext';
 import type {
   CartStackParamList,
@@ -71,25 +72,27 @@ function OrdersStack() {
 
 export default function AppNavigator() {
   const { totalItems } = useCart();
+  const colors = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarInactiveTintColor: 'rgba(22, 33, 58, 0.45)',
+        tabBarLabelStyle: { fontFamily: FONT_FAMILY.extrabold, fontSize: 11 },
         tabBarStyle: { borderTopColor: colors.border },
       }}
     >
       <Tab.Screen
         name="DashboardTab"
         component={DashboardStack}
-        options={{ title: 'Inicio', tabBarIcon: tabIcon('home') }}
+        options={{ title: 'Inicio', tabBarIcon: tabIcon('home', colors) }}
       />
       <Tab.Screen
         name="CatalogTab"
         component={CatalogStack}
-        options={{ title: 'Catálogo', tabBarIcon: tabIcon('products') }}
+        options={{ title: 'Catálogo', tabBarIcon: tabIcon('products', colors) }}
       />
       <Tab.Screen
         name="CartTab"
@@ -97,14 +100,14 @@ export default function AppNavigator() {
         options={{
           title: 'Carrito',
           tabBarBadge: totalItems > 0 ? totalItems : undefined,
-          tabBarBadgeStyle: { backgroundColor: colors.primary },
-          tabBarIcon: tabIcon('cart'),
+          tabBarBadgeStyle: { backgroundColor: colors.accent },
+          tabBarIcon: tabIcon('cart', colors),
         }}
       />
       <Tab.Screen
         name="OrdersTab"
         component={OrdersStack}
-        options={{ title: 'Ventas', tabBarIcon: tabIcon('sales') }}
+        options={{ title: 'Ventas', tabBarIcon: tabIcon('sales', colors) }}
       />
     </Tab.Navigator>
   );

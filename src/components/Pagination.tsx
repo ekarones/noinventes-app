@@ -1,14 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
-import {
-  FONT_SIZE,
-  FONT_FAMILY,
-  RADIUS,
-  ROW_PRESS_OPACITY,
-  SPACING,
-  TOUCH_MIN,
-} from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 
 type Props = {
   page: number;
@@ -18,13 +11,12 @@ type Props = {
   loading?: boolean;
 };
 
-// Which page numbers to draw. Always the first and the last, plus a window
-// around the current one; the holes between them collapse into an ellipsis, so
-// the strip keeps its width whether there are 3 pages or 300.
+// Which page numbers to draw. Always the first and the last, plus a window around
+// the current one; the holes collapse into an ellipsis so the strip keeps its
+// width whether there are 3 pages or 300.
 function pageWindow(page: number, lastPage: number): (number | 'gap')[] {
   const wanted = [1, lastPage, page - 1, page, page + 1];
   const pages = [...new Set(wanted)].filter((p) => p >= 1 && p <= lastPage).sort((a, b) => a - b);
-
   const out: (number | 'gap')[] = [];
   pages.forEach((p, i) => {
     if (i > 0 && p - pages[i - 1] > 1) out.push('gap');
@@ -33,27 +25,14 @@ function pageWindow(page: number, lastPage: number): (number | 'gap')[] {
   return out;
 }
 
-// Numbered pagination for a paged list. Shows nothing at all when everything
-// fits on one page — a lone "1" is noise, not navigation.
+// Numbered pagination (5a): a centred strip of pills. The current page fills in
+// the role's chrome colour. Shows nothing when everything fits on one page.
 export default function Pagination({ page, lastPage, onChange, loading }: Props) {
+  const styles = useThemedStyles(makeStyles);
   if (lastPage <= 1) return null;
-
-  const canPrev = page > 1 && !loading;
-  const canNext = page < lastPage && !loading;
 
   return (
     <View style={styles.row}>
-      <TouchableOpacity
-        style={[styles.step, !canPrev && styles.disabled]}
-        onPress={() => onChange(page - 1)}
-        disabled={!canPrev}
-        activeOpacity={ROW_PRESS_OPACITY}
-        accessibilityRole="button"
-        accessibilityLabel="Página anterior"
-      >
-        <Ionicons name="chevron-back" size={18} color={colors.textSecondary} />
-      </TouchableOpacity>
-
       {pageWindow(page, lastPage).map((p, i) =>
         p === 'gap' ? (
           <Text key={`gap-${i}`} style={styles.gap}>
@@ -74,63 +53,40 @@ export default function Pagination({ page, lastPage, onChange, loading }: Props)
           </TouchableOpacity>
         )
       )}
-
-      <TouchableOpacity
-        style={[styles.step, !canNext && styles.disabled]}
-        onPress={() => onChange(page + 1)}
-        disabled={!canNext}
-        activeOpacity={ROW_PRESS_OPACITY}
-        accessibilityRole="button"
-        accessibilityLabel="Página siguiente"
-      >
-        <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-      </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: SPACING.xs,
-    paddingVertical: SPACING.lg,
-  },
-  // Same selectable shape as the filters: flat at rest, framed in primary with a
-  // soft fill once it's the page you're on.
-  page: {
-    minWidth: TOUCH_MIN,
-    height: TOUCH_MIN,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.sm,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surface,
-  },
-  pageActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  pageText: {
-    fontSize: FONT_SIZE.bodySm,
-    fontFamily: FONT_FAMILY.medium,
-    color: colors.textSecondary,
-  },
-  pageTextActive: { color: colors.primary },
-  step: {
-    width: TOUCH_MIN,
-    height: TOUCH_MIN,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: RADIUS.pill,
-    backgroundColor: colors.surface,
-  },
-  disabled: { opacity: 0.35 },
-  gap: { fontFamily: FONT_FAMILY.regular,
-    minWidth: SPACING.lg,
-    textAlign: 'center',
-    fontSize: FONT_SIZE.bodySm,
-    color: colors.textSecondary,
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexWrap: 'wrap',
+      gap: 8,
+      paddingTop: 18,
+      paddingBottom: 4,
+    },
+    page: {
+      minWidth: 34,
+      height: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 8,
+      borderRadius: 11,
+      borderWidth: 1.5,
+      borderColor: colors.controlBorder,
+      backgroundColor: colors.surface,
+    },
+    pageActive: { backgroundColor: colors.chromeFill, borderColor: colors.chromeFill },
+    pageText: { fontSize: 13.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+    pageTextActive: { color: colors.onChrome },
+    gap: {
+      minWidth: 16,
+      textAlign: 'center',
+      fontFamily: FONT_FAMILY.black,
+      fontSize: 13.5,
+      color: 'rgba(22, 33, 58, 0.4)',
+    },
+  });

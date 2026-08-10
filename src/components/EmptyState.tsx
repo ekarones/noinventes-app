@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_FAMILY, SPACING } from '../theme/tokens';
+import { FONT_FAMILY, SPACING } from '../theme/tokens';
 import Button from './Button';
 
 type Props = {
@@ -15,21 +15,19 @@ type Props = {
     icon?: keyof typeof Ionicons.glyphMap;
   };
   /**
-   * For an empty SECTION rather than an empty screen. Drops the `flex: 1` — which
-   * would otherwise swallow all the room left and shove the sections below it off
-   * the page — and scales everything down to fit inside the block.
+   * For an empty SECTION rather than an empty screen. Drops the card and the
+   * `flex: 1`, and scales down — for use inside an already-white panel (the
+   * dashboards' section cards).
    */
   compact?: boolean;
 };
 
-// The placeholder shown when a list is empty or a request failed. Centralised so
-// "nothing here" and "it broke" always read the same way: a muted icon, a short
-// title, one line of explanation, and — when the user can do something about it —
-// a single action.
+// The placeholder shown when a list is empty or a request failed (5a). On a full
+// screen it sits in a white card; inside a section it's a plain centred block.
 export default function EmptyState({ icon, title, message, action, compact }: Props) {
-  return (
-    <View style={[styles.container, compact && styles.compact]}>
-      <Ionicons name={icon} size={compact ? 36 : 56} color={colors.border} />
+  const content = (
+    <>
+      <Ionicons name={icon} size={compact ? 36 : 42} color="rgba(22, 33, 58, 0.25)" />
       {!!title && <Text style={styles.title}>{title}</Text>}
       {!!message && <Text style={styles.message}>{message}</Text>}
       {action && (
@@ -41,32 +39,47 @@ export default function EmptyState({ icon, title, message, action, compact }: Pr
           style={styles.action}
         />
       )}
+    </>
+  );
+
+  if (compact) return <View style={styles.compact}>{content}</View>;
+  return (
+    <View style={styles.container}>
+      <View style={styles.card}>{content}</View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 22 },
+  card: {
+    width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: SPACING['3xl'],
-    paddingHorizontal: SPACING['3xl'],
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    paddingVertical: 34,
+    paddingHorizontal: 24,
+    shadowColor: '#16213a',
+    shadowOpacity: 0.07,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  compact: { flex: 0, paddingTop: SPACING.md, paddingBottom: SPACING.md },
+  compact: { alignItems: 'center', paddingVertical: SPACING.md },
   title: {
-    fontSize: FONT_SIZE.heading,
-    fontFamily: FONT_FAMILY.bold,
-    color: colors.textPrimary,
+    fontSize: 16,
+    fontFamily: FONT_FAMILY.black,
+    color: colors.primary,
     marginTop: SPACING.md,
     textAlign: 'center',
   },
-  message: { fontFamily: FONT_FAMILY.regular,
-    fontSize: FONT_SIZE.body,
-    color: colors.textSecondary,
+  message: {
+    fontFamily: FONT_FAMILY.bold,
+    fontSize: 13,
+    color: 'rgba(22, 33, 58, 0.5)',
     textAlign: 'center',
     marginTop: SPACING.sm,
-    lineHeight: 21,
+    lineHeight: 19,
   },
-  action: { marginTop: SPACING.xl, paddingHorizontal: SPACING['2xl'] },
+  action: { marginTop: SPACING.lg, paddingHorizontal: SPACING['2xl'] },
 });

@@ -9,7 +9,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
 import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 type Props = {
@@ -20,6 +21,8 @@ type Props = {
 };
 
 export default function QRScannerModal({ visible, onClose, onScanned }: Props) {
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   // Prevents the camera from firing onBarcodeScanned dozens of times per second.
@@ -93,7 +96,7 @@ export default function QRScannerModal({ visible, onClose, onScanned }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   overlay: {
     position: 'absolute',

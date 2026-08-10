@@ -22,7 +22,9 @@ import AdminTagsScreen from '../screens/AdminTagsScreen';
 import AdminBranchesScreen from '../screens/AdminBranchesScreen';
 import AdminUsersScreen from '../screens/AdminUsersScreen';
 import AdminUserFormScreen from '../screens/AdminUserFormScreen';
-import { colors } from '../theme/colors';
+import AdminCompanyScreen from '../screens/AdminCompanyScreen';
+import { useTheme } from '../theme/theme';
+import { FONT_FAMILY } from '../theme/tokens';
 import type {
   AdminHomeStackParamList,
   AdminMoreStackParamList,
@@ -93,6 +95,7 @@ function MoreStack() {
       <MoreStackNav.Screen name="AdminBranches" component={AdminBranchesScreen} />
       <MoreStackNav.Screen name="AdminUsers" component={AdminUsersScreen} />
       <MoreStackNav.Screen name="AdminUserForm" component={AdminUserFormScreen} />
+      <MoreStackNav.Screen name="AdminCompany" component={AdminCompanyScreen} />
     </MoreStackNav.Navigator>
   );
 }
@@ -100,34 +103,36 @@ function MoreStack() {
 // Root navigator for admin users. Bottom tabs, each wrapping its own stack.
 // New admin areas (productos, usuarios, …) get added as new tabs as they ship.
 export default function AdminNavigator() {
+  const colors = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarInactiveTintColor: 'rgba(22, 33, 58, 0.45)',
+        tabBarLabelStyle: { fontFamily: FONT_FAMILY.extrabold, fontSize: 11 },
         tabBarStyle: { borderTopColor: colors.border },
       }}
     >
       <Tab.Screen
         name="AdminHomeTab"
         component={HomeStack}
-        options={{ title: 'Inicio', tabBarIcon: tabIcon('home') }}
-      />
-      <Tab.Screen
-        name="AdminSalesTab"
-        component={SalesStack}
-        options={{ title: 'Ventas', tabBarIcon: tabIcon('sales') }}
+        options={{ title: 'Inicio', tabBarIcon: tabIcon('home', colors) }}
       />
       <Tab.Screen
         name="AdminProductsTab"
         component={ProductsStack}
-        options={{ title: 'Catálogo', tabBarIcon: tabIcon('products') }}
+        options={{ title: 'Catálogo', tabBarIcon: tabIcon('products', colors) }}
+      />
+      <Tab.Screen
+        name="AdminSalesTab"
+        component={SalesStack}
+        options={{ title: 'Ventas', tabBarIcon: tabIcon('sales', colors) }}
       />
       <Tab.Screen
         name="AdminMoreTab"
         component={MoreStack}
-        options={{ title: 'Más', tabBarIcon: tabIcon('more') }}
+        options={{ title: 'Más', tabBarIcon: tabIcon('more', colors) }}
       />
     </Tab.Navigator>
   );

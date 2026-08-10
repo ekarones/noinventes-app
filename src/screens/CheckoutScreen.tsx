@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -13,8 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING, TOUCH_MIN } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
 import { linePrice, variationLabel } from '../utils/cart';
 import { PAYMENT_METHODS } from '../utils/payment';
@@ -24,11 +26,7 @@ import { createSale, type CreateSaleItem } from '../api/sales';
 import { lookupByCode } from '../api/products';
 import { ApiError, TIMEOUT_STATUS } from '../api/client';
 import { hapticSuccess } from '../utils/haptics';
-import SaleTotals from '../components/SaleTotals';
-import Card from '../components/Card';
-import Field from '../components/Field';
-import Button from '../components/Button';
-import ScreenHeader from '../components/ScreenHeader';
+import DashedLine from '../components/DashedLine';
 import type { CartItem, PaymentMethod } from '../types';
 import type { CartStackParamList, RootTabNavigation } from '../navigation/types';
 
@@ -75,6 +73,8 @@ export default function CheckoutScreen({ navigation }: Props) {
   const { items, totalPrice: subtotal, discount, total, clear, updateQuantity, removeItem, invalidateStock } =
     useCart();
   const { showToast } = useToast();
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
 
   const [customerName, setCustomerName] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -178,138 +178,327 @@ export default function CheckoutScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Cobrar" onBack={() => navigation.goBack()} />
+      {/* Header (5a): amber panel with a decorative circle, a white-card back
+          button and the "Cobrar" title. */}
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <View style={styles.headerCircle} pointerEvents="none" />
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.onChrome} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Cobrar</Text>
+        </View>
+      </View>
 
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        // Lift the form by exactly what ScreenHeader occupies above it, so the
-        // keyboard doesn't cover the field being typed into.
-        keyboardVerticalOffset={insets.top + TOUCH_MIN}
+        keyboardVerticalOffset={insets.top + 64}
       >
         <ScrollView
-          contentContainerStyle={{ padding: SPACING.sm, paddingBottom: SPACING['2xl'] }}
+          contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Items summary */}
-          <Text style={styles.sectionTitle}>Resumen ({items.length})</Text>
-          <Card>
+          {/* Items summary — a read-only ticket; quantities change back in the cart. */}
+          <View style={styles.card}>
+            <View style={styles.summaryHeader}>
+              <View style={styles.dot} />
+              <Text style={styles.summaryTitle}>Resumen ({items.length})</Text>
+            </View>
             {items.map((i, idx) => (
-              <View key={i.key} style={[styles.summaryRow, idx > 0 && styles.rowBorder]}>
-                <Text style={styles.summaryQty}>{i.quantity}×</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.summaryName} numberOfLines={1}>
-                    {i.product.name}
-                  </Text>
-                  {i.variation && (
-                    <Text style={styles.summaryVariation}>{variationLabel(i.variation)}</Text>
-                  )}
+              <View key={i.key}>
+                {idx > 0 && <DashedLine style={styles.summaryDash} />}
+                <View style={styles.summaryRow}>
+                  <View style={styles.qtyChip}>
+                    <Text style={styles.qtyChipText}>{i.quantity}×</Text>
+                  </View>
+                  <View style={styles.summaryInfo}>
+                    <Text style={styles.summaryName} numberOfLines={1}>
+                      {i.product.name}
+                    </Text>
+                    <Text style={styles.summaryDetail} numberOfLines={1}>
+                      {i.variation && (
+                        <Text style={styles.summaryVariation}>{variationLabel(i.variation)} · </Text>
+                      )}
+                      {formatPrice(linePrice(i))} c/u
+                    </Text>
+                  </View>
+                  <Text style={styles.summaryPrice}>{formatPrice(linePrice(i) * i.quantity)}</Text>
                 </View>
-                <Text style={styles.summaryPrice}>{formatPrice(linePrice(i) * i.quantity)}</Text>
               </View>
             ))}
-          </Card>
+          </View>
 
           {/* Customer */}
-          <Text style={styles.sectionTitle}>Cliente</Text>
-          <Field
-            icon="person-outline"
-            placeholder="Cliente final"
-            value={customerName}
-            onChangeText={setCustomerName}
-            maxLength={255}
-          />
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Cliente</Text>
+            <TextInput
+              style={styles.input}
+              value={customerName}
+              onChangeText={setCustomerName}
+              placeholder="Cliente final"
+              placeholderTextColor="rgba(22, 33, 58, 0.35)"
+              maxLength={255}
+            />
+            <Text style={styles.cardHint}>
+              Si lo dejas vacío, la venta se registra como “Cliente final”.
+            </Text>
+          </View>
 
           {/* Payment method */}
-          <Text style={styles.sectionTitle}>Método de pago</Text>
-          <View style={styles.payGrid}>
-            {PAYMENT_METHODS.map((m) => {
-              const active = paymentMethod === m.value;
-              return (
-                <TouchableOpacity
-                  key={m.value}
-                  style={[styles.payPill, active && styles.payPillActive]}
-                  onPress={() => setPaymentMethod(m.value)}
-                  activeOpacity={ROW_PRESS_OPACITY}
-                >
-                  <Ionicons
-                    name={m.icon}
-                    size={18}
-                    color={active ? colors.primary : colors.textSecondary}
-                  />
-                  <Text style={[styles.payText, active && styles.payTextActive]}>{m.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Método de pago</Text>
+            <View style={styles.payWrap}>
+              {PAYMENT_METHODS.map((m) => {
+                const active = paymentMethod === m.value;
+                return (
+                  <TouchableOpacity
+                    key={m.value}
+                    style={[styles.payPill, active && styles.payPillActive]}
+                    onPress={() => setPaymentMethod(m.value)}
+                    activeOpacity={ROW_PRESS_OPACITY}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.payText, active && styles.payTextActive]}>{m.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           {/* Notes */}
-          <Text style={styles.sectionTitle}>Notas (opcional)</Text>
-          <Field
-            placeholder="Ej. Cliente recurrente, pagó con QR…"
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            maxLength={1000}
-          />
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Notas (opcional)</Text>
+            <TextInput
+              style={styles.textarea}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Ej. Cliente recurrente, pagó con QR…"
+              placeholderTextColor="rgba(22, 33, 58, 0.35)"
+              multiline
+              maxLength={1000}
+              textAlignVertical="top"
+            />
+          </View>
 
           {/* Totals */}
-          <SaleTotals subtotal={subtotal} discount={discount} total={total} />
+          <View style={styles.card}>
+            <View style={styles.totalRow}>
+              <Text style={styles.subtotalLabel}>Subtotal</Text>
+              <Text style={styles.subtotalValue}>{formatPrice(subtotal)}</Text>
+            </View>
+            {discount > 0 && (
+              <View style={styles.totalRow}>
+                <View style={styles.discountLabelRow}>
+                  <Text style={styles.discountLabel}>Descuento</Text>
+                  <View style={styles.discountChip}>
+                    <Text style={styles.discountChipText}>del carrito</Text>
+                  </View>
+                </View>
+                <Text style={styles.discountValue}>− {formatPrice(discount)}</Text>
+              </View>
+            )}
+            <DashedLine style={styles.totalDash} />
+            <View style={styles.totalRow}>
+              <Text style={styles.grandLabel}>TOTAL</Text>
+              <Text style={styles.grandValue}>{formatPrice(total)}</Text>
+            </View>
+          </View>
         </ScrollView>
 
-        {/* Submit */}
-        <View style={[styles.footer, { paddingBottom: SPACING.lg }]}>
-          <Button
-            label={`Cobrar ${formatPrice(total)}`}
+        {/* Submit — the tab bar stays visible on this screen, so no bottom inset. */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.cta, submitting && styles.ctaBusy]}
             onPress={handleSubmit}
-            loading={submitting}
-          />
+            disabled={submitting}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+          >
+            <Text style={styles.ctaText}>
+              {submitting ? 'Registrando venta…' : `Cobrar ${formatPrice(total)}`}
+            </Text>
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    flex: { flex: 1 },
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  sectionTitle: { fontSize: FONT_SIZE.heading, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary, marginTop: SPACING['2xl'], marginBottom: SPACING.md },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md },
-  rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  summaryQty: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.primary, minWidth: 28 },
-  summaryName: { fontSize: FONT_SIZE.body, color: colors.textPrimary, fontFamily: FONT_FAMILY.medium },
-  summaryVariation: { fontSize: FONT_SIZE.micro, color: colors.primary, fontFamily: FONT_FAMILY.medium, marginTop: SPACING.hairline },
-  summaryPrice: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
-  // Same white track as the chip rows and the dashboard period selector.
-  payGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    backgroundColor: colors.surface,
-    borderRadius: RADIUS.card,
-    padding: SPACING.sm,
-  },
-  payPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
-    height: 46,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surfaceMuted,
-  },
-  payPillActive: { backgroundColor: colors.surface, borderColor: colors.primary },
-  payText: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textSecondary },
-  payTextActive: { color: colors.primary },
-  footer: {
-    paddingHorizontal: SPACING.sm,
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-});
+    // ---- Header ----
+    header: {
+      paddingHorizontal: 18,
+      paddingBottom: 16,
+      backgroundColor: colors.chromeFill,
+      overflow: 'hidden',
+    },
+    headerCircle: {
+      position: 'absolute',
+      width: 250,
+      height: 250,
+      borderRadius: 999,
+      backgroundColor: colors.headerCircle,
+      top: -150,
+      right: -96,
+    },
+    headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    backBtn: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      backgroundColor: colors.chromeButtonBg,
+      borderWidth: 2,
+      borderColor: colors.chromeButtonBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: { flex: 1, fontSize: 26, letterSpacing: -0.8, fontFamily: FONT_FAMILY.black, color: colors.onChrome },
+
+    // ---- Content ----
+    scroll: { padding: 18, gap: 12, paddingBottom: 24 },
+    // A titled white panel (5a), one per section.
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 16,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.07,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    cardLabel: {
+      fontSize: 12,
+      fontFamily: FONT_FAMILY.black,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: 'rgba(22, 33, 58, 0.5)',
+      marginBottom: 10,
+    },
+
+    // ---- Summary ----
+    summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingBottom: 9 },
+    dot: { width: 8, height: 8, borderRadius: 999, backgroundColor: colors.chromeFill },
+    summaryTitle: { fontSize: 15.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+    summaryDash: { marginVertical: 0 },
+    summaryRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingVertical: 11 },
+    qtyChip: {
+      minWidth: 34,
+      height: 26,
+      paddingHorizontal: 7,
+      borderRadius: 9,
+      backgroundColor: colors.fill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    qtyChipText: { fontSize: 12.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+    summaryInfo: { flex: 1, minWidth: 0 },
+    summaryName: { fontSize: 14.5, fontFamily: FONT_FAMILY.extrabold, color: colors.primary, lineHeight: 18 },
+    summaryDetail: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.5)', marginTop: 2 },
+    summaryVariation: { color: colors.primary },
+    summaryPrice: { fontSize: 14.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+
+    // ---- Customer / notes inputs ----
+    input: {
+      height: 52,
+      paddingHorizontal: 14,
+      borderWidth: 1.5,
+      borderColor: colors.controlBorder,
+      borderRadius: 15,
+      fontSize: 16,
+      fontFamily: FONT_FAMILY.extrabold,
+      color: colors.primary,
+    },
+    cardHint: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.45)', marginTop: 8 },
+    textarea: {
+      minHeight: 76,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderWidth: 1.5,
+      borderColor: colors.controlBorder,
+      borderRadius: 15,
+      fontSize: 14.5,
+      fontFamily: FONT_FAMILY.bold,
+      color: colors.primary,
+      lineHeight: 20,
+    },
+
+    // ---- Payment ----
+    payWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    payPill: {
+      height: 44,
+      paddingHorizontal: 15,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: colors.controlBorder,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    payPillActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.22,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+    },
+    payText: { fontSize: 13.5, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.62)' },
+    payTextActive: { color: '#fff' },
+
+    // ---- Totals ----
+    totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+    subtotalLabel: { fontSize: 13.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.6)' },
+    subtotalValue: { fontSize: 14.5, fontFamily: FONT_FAMILY.extrabold, color: colors.primary },
+    discountLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    discountLabel: { fontSize: 13.5, fontFamily: FONT_FAMILY.black, color: colors.error },
+    discountChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7, backgroundColor: colors.errorSoft },
+    discountChipText: { fontSize: 10.5, fontFamily: FONT_FAMILY.black, color: colors.error },
+    discountValue: { fontSize: 14.5, fontFamily: FONT_FAMILY.black, color: colors.error },
+    totalDash: { marginTop: 8, marginBottom: 10 },
+    grandLabel: {
+      fontSize: 12.5,
+      fontFamily: FONT_FAMILY.black,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: 'rgba(22, 33, 58, 0.5)',
+    },
+    grandValue: { fontSize: 28, fontFamily: FONT_FAMILY.black, color: colors.primary, letterSpacing: -1 },
+
+    // ---- Footer ----
+    footer: {
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: '#E9EBF0',
+      paddingHorizontal: 18,
+      paddingTop: 12,
+      paddingBottom: 16,
+    },
+    cta: {
+      height: 60,
+      borderRadius: 18,
+      backgroundColor: colors.chromeFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#FFC20E',
+      shadowOpacity: 0.5,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 4,
+    },
+    ctaBusy: { backgroundColor: '#EFE0AE', shadowOpacity: 0, elevation: 0 },
+    ctaText: { fontSize: 17.5, fontFamily: FONT_FAMILY.black, color: colors.onChrome },
+  });

@@ -1,7 +1,8 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { ReactNode } from 'react';
-import { colors } from '../theme/colors';
-import { CONTROL_HEIGHT, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 
 // A filter chip. Both roles filter their lists the same way (category, status,
 // date range, role), so this is one component — it existed as five identical
@@ -15,6 +16,7 @@ export default function Chip({
   active: boolean;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <TouchableOpacity
       style={[styles.chip, active && styles.chipActive]}
@@ -32,22 +34,19 @@ export default function Chip({
 
 // The horizontal strip the chips live in: a white track holding them, so the
 // muted chips have something to sit on and the selected one reads as lifted out
-// of the row rather than tinted in place.
-export function ChipRow({ children }: { children: ReactNode }) {
-  return (
-    <View style={styles.rowBox}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.row}
-      >
-        {children}
-      </ScrollView>
-    </View>
+// of the row rather than tinted in place. `bare` drops that track — for when the
+// chips already sit on a white panel (the admin catalogue's filter band).
+export function ChipRow({ children, bare }: { children: ReactNode; bare?: boolean }) {
+  const styles = useThemedStyles(makeStyles);
+  const scroll = (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      {children}
+    </ScrollView>
   );
+  return bare ? scroll : <View style={styles.rowBox}>{scroll}</View>;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   // The track. `marginVertical` replaces the padding the strip used to carry, so
   // the gap to the search bar above and the filters below is unchanged.
   rowBox: {
@@ -59,26 +58,23 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     marginVertical: SPACING.sm,
   },
-  row: { gap: SPACING.sm },
+  row: { gap: 7 },
+  // 5a: a compact bordered chip. Filled in the role's chrome colour when active.
   chip: {
-    // Same height as the sort/clear pills it sits under, and clears the 44dp
-    // minimum on its own — no hit slop reaching outside the chip.
-    height: CONTROL_HEIGHT.pill,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: RADIUS.pill,
-    // Muted at rest so the chips read as one row of options on the white track;
-    // the selected one turns white with a primary frame, lifting out of the row.
-    borderWidth: 1,
-    borderColor: 'transparent',
-    backgroundColor: colors.surfaceMuted,
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: colors.controlBorder,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipActive: { backgroundColor: colors.surface, borderColor: colors.primary },
+  chipActive: { backgroundColor: colors.chromeFill, borderColor: colors.chromeFill },
   text: {
-    fontSize: FONT_SIZE.bodySm,
-    fontFamily: FONT_FAMILY.medium,
-    color: colors.textSecondary,
+    fontSize: 12.5,
+    fontFamily: FONT_FAMILY.black,
+    color: 'rgba(22, 33, 58, 0.6)',
   },
-  textActive: { color: colors.primary },
+  textActive: { color: colors.onChrome },
 });

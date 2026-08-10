@@ -1,11 +1,12 @@
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors } from '../theme/colors';
-import { SIZE, FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import EmptyState from '../components/EmptyState';
-import ScreenHeader from '../components/ScreenHeader';
-import { stockColor } from '../utils/stock';
+import PushedHeader from '../components/PushedHeader';
+import StockBadge from '../components/StockBadge';
 import ProductImage from '../components/ProductImage';
 import type { LowStockItem } from '../types';
 import type { AdminHomeStackParamList } from '../navigation/types';
@@ -14,6 +15,7 @@ type Props = NativeStackScreenProps<AdminHomeStackParamList, 'AdminLowStock'>;
 
 export default function AdminLowStockScreen({ route, navigation }: Props) {
   const { items, threshold, hasMore } = route.params;
+  const styles = useThemedStyles(makeStyles);
 
   // Jump to the product detail to fix its stock. The detail refetches everything
   // from the id, so it only needs the seed.
@@ -32,44 +34,45 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
         style={styles.card}
         activeOpacity={ROW_PRESS_OPACITY}
         onPress={() => openProduct(item)}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.productName}, ${item.branchName}, ${item.stock} unidades`}
       >
         <ProductImage uri={item.imageThumbUrl} style={styles.thumb} iconSize={20} />
         <View style={styles.info}>
           <Text style={styles.name} numberOfLines={2}>
             {item.productName}
           </Text>
-          <Text style={styles.code}>{item.productCode}</Text>
+          <View style={styles.metaRow}>
+            <View style={styles.codeChip}>
+              <Text style={styles.codeText}>{item.productCode}</Text>
+            </View>
+          </View>
           <View style={styles.branchRow}>
-            <Ionicons name="storefront-outline" size={12} color={colors.textSecondary} />
+            <Ionicons name="storefront-outline" size={12} color="rgba(22, 33, 58, 0.5)" />
             <Text style={styles.branch} numberOfLines={1}>
               {item.branchName}
             </Text>
           </View>
         </View>
-        <View style={[styles.stockPill, { backgroundColor: stockColor(item.stock) + '22' }]}>
-          <Text style={[styles.stockText, { color: stockColor(item.stock) }]}>
-            {item.stock} uds.
-          </Text>
-        </View>
+        <StockBadge stock={item.stock} />
       </TouchableOpacity>
     );
   }
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Stock bajo" onBack={() => navigation.goBack()} />
+      <PushedHeader
+        title="Stock bajo"
+        subtitle={`Producto·sucursal con menos de ${threshold} uds.`}
+        onBack={() => navigation.goBack()}
+      />
 
       <FlatList
         data={items}
         keyExtractor={(i) => `${i.productId}-${i.branchId}`}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, { paddingBottom: SPACING['2xl'] }]}
+        contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <Text style={styles.caption}>
-            Combinaciones producto-sucursal con menos de {threshold} uds.
-          </Text>
-        }
         ListFooterComponent={
           hasMore ? (
             <Text style={styles.footer}>
@@ -89,18 +92,30 @@ export default function AdminLowStockScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
-  caption: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.caption, color: colors.textSecondary, marginBottom: SPACING.sm, paddingHorizontal: SPACING.xs },
-  footer: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.lg },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: RADIUS.card, padding: SPACING.md, gap: SPACING.md },
-  thumb: { width: SIZE.thumb, height: SIZE.thumb, borderRadius: RADIUS.control },
-  info: { flex: 1, gap: SPACING.hairline },
-  name: { fontSize: FONT_SIZE.body, fontFamily: FONT_FAMILY.medium, color: colors.textPrimary },
-  code: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary },
-  branchRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginTop: SPACING.hairline },
-  branch: { fontFamily: FONT_FAMILY.regular, fontSize: FONT_SIZE.micro, color: colors.textSecondary, flex: 1 },
-  stockPill: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.badge },
-  stockText: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    list: { padding: 18, gap: 10, flexGrow: 1 },
+    footer: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.45)', textAlign: 'center', marginTop: 16, paddingHorizontal: 18, lineHeight: 16 },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: colors.surface,
+      borderRadius: 18,
+      padding: 14,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.07,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    thumb: { width: 52, height: 52, borderRadius: 15 },
+    info: { flex: 1, minWidth: 0 },
+    name: { fontSize: 14.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+    metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    codeChip: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, backgroundColor: colors.fill },
+    codeText: { fontSize: 10.5, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.55)' },
+    branchRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+    branch: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.5)', flex: 1 },
+  });

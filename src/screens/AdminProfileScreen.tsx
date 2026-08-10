@@ -1,5 +1,4 @@
 import { useAuth } from '../context/AuthContext';
-import { InfoRow } from '../components/Row';
 import ProfileScaffold from '../components/ProfileScaffold';
 
 // Admin identity + session management. The mobile API only exposes `/me` and
@@ -11,19 +10,12 @@ export default function AdminProfileScreen() {
   return (
     <ProfileScaffold
       roleBadge={{ icon: 'shield-checkmark-outline', label: 'Administrador' }}
-      infoRows={
-        <>
-          <InfoRow icon="person-outline" label="Nombre" value={user?.name ?? '—'} />
-          <InfoRow icon="mail-outline" label="Correo" value={user?.email ?? '—'} />
-          <InfoRow icon="pricetag-outline" label="Rol" value="Administrador" />
-          <InfoRow
-            icon="finger-print-outline"
-            label="ID de usuario"
-            value={user ? `#${user.id}` : '—'}
-            last
-          />
-        </>
-      }
+      rows={[
+        { label: 'Nombre', value: user?.name ?? '—' },
+        { label: 'Correo', value: user?.email ?? '—' },
+        { label: 'Rol', value: 'Administrador' },
+        { label: 'ID de usuario', value: user ? `#${user.id}` : '—' },
+      ]}
     />
   );
 }

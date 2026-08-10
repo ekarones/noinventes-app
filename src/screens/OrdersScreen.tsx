@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchSales, fetchSaleSummaryById } from '../api/sales';
@@ -8,7 +9,7 @@ import { ApiError } from '../api/client';
 import { usePagedList } from '../hooks/usePagedList';
 import { SALE_DEFAULT_SORT, SALE_SORT_OPTIONS } from '../utils/sortOptions';
 import { colors } from '../theme/colors';
-import { SPACING } from '../theme/tokens';
+import { FONT_FAMILY, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
 import { ymd } from '../utils/format';
 import { useDebounce } from '../hooks/useDebounce';
 import SaleRow from '../components/SaleRow';
@@ -17,7 +18,6 @@ import SearchBar from '../components/SearchBar';
 import FilterPill from '../components/FilterPill';
 import PagedList from '../components/PagedList';
 import Select from '../components/Select';
-import IconButton from '../components/IconButton';
 import PrinterSheet from '../components/PrinterSheet';
 import { usePrinter } from '../context/PrinterContext';
 import { SortControl } from '../components/FilterControls';
@@ -146,7 +146,6 @@ export default function OrdersScreen({ navigation }: Props) {
         card
         id={item.id}
         customerName={item.customerName}
-        itemsCount={item.itemsCount}
         total={item.total}
         paymentMethod={item.paymentMethod}
         createdAt={item.createdAt}
@@ -161,35 +160,49 @@ export default function OrdersScreen({ navigation }: Props) {
         title="Ventas"
         subtitle={
           list.meta
-            ? `${list.meta.total} ${hasFilters ? 'coinciden' : 'en total'} · ${sort.label}`
+            ? `${list.meta.total} ${hasFilters ? 'coinciden' : 'en total'}`
             : undefined
         }
         actions={
-          // Hidden entirely where Bluetooth isn't available (iOS, Expo Go), so
-          // the header never offers something that can't work.
+          // Hidden entirely where Bluetooth isn't available (iOS, Expo Go).
           printer.supported ? (
-            <IconButton
-              icon={printer.connected ? 'print' : 'print-outline'}
-              muted={!printer.connected}
+            <TouchableOpacity
+              style={[styles.printerBtn, printer.connected && styles.printerBtnOn]}
               onPress={() => setPrinterOpen(true)}
+              activeOpacity={ROW_PRESS_OPACITY}
+              accessibilityRole="button"
               accessibilityLabel={
                 printer.connected
                   ? `Impresora conectada: ${printer.device?.name ?? ''}`
                   : 'Conectar impresora'
               }
-            />
+            >
+              <Ionicons
+                name={printer.connected ? 'print' : 'print-outline'}
+                size={17}
+                color={printer.connected ? '#fff' : colors.primary}
+              />
+              <Text style={[styles.printerText, printer.connected && styles.printerTextOn]}>
+                {printer.connected ? 'Conectada' : 'Impresora'}
+              </Text>
+            </TouchableOpacity>
           ) : undefined
         }
-      >
+      />
+
+      {/* Filters below the header, on a white band. The search leads (full width),
+          then the pickers and the date range. */}
+      <View style={styles.filters}>
         <SearchBar
           value={searchText}
           onChangeText={setSearchText}
           placeholder="Buscar por cliente o N° de venta..."
+          bordered
+          badge={/^\d+$/.test(searchText.trim()) ? 'N° EXACTO' : undefined}
         />
 
-        {/* First row, same as the catalogue's: payment picker and sort share the
-            width equally. Payment clears via its own ×; the sort always has a
-            value, so it just names it. */}
+        {/* Payment picker and sort share the width equally. Payment clears via its
+            own ×; the sort always has a value, so it just names it. */}
         <View style={styles.filterRow}>
           <Select
             icon="card-outline"
@@ -216,6 +229,8 @@ export default function OrdersScreen({ navigation }: Props) {
             active={!!dateFrom}
             onPress={() => pickDate('from')}
             onClear={() => setDateFrom(null)}
+            accent
+            bordered
             accessibilityLabel="Fecha desde"
           />
           <FilterPill
@@ -224,6 +239,8 @@ export default function OrdersScreen({ navigation }: Props) {
             active={!!dateTo}
             onPress={() => pickDate('to')}
             onClear={() => setDateTo(null)}
+            accent
+            bordered
             accessibilityLabel="Fecha hasta"
           />
         </View>
@@ -241,7 +258,7 @@ export default function OrdersScreen({ navigation }: Props) {
             onDismiss={() => setIosPicking(null)}
           />
         )}
-      </ScreenTitle>
+      </View>
 
       <PagedList
         list={list}
@@ -270,15 +287,38 @@ export default function OrdersScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  // First row: payment picker + sort (+ clear when active). `sm` between the
-  // controls and off the search bar above — same rhythm as the catalogue header.
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
+  // The filter block, below the header, on a white band — same as the catalogue.
+  // `gap` spaces the search from the rows below it.
+  filters: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  // First row: payment picker + sort (+ clear when active).
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   // Second row: the two date pickers split the full width below.
-  filterRow2: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
-  // Payment picker and sort share the row equally, with a `sm` (10) gap between —
-  // same as the catalogue header.
-  filterItem: { flex: 1 },
+  filterRow2: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  // Payment picker and sort share the row equally, each carrying the "botón
+  // bordeado" grey border — same as the catalogue filters.
+  filterItem: { flex: 1, borderColor: colors.border },
   // Each sale is its own card; the list just spaces them and pays the screen
   // margins. flexGrow lets a short list still fill the page.
-  list: { padding: SPACING.sm, paddingTop: SPACING.xs, gap: SPACING.sm, flexGrow: 1 },
+  list: { padding: SPACING.sm, gap: SPACING.sm, flexGrow: 1 },
+  // A labelled card button on the amber header: white when there's no printer,
+  // navy-filled once one is connected.
+  printerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    height: 44,
+    paddingHorizontal: 13,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: 'rgba(22, 33, 58, 0.14)',
+    backgroundColor: colors.surface,
+  },
+  printerBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  printerText: { fontSize: 12.5, fontFamily: FONT_FAMILY.black, color: colors.primary },
+  printerTextOn: { color: '#fff' },
 });

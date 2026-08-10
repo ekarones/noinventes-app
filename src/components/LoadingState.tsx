@@ -1,9 +1,10 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/theme';
 
 // The "we're fetching" placeholder. Pairs with EmptyState: between the two, a
 // screen's loading / empty / failed states all come from the same two files.
 export default function LoadingState() {
+  const colors = useTheme();
   return (
     <View style={styles.container}>
       <ActivityIndicator size="large" color={colors.primary} />

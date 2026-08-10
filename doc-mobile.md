@@ -3,9 +3,13 @@
 Documento dirigido al backend Laravel (`/api/mobile`). Registra qué se pidió, qué se entregó, y
 las garantías de las que la app depende.
 
-- **Base URL:** `https://inventario.monatekeda.com/api/mobile`
+- **Base URL:** `https://stockly.mizonaonline.com/api/mobile` (multitenant — un host raíz sirve N tiendas).
+- **Tenant (obligatorio):** header `X-Tenant: <subdomain>` en TODAS las requests (login incluido). Sin él → `400`.
 - **Auth:** `Authorization: Bearer <token>`. Un `401` cierra sesión globalmente en la app.
 - **Roles:** un admin recibe `403` en endpoints de vendedor y viceversa.
+
+> **Nota:** este archivo es la versión previa a la migración multitenant. El contrato vigente y
+> completo (con `X-Tenant`, `/admin/company`, y demás) vive en el `api-mobile.md` nuevo del backend.
 
 > ## ✅ Estado a 2026-07-23: **no hay pendientes**
 >

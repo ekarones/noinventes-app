@@ -1,8 +1,6 @@
 import { Alert, Linking } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { ActionRow, InfoRow } from '../components/Row';
-import Card from '../components/Card';
-import ProfileScaffold, { ProfileOverline } from '../components/ProfileScaffold';
+import ProfileScaffold from '../components/ProfileScaffold';
 
 // Support contact — reemplazar con los datos reales de monatekeda.
 // WhatsApp: solo dígitos con código de país (ej. '51999888777'). Deja '' para
@@ -30,37 +28,14 @@ export default function ProfileScreen() {
   return (
     <ProfileScaffold
       roleBadge={{ icon: 'storefront-outline', label: user?.branch?.name ?? 'Vendedor' }}
-      infoRows={
-        <>
-          <InfoRow icon="person-outline" label="Nombre" value={user?.name ?? '—'} />
-          <InfoRow icon="mail-outline" label="Correo" value={user?.email ?? '—'} />
-          <InfoRow
-            icon="pricetag-outline"
-            label="Rol"
-            value={user?.role === 'seller' ? 'Vendedor' : user?.role ?? '—'}
-          />
-          <InfoRow icon="storefront-outline" label="Sucursal" value={user?.branch?.name ?? '—'} />
-          <InfoRow
-            icon="finger-print-outline"
-            label="ID de vendedor"
-            value={user ? `#${user.id}` : '—'}
-            last
-          />
-        </>
-      }
-      extra={
-        <>
-          <ProfileOverline>Ayuda</ProfileOverline>
-          <Card inset>
-            <ActionRow
-              icon="chatbubble-ellipses-outline"
-              label="Contactar soporte"
-              onPress={openSupport}
-              last
-            />
-          </Card>
-        </>
-      }
+      rows={[
+        { label: 'Nombre', value: user?.name ?? '—' },
+        { label: 'Correo', value: user?.email ?? '—' },
+        { label: 'Rol', value: user?.role === 'seller' ? 'Vendedor' : user?.role ?? '—' },
+        { label: 'Sucursal', value: user?.branch?.name ?? '—' },
+        { label: 'ID de vendedor', value: user ? `#${user.id}` : '—' },
+      ]}
+      support={{ onPress: openSupport }}
     />
   );
 }

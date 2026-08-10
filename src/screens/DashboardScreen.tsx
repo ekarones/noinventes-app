@@ -1,28 +1,27 @@
 import { useCallback, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { DashboardNavigation } from '../navigation/types';
-import { colors } from '../theme/colors';
-import { SPACING } from '../theme/tokens';
-import { formatPrice } from '../utils/format';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY } from '../theme/tokens';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { fetchStatistics } from '../api/sales';
 import { fetchProduct } from '../api/products';
 import { ApiError } from '../api/client';
-import Avatar from '../components/Avatar';
+import ProfileButton from '../components/ProfileButton';
+import Segmented, { type SegmentedOption } from '../components/Segmented';
 import SalesKpiGrid from '../components/SalesKpiGrid';
 import SaleRow from '../components/SaleRow';
 import TopProductRow, { topProductKey } from '../components/TopProductRow';
 import ScreenTitle from '../components/ScreenTitle';
 import SectionHeader from '../components/SectionHeader';
-import Card from '../components/Card';
-import Select, { type SelectOption } from '../components/Select';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import type { DashboardRecentSale, DashboardStats, DashboardTopProduct, StatsPeriod } from '../types';
 
-const PERIOD_OPTIONS: SelectOption<StatsPeriod>[] = [
+const PERIOD_OPTIONS: SegmentedOption<StatsPeriod>[] = [
   { id: 'today', label: 'Hoy' },
   { id: 'week', label: 'Semana' },
   { id: 'month', label: 'Mes' },
@@ -32,14 +31,14 @@ export default function DashboardScreen() {
   const navigation = useNavigation<DashboardNavigation>();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
 
   const [period, setPeriod] = useState<StatsPeriod>('today');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Which best-seller row is being opened. A variable product ranks once per
-  // variation, so several rows share a productId — the key has to include it.
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   const load = useCallback(
@@ -59,22 +58,17 @@ export default function DashboardScreen() {
     [period]
   );
 
-  // Runs on focus and whenever the period changes (callback identity changes).
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load])
   );
 
-  // Open a top product's detail. Fetch the full product by id first; a 404 means
-  // it was removed / is no longer visible, so we let the seller know.
   async function openProduct(tp: DashboardTopProduct) {
     if (openingKey) return;
     setOpeningKey(topProductKey(tp));
     try {
       const product = await fetchProduct(tp.productId);
-      // Pushed on Inicio's own stack — see DashboardStack. Carry the variation
-      // through, so the detail opens on the one that actually sold.
       navigation.navigate('ProductDetail', { product, variationId: tp.variationId ?? undefined });
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
@@ -87,8 +81,6 @@ export default function DashboardScreen() {
     }
   }
 
-  // Open the full sale detail (which re-fetches complete data + line items). The
-  // dashboard row is partial, so we pass what we have as a fallback.
   function openSale(sale: DashboardRecentSale) {
     navigation.navigate('OrderDetail', {
       sale: {
@@ -110,33 +102,20 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Fixed: the period has to stay in sight, or you scroll down to a number
-          and no longer know which period it belongs to. It sits OUTSIDE the
-          ScrollView rather than using `stickyHeaderIndices`, because a sticky
-          header on Android is only translated into view — it is still hit-tested
-          where it was laid out, so its buttons stop responding as soon as you
-          scroll away from the top. */}
+      {/* Fixed above the scroll: the header + the period stay in sight. */}
       <View>
         <ScreenTitle
           overline={firstName ? `Hola, ${firstName} 👋` : 'Hola 👋'}
           title="Mis ventas"
+          subtitle={user?.branch?.name ?? undefined}
           actions={
-            <Avatar
-              name={user?.name}
-              onPress={() => navigation.navigate('Profile')}
-              accessibilityLabel="Perfil"
-            />
+            <ProfileButton name={user?.name} onPress={() => navigation.navigate('Profile')} />
           }
-        >
-          <Select
-            icon="calendar-outline"
-            placeholder="Período"
-            value={period}
-            options={PERIOD_OPTIONS}
-            onChange={(v) => v && setPeriod(v)}
-            mandatory
-          />
-        </ScreenTitle>
+        />
+        <View style={styles.filterBand}>
+          <Text style={styles.periodLabel}>Período</Text>
+          <Segmented options={PERIOD_OPTIONS} value={period} onChange={setPeriod} />
+        </View>
       </View>
 
       <ScrollView
@@ -161,30 +140,22 @@ export default function DashboardScreen() {
           />
         ) : (
           <>
-            {/* KPI cards */}
             <SalesKpiGrid summary={summary} />
 
-            {/* Top products — header + list wrapped in one card. */}
-            <Card inset style={styles.sectionCard}>
+            {/* Top products */}
+            <View style={styles.card}>
               <SectionHeader
                 card
                 dot
                 icon="trophy-outline"
                 title="Más vendidos"
-                // Always offered, even when the inline top 5 is already the whole
-                // ranking: a link that comes and goes with the period is harder to
-                // find than one that opens a list you've already seen.
                 action={{
                   label: 'Ver todas',
                   onPress: () => navigation.navigate('TopProducts', { period }),
                 }}
               />
               {!stats || stats.topProducts.length === 0 ? (
-                <EmptyState
-                  compact
-                  icon="trophy-outline"
-                  message="Aún no vendes nada en este período."
-                />
+                <EmptyState compact icon="trophy-outline" message="Aún no vendes nada en este período." />
               ) : (
                 stats.topProducts.map((tp, index) => (
                   <TopProductRow
@@ -201,10 +172,10 @@ export default function DashboardScreen() {
                   />
                 ))
               )}
-            </Card>
+            </View>
 
-            {/* Recent sales — header + list wrapped in one card. */}
-            <Card inset style={styles.sectionCard}>
+            {/* Recent sales */}
+            <View style={styles.card}>
               <SectionHeader
                 card
                 dot
@@ -216,16 +187,7 @@ export default function DashboardScreen() {
                 }}
               />
               {!stats || stats.recentSales.length === 0 ? (
-                <EmptyState
-                  compact
-                  icon="receipt-outline"
-                  message="Aún no registras ventas en este período."
-                  action={{
-                    label: 'Ir al catálogo',
-                    icon: 'cube-outline',
-                    onPress: () => navigation.navigate('CatalogTab'),
-                  }}
-                />
+                <EmptyState compact icon="receipt-outline" message="Aún no registras ventas en este período." />
               ) : (
                 stats.recentSales.map((sale, index) => (
                   <SaleRow
@@ -240,7 +202,7 @@ export default function DashboardScreen() {
                   />
                 ))
               )}
-            </Card>
+            </View>
           </>
         )}
       </ScrollView>
@@ -248,15 +210,39 @@ export default function DashboardScreen() {
   );
 }
 
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  // A titled card (header + list inside): carries the gap to the block above, and
-  // a bottom pad so the last row isn't flush to the card edge.
-  sectionCard: { marginTop: SPACING.sm, paddingBottom: SPACING.sm },
-  // flexGrow lets the loading / error state fill the space left under the header
-  // and centre itself in it; without it they collapse to their own height and sit
-  // right below the period selector. The bottom tab bar already reserves the
-  // safe-area inset, so only a small visual gap is needed here.
-  scroll: { flexGrow: 1, paddingBottom: SPACING.sm },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    // A white band with the period switch, pinned under the header.
+    filterBand: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 22,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    periodLabel: {
+      fontSize: 12,
+      fontFamily: FONT_FAMILY.black,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: 'rgba(22, 33, 58, 0.5)',
+    },
+    scroll: { flexGrow: 1, paddingHorizontal: 22, paddingTop: 16, paddingBottom: 18, gap: 14 },
+    // A titled panel (5a): white, big radius, soft shadow.
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingTop: 6,
+      paddingBottom: 6,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.07,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+  });

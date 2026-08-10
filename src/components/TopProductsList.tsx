@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { usePagedList, type PagedResult } from '../hooks/usePagedList';
 import type { DashboardTopProduct } from '../types';
-import { colors } from '../theme/colors';
+import type { Palette } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../theme/theme';
 import { RADIUS, SPACING } from '../theme/tokens';
 import EmptyState from './EmptyState';
 import LoadingState from './LoadingState';
@@ -28,6 +29,8 @@ type Props = {
 export default function TopProductsList({ onBack, fetchPage, onOpenProduct, openingKey }: Props) {
   const { items, meta, page, loading, refreshing, error, listRef, loadPage } =
     usePagedList<DashboardTopProduct>(fetchPage, 'No se pudo cargar el ranking.');
+  const styles = useThemedStyles(makeStyles);
+  const colors = useTheme();
 
   // The period (and the admin's branch) live in `fetchPage`'s identity, so a
   // change there reloads from page 1.
@@ -95,7 +98,7 @@ export default function TopProductsList({ onBack, fetchPage, onOpenProduct, open
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   list: {
     // A small gap below the header so the card doesn't hug it. Matches the

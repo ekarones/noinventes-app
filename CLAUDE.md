@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Monatekeda** — a mobile app for a retail business, backed by a Laravel API at
-`https://inventario.monatekeda.com/api/mobile`. One login, **two interfaces** chosen by the
-user's role:
+**Monatekeda** — a mobile app for a retail business, backed by a **multitenant** Laravel API at
+`https://stockly.mizonaonline.com/api/mobile`. One host root serves N stores (tenants); every
+request — login included — carries an `X-Tenant: <subdomain>` header that picks the store (held
+in memory in `src/api/session.ts`, persisted with the token, entered on the login screen).
+Missing it → `400`. One login, **two interfaces** chosen by the user's role:
 
 - **Seller** — a point-of-sale: browse the catalog, build a cart, check out a sale, review
   sales history and dashboard statistics. Everything is scoped to the seller's own branch.
@@ -50,8 +52,11 @@ Layered, with a clean split between the network layer and the UI.
 - **`src/api/`** — the network layer. `client.ts` wraps `fetch`, throws a typed `ApiError`
   (status + Laravel field errors), enforces WAF-friendly requests (always sends a JSON body +
   `Content-Type` on mutations) and passes `FormData` through untouched for uploads.
-  `session.ts` holds the Bearer token in memory and a global 401 handler. `config.ts` holds
-  `API_BASE_URL` (switch to a LAN IP for local dev).
+  `session.ts` holds the Bearer token **and the active tenant subdomain** in memory (the client
+  attaches both as `Authorization` + `X-Tenant` on every request) plus a global 401 handler.
+  `config.ts` holds `API_BASE_URL` (switch to a LAN IP or the tenant's subdomain host for local
+  dev). Both token and tenant are persisted together in `src/auth/tokenStorage.ts` (secure-store)
+  and restored on startup; a manual download (the boleta PDF in `boleta.ts`) attaches `X-Tenant` itself.
   - Seller endpoints: `auth`, `products`, `sales`, `boleta`.
   - Admin endpoints: **`src/api/admin/`** — `dashboard`, `sales`, `boleta`, `products`,
     `productImages`, `categories`, `tags`, `attributes`, `branches`, `users`.
@@ -133,7 +138,8 @@ Layered, with a clean split between the network layer and the UI.
 
 ## App identity / config
 
-`app.json`: display name **Monatekeda**, slug `mobileapp`, Android package `com.mobileapp.demo`
-(still the placeholder — rename before store release). Camera (QR) and photo-library (product
-images) permissions are declared. EAS project id and owner (`ekarones`) live under `extra.eas` /
-`owner`.
+`app.json`: display name **Stockly**, slug `stockly`, Android package `com.stockly.app` / iOS
+bundle `com.stockly.app`. It builds under its **own EAS project** `@mizonaonline/stockly`
+(`extra.eas.projectId` `348db70d-c701-4722-8c43-27d3fd5e6af0`) — a separate app from the old
+Monatekeda project, so its APK installs alongside, not over, it. Camera (QR) and photo-library
+(product images) permissions are declared. Owner (`mizonaonline`) lives under `owner`.

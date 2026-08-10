@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors } from '../theme/colors';
-import { FONT_SIZE, FONT_FAMILY, RADIUS, ROW_PRESS_OPACITY, SPACING } from '../theme/tokens';
+import type { Palette } from '../theme/colors';
+import { useThemedStyles } from '../theme/theme';
+import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import ProductImage from './ProductImage';
 import CodeBadge from './CodeBadge';
 
@@ -10,25 +11,23 @@ type Props = {
   /** The small line above the name — the category, grey and upper-cased. */
   overline?: string;
   name: string;
-  /** The product code, shown small and grey under the name. */
+  /** The product code chip under the name. */
   code?: string;
-  /** Sits on the code's line, pinned to the right — the seller's stock. */
+  /** Sits beside the code — the colour-coded stock. */
   codeRight?: ReactNode;
   price: string;
-  /** Overlaid on the image, top-left — the stock badge. */
+  /** Overlaid on the image, top-left — the admin's variations badge. */
   badge?: ReactNode;
-  /** Sits beside the price — the "+" (seller only), off the image so it never
-   *  covers the product. */
+  /** Overlaid on the image, bottom-right — the seller's "+". */
   action?: ReactNode;
   /** A line under the price — the admin's status. */
   meta?: ReactNode;
   onPress: () => void;
 };
 
-// A product as a tall grid card: a big square image on top, then the category,
-// the name, the code and the price stacked beneath it — the shop-window layout,
-// two per row. Both catalogues (seller and admin) render it; only the "+" and the
-// status line differ.
+// A product as a grid card (5a): a flush image on top with an optional overlay
+// control, then the category, name, code + stock and price beneath. Both
+// catalogues render it; only the "+" (seller) and the status line (admin) differ.
 export default function ProductGridCard({
   imageUri,
   overline,
@@ -41,6 +40,7 @@ export default function ProductGridCard({
   meta,
   onPress,
 }: Props) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <TouchableOpacity
       style={styles.card}
@@ -50,8 +50,9 @@ export default function ProductGridCard({
       accessibilityLabel={`${name}, ${price}`}
     >
       <View style={styles.imageWrap}>
-        <ProductImage uri={imageUri} style={styles.image} iconSize={40} />
+        <ProductImage uri={imageUri} style={styles.image} iconSize={34} />
         {!!badge && <View style={styles.badge}>{badge}</View>}
+        {!!action && <View style={styles.action}>{action}</View>}
       </View>
 
       <View style={styles.body}>
@@ -69,75 +70,49 @@ export default function ProductGridCard({
             {codeRight}
           </View>
         )}
-
-        {/* Price and the add button share the last row, so the "+" lives off the
-            image and the photo is never covered. */}
-        <View style={styles.priceRow}>
-          <Text style={styles.price} numberOfLines={2}>
-            {price}
-          </Text>
-          {action}
-        </View>
+        <Text style={styles.price} numberOfLines={1}>
+          {price}
+        </Text>
         {meta}
       </View>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    // flex:1 with a `gap` on the row: two per line share the width evenly with a
-    // fixed gap between them. maxWidth caps a lone last card at half so it sits on
-    // the left instead of stretching to the full row.
-    flex: 1,
-    maxWidth: '50%',
-    backgroundColor: colors.surface,
-    borderRadius: RADIUS.card,
-    // Padding, not a flush image: the picture floats inside the card with a white
-    // margin all around rather than bleeding to the border.
-    padding: SPACING.sm,
-  },
-  // A landscape 4:3 frame (wider than tall) on the muted fill, rounded on all four
-  // corners (overflow clips the photo to them), inset from the card by the padding.
-  imageWrap: {
-    position: 'relative',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: RADIUS.control,
-    overflow: 'hidden',
-    marginBottom: SPACING.sm,
-  },
-  image: { width: '100%', aspectRatio: 4 / 3 },
-  badge: { position: 'absolute', top: SPACING.sm, left: SPACING.sm },
-  // flex:1 so the body fills the card's (stretched) height; the price row then
-  // pins itself to the bottom, lining up across cards whatever the name's length.
-  body: { flex: 1, gap: SPACING.hairline },
-  overline: {
-    fontSize: FONT_SIZE.nano,
-    fontFamily: FONT_FAMILY.medium,
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  name: { fontSize: FONT_SIZE.bodySm, fontFamily: FONT_FAMILY.bold, color: colors.textPrimary },
-  // Two chips side by side: the neutral code, then the colour-coded stock. Left-
-  // aligned with a small gap so they read as a pair.
-  codeRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginTop: SPACING.hairline },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: SPACING.sm,
-    // Auto top margin eats the free space in a short-named card, dropping the
-    // price/button to the bottom edge so it aligns with the taller card beside it.
-    marginTop: 'auto',
-  },
-  // Up to two lines: a single price fits on one, a range ("S/ 39.90 – S/ 59.90")
-  // wraps rather than truncating in the narrow column. `flex` lets it wrap while
-  // the button holds the right edge.
-  price: {
-    flex: 1,
-    fontSize: FONT_SIZE.body,
-    fontFamily: FONT_FAMILY.bold,
-    color: colors.textPrimary,
-  },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    card: {
+      flex: 1,
+      maxWidth: '50%',
+      backgroundColor: colors.surface,
+      borderRadius: 18,
+      overflow: 'hidden',
+      shadowColor: '#16213a',
+      shadowOpacity: 0.07,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+    imageWrap: { position: 'relative', height: 108, backgroundColor: colors.surfaceMuted },
+    image: { width: '100%', height: 108 },
+    badge: { position: 'absolute', top: 8, left: 8 },
+    action: { position: 'absolute', right: 8, bottom: 8 },
+    body: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12, gap: 5 },
+    overline: {
+      fontSize: 10.5,
+      fontFamily: FONT_FAMILY.black,
+      color: 'rgba(22, 33, 58, 0.45)',
+      textTransform: 'uppercase',
+      letterSpacing: 0.7,
+    },
+    // Fixed 2-line height so cards align whatever the name's length.
+    name: {
+      fontSize: 14,
+      lineHeight: 17.5,
+      height: 35,
+      fontFamily: FONT_FAMILY.extrabold,
+      color: colors.primary,
+    },
+    codeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    price: { fontSize: 14, letterSpacing: -0.3, fontFamily: FONT_FAMILY.black, color: colors.primary },
+  });
