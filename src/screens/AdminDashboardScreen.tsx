@@ -146,7 +146,11 @@ export default function AdminDashboardScreen() {
           }
         />
         <View style={styles.filterBand}>
-          <Segmented options={PERIOD_OPTIONS} value={period} onChange={setPeriod} />
+          {/* Segmented's track is flex:1 (built to fill a row); wrap it so that
+              flex resolves against the width here, not the column's height. */}
+          <View style={styles.periodRow}>
+            <Segmented options={PERIOD_OPTIONS} value={period} onChange={setPeriod} />
+          </View>
           <TouchableOpacity
             style={styles.branchBtn}
             onPress={() => setBranchPickerOpen(true)}
@@ -375,6 +379,7 @@ const makeStyles = (colors: Palette) =>
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
+    periodRow: { flexDirection: 'row' },
     branchBtn: {
       flexDirection: 'row',
       alignItems: 'center',
