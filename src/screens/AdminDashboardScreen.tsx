@@ -142,7 +142,7 @@ export default function AdminDashboardScreen() {
           title="Panel general"
           subtitle={context}
           actions={
-            <ProfileButton name={user?.name} onPress={() => navigation.navigate('AdminProfile')} />
+            <ProfileButton raised name={user?.name} onPress={() => navigation.navigate('AdminProfile')} />
           }
         />
         <View style={styles.filterBand}>

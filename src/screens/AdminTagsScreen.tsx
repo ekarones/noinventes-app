@@ -282,7 +282,7 @@ const makeStyles = (colors: Palette) =>
       fontFamily: FONT_FAMILY.extrabold,
       color: colors.primary,
     },
-    sheetActions: { flexDirection: 'row', gap: 10 },
+    sheetActions: { flexDirection: 'row', gap: 10, marginTop: 22 },
     cancelBtn: { height: 54, paddingHorizontal: 20, borderRadius: 17, borderWidth: 1.5, borderColor: colors.controlBorder, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
     cancelText: { fontSize: 15, fontFamily: FONT_FAMILY.black, color: colors.primary },
     saveBtn: { flex: 1, height: 54, borderRadius: 17, backgroundColor: '#FFC20E', alignItems: 'center', justifyContent: 'center' },

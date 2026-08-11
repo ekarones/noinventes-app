@@ -56,6 +56,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   // NOT set Content-Type — fetch adds it with the required multipart boundary.
   const isMultipart = effectiveBody instanceof FormData;
 
+  // The API host (Apache/WAF) strips real PUT/DELETE — they reach Laravel as GET
+  // ("The GET method is not supported… Supported: PUT, DELETE"). Tunnel them as
+  // POST + Laravel's method-override header so routing still sees PUT/DELETE, and
+  // keep the JSON body. Multipart updates already POST with a `_method` field, so
+  // they're POST here and pass through untouched.
+  const wireMethod: RequestOptions['method'] =
+    method === 'PUT' || method === 'DELETE' ? 'POST' : method;
+
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (effectiveBody !== undefined && !isMultipart) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -63,6 +71,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   // It's set in memory before any request goes out; without it the server 400s.
   const tenant = getSessionTenant();
   if (tenant) headers['X-Tenant'] = tenant;
+  // Tell Laravel the real verb when we tunnel PUT/DELETE over POST (see above).
+  if (wireMethod !== method) headers['X-HTTP-Method-Override'] = method;
 
   const controller = timeoutMs ? new AbortController() : undefined;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
@@ -70,7 +80,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
-      method,
+      method: wireMethod,
       headers,
       body:
         effectiveBody === undefined

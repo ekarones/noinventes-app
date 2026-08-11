@@ -251,7 +251,7 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
 
-          {/* Forgot password */}
+          {/* Forgot password — oculto por el momento (restaurar cuando esté el flujo)
           <TouchableOpacity
             onPress={forgotPassword}
             activeOpacity={ROW_PRESS_OPACITY}
@@ -260,6 +260,7 @@ export default function LoginScreen() {
           >
             <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
+          */}
 
           {!compact && <Text style={styles.footer}>Acceso para personal autorizado</Text>}
         </ScrollView>

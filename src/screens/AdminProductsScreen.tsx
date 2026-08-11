@@ -7,7 +7,7 @@ import { fetchAdminProducts } from '../api/admin/products';
 import { fetchAdminCategories } from '../api/admin/categories';
 import { usePagedList } from '../hooks/usePagedList';
 import type { Palette } from '../theme/colors';
-import { useTheme, useThemedStyles } from '../theme/theme';
+import { useThemedStyles } from '../theme/theme';
 import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import PagedList from '../components/PagedList';
 import ProductGridCard from '../components/ProductGridCard';
@@ -39,7 +39,6 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 
 export default function AdminProductsScreen({ navigation }: Props) {
   const styles = useThemedStyles(makeStyles);
-  const colors = useTheme();
 
   const [searchText, setSearchText] = useState('');
   const query = useDebounce(searchText, 400);
@@ -144,7 +143,7 @@ export default function AdminProductsScreen({ navigation }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Papelera"
             >
-              <Ionicons name="trash-outline" size={18} color={colors.onChrome} />
+              <Ionicons name="trash-outline" size={18} color="#16213a" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.newBtn}
@@ -231,16 +230,22 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     headerActions: { flexDirection: 'row', gap: 8 },
-    // The 5a header buttons: a translucent square trash + an amber "Nuevo".
+    // The 5a header buttons — both use the raised amber pill from the management
+    // headers (amber fill, navy hairline, drop shadow): a square trash + "Nuevo".
     trashBtn: {
       width: 44,
       height: 44,
       borderRadius: 15,
-      backgroundColor: colors.chromeButtonBg,
+      backgroundColor: '#ffc20e',
       borderWidth: 2,
-      borderColor: colors.chromeButtonBorder,
+      borderColor: '#16213a',
       alignItems: 'center',
       justifyContent: 'center',
+      shadowColor: '#0A0F1C',
+      shadowOpacity: 0.35,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
     },
     newBtn: {
       flexDirection: 'row',
@@ -250,6 +255,13 @@ const makeStyles = (colors: Palette) =>
       paddingHorizontal: 14,
       borderRadius: 15,
       backgroundColor: '#ffc20e',
+      borderWidth: 2,
+      borderColor: '#16213a',
+      shadowColor: '#0A0F1C',
+      shadowOpacity: 0.35,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
     },
     newPlus: { fontSize: 19, fontFamily: FONT_FAMILY.black, color: '#16213a' },
     newText: { fontSize: 14, fontFamily: FONT_FAMILY.black, color: '#16213a' },
