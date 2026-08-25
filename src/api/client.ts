@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './config';
+import { apiBaseUrl } from './config';
 import { getSessionTenant, getSessionToken, notifyUnauthorized } from './session';
 
 // Shape of Laravel-style validation errors: { field: ["msg", ...] }
@@ -66,7 +66,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (effectiveBody !== undefined && !isMultipart) headers['Content-Type'] = 'application/json';
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+    // Belt-and-suspenders: this shared host (Apache/LiteSpeed) once stripped the
+    // Authorization header on /api/mobile/*, so the API also accepts the raw
+    // token here and re-injects it as a Bearer. Costs nothing when Authorization
+    // survives; saves the session if the host breaks it again.
+    headers['X-Auth-Token'] = token;
+  }
   // Multitenant backend: the tenant subdomain scopes every request (login too).
   // It's set in memory before any request goes out; without it the server 400s.
   const tenant = getSessionTenant();
@@ -79,7 +86,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(`${apiBaseUrl(tenant)}${path}`, {
       method: wireMethod,
       headers,
       body:
