@@ -1,6 +1,6 @@
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { apiBaseUrl } from './config';
+import { API_BASE_URL } from './config';
 import { apiRequest } from './client';
 import { getSessionTenant, getSessionToken } from './session';
 import type { PrintPayload } from '../types';
@@ -32,7 +32,7 @@ export async function fetchReceiptPayloadFrom(
 export async function downloadAndShareBoletaFrom(basePath: string, saleId: number): Promise<void> {
   const token = getSessionToken();
   const tenant = getSessionTenant();
-  const url = `${apiBaseUrl(tenant)}${basePath}/${saleId}/pdf`;
+  const url = `${API_BASE_URL}${basePath}/${saleId}/pdf`;
   const filename = `boleta-${String(saleId).padStart(6, '0')}.pdf`;
   const destination = new File(Paths.cache, filename);
 

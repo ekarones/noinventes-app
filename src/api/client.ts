@@ -1,4 +1,4 @@
-import { apiBaseUrl } from './config';
+import { API_BASE_URL } from './config';
 import { getSessionTenant, getSessionToken, notifyUnauthorized } from './session';
 
 // Shape of Laravel-style validation errors: { field: ["msg", ...] }
@@ -86,7 +86,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl(tenant)}${path}`, {
+    response = await fetch(`${API_BASE_URL}${path}`, {
       method: wireMethod,
       headers,
       body:
