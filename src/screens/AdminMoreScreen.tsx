@@ -19,7 +19,9 @@ type Route =
   | 'AdminAttributes'
   | 'AdminBranches'
   | 'AdminUsers'
-  | 'AdminCompany';
+  | 'AdminCompany'
+  | 'AdminSuppliers'
+  | 'AdminPurchaseOrders';
 type Row = { icon: keyof typeof Ionicons.glyphMap; name: string; desc: string; route: Route };
 type Group = { title: string; tint: 'amber' | 'navy'; rows: Row[] };
 
@@ -44,6 +46,14 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: 'Abastecimiento',
+    tint: 'amber',
+    rows: [
+      { icon: 'briefcase-outline', name: 'Proveedores', desc: 'Empresas a las que compras stock', route: 'AdminSuppliers' },
+      { icon: 'cart-outline', name: 'Órdenes de compra', desc: 'Compras y recepción de stock', route: 'AdminPurchaseOrders' },
+    ],
+  },
+  {
     title: 'Facturación',
     tint: 'navy',
     rows: [
@@ -57,7 +67,7 @@ export default function AdminMoreScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScreenTitle title="Gestión" subtitle="Catálogo maestro, organización y facturación" />
+      <ScreenTitle title="Gestión" subtitle="Catálogo, abastecimiento, organización y facturación" />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {GROUPS.map((group) => (

@@ -5,7 +5,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type {
   AdminProductDetail,
+  AdminPurchaseOrderDetail,
+  AdminPurchaseOrderRow,
   AdminSaleSummary,
+  AdminSupplier,
   AdminUser,
   AdminVariation,
   LowStockItem,
@@ -137,6 +140,15 @@ export type AdminMoreStackParamList = {
   AdminUserForm: { user?: AdminUser };
   // The issuer/company singleton used for the receipt header (settings form).
   AdminCompany: undefined;
+  // Inventory / purchasing.
+  AdminSuppliers: undefined;
+  // `supplier` absent = creating a new one.
+  AdminSupplierForm: { supplier?: AdminSupplier };
+  AdminPurchaseOrders: undefined;
+  // The detail re-fetches from the id; `order` is a seed row for the header.
+  AdminPurchaseOrderDetail: { order: AdminPurchaseOrderRow };
+  // `order` absent = new draft; present = editing (only allowed while draft).
+  AdminPurchaseOrderForm: { order?: AdminPurchaseOrderDetail };
 };
 
 export type AdminTabParamList = {

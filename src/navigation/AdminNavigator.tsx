@@ -23,6 +23,11 @@ import AdminBranchesScreen from '../screens/AdminBranchesScreen';
 import AdminUsersScreen from '../screens/AdminUsersScreen';
 import AdminUserFormScreen from '../screens/AdminUserFormScreen';
 import AdminCompanyScreen from '../screens/AdminCompanyScreen';
+import AdminSuppliersScreen from '../screens/AdminSuppliersScreen';
+import AdminSupplierFormScreen from '../screens/AdminSupplierFormScreen';
+import AdminPurchaseOrdersScreen from '../screens/AdminPurchaseOrdersScreen';
+import AdminPurchaseOrderDetailScreen from '../screens/AdminPurchaseOrderDetailScreen';
+import AdminPurchaseOrderFormScreen from '../screens/AdminPurchaseOrderFormScreen';
 import { useTheme } from '../theme/theme';
 import { FONT_FAMILY } from '../theme/tokens';
 import type {
@@ -96,6 +101,11 @@ function MoreStack() {
       <MoreStackNav.Screen name="AdminUsers" component={AdminUsersScreen} />
       <MoreStackNav.Screen name="AdminUserForm" component={AdminUserFormScreen} />
       <MoreStackNav.Screen name="AdminCompany" component={AdminCompanyScreen} />
+      <MoreStackNav.Screen name="AdminSuppliers" component={AdminSuppliersScreen} />
+      <MoreStackNav.Screen name="AdminSupplierForm" component={AdminSupplierFormScreen} />
+      <MoreStackNav.Screen name="AdminPurchaseOrders" component={AdminPurchaseOrdersScreen} />
+      <MoreStackNav.Screen name="AdminPurchaseOrderDetail" component={AdminPurchaseOrderDetailScreen} />
+      <MoreStackNav.Screen name="AdminPurchaseOrderForm" component={AdminPurchaseOrderFormScreen} />
     </MoreStackNav.Navigator>
   );
 }

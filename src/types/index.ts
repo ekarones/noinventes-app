@@ -439,3 +439,93 @@ export type AdminVariation = {
   attributeValues: AttributeValue[];
   stockByBranch: StockByBranch[];
 };
+
+// ---- Proveedores (compras) ----
+
+// A supplier: the company you buy stock from to resell. `displayName` is
+// server-computed (`nombreComercial ?? razonSocial`) — use it directly.
+export type AdminSupplier = {
+  id: number;
+  ruc: string;
+  razonSocial: string;
+  nombreComercial: string | null;
+  displayName: string;
+  contactName: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  notes: string | null;
+  isActive: boolean;
+};
+
+// ---- Órdenes de compra ----
+
+// draft → ordered → received (adds stock); draft|ordered → cancelled.
+export type PurchaseOrderStatus = 'draft' | 'ordered' | 'received' | 'cancelled';
+
+// A row in the purchase-orders list.
+export type AdminPurchaseOrderRow = {
+  id: number;
+  code: string;
+  status: PurchaseOrderStatus;
+  supplier: { id: number; displayName: string };
+  branch: { id: number; name: string };
+  subtotal: number;
+  total: number;
+  orderedAt: string | null;
+  receivedAt: string | null;
+  createdAt: string;
+};
+
+// One line of a purchase order. Exactly one of product/variation id is set.
+export type AdminPurchaseOrderItem = {
+  id: number;
+  productId: number | null;
+  productVariationId: number | null;
+  label: string;
+  quantity: number;
+  unitCost: number;
+  subtotal: number;
+};
+
+// The full order (GET /admin/purchase-orders/{id}). `can` mirrors the server's
+// `can_*` flags — the single source of truth for which actions the UI enables.
+export type AdminPurchaseOrderDetail = {
+  id: number;
+  code: string;
+  status: PurchaseOrderStatus;
+  supplier: {
+    id: number;
+    ruc: string;
+    razonSocial: string;
+    nombreComercial: string | null;
+    displayName: string;
+    contactName: string | null;
+    email: string | null;
+    phone: string | null;
+  };
+  branch: { id: number; name: string };
+  subtotal: number;
+  total: number;
+  notes: string | null;
+  orderedAt: string | null;
+  receivedAt: string | null;
+  createdAt: string;
+  items: AdminPurchaseOrderItem[];
+  can: { edit: boolean; send: boolean; receive: boolean; cancel: boolean; delete: boolean };
+};
+
+// A pickable product/variation for the order form (from /options).
+export type PurchaseOrderPickable = {
+  productId: number | null;
+  productVariationId: number | null;
+  code: string;
+  label: string;
+};
+
+// Everything the "new order" form needs, in one request (GET .../options).
+export type PurchaseOrderOptions = {
+  suppliers: { id: number; ruc: string; displayName: string }[];
+  branches: { id: number; name: string }[];
+  pickables: PurchaseOrderPickable[];
+};
