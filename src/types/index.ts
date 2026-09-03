@@ -246,6 +246,27 @@ export type LowStockItem = {
   stock: number;
 };
 
+// A supplier in the purchasing ranking (Σ received-order totals in the period).
+export type DashboardTopSupplier = {
+  supplierId: number;
+  displayName: string;
+  ordersCount: number;
+  total: number;
+};
+
+// The purchasing block of the admin dashboard. `periodTotal`/`receivedCount`
+// are period-scoped (by received_at); `pending*`/`draftCount` are a current-state
+// snapshot (not period-filtered).
+export type DashboardPurchases = {
+  periodTotal: number;
+  receivedCount: number;
+  pendingOrdersCount: number;
+  pendingOrdersValue: number;
+  draftCount: number;
+  topSuppliers: DashboardTopSupplier[];
+  topSuppliersMeta: TopProductsMeta;
+};
+
 export type AdminDashboard = {
   period: StatsPeriod;
   summary: DashboardSummary;
@@ -263,6 +284,8 @@ export type AdminDashboard = {
     products: LowStockItem[];
     hasMore: boolean;
   };
+  // Purchasing (proveedores + órdenes de compra).
+  purchases: DashboardPurchases;
 };
 
 // ---- Admin sales (cross-seller: GET /admin/sales, /admin/sales/{id}) ----

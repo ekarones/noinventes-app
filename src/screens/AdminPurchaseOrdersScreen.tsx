@@ -39,10 +39,10 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: 'cancelled', label: 'Canceladas' },
 ];
 
-export default function AdminPurchaseOrdersScreen({ navigation }: Props) {
+export default function AdminPurchaseOrdersScreen({ navigation, route }: Props) {
   const colors = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const [status, setStatus] = useState<StatusFilter>('all');
+  const [status, setStatus] = useState<StatusFilter>(route.params?.status ?? 'all');
 
   const fetchPage = useCallback(
     (page: number) => fetchPurchaseOrders({ status, page, perPage: PER_PAGE }),

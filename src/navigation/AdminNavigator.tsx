@@ -5,6 +5,7 @@ import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminProfileScreen from '../screens/AdminProfileScreen';
 import AdminLowStockScreen from '../screens/AdminLowStockScreen';
 import AdminTopProductsScreen from '../screens/AdminTopProductsScreen';
+import AdminTopSuppliersScreen from '../screens/AdminTopSuppliersScreen';
 import AdminSalesScreen from '../screens/AdminSalesScreen';
 import AdminSaleDetailScreen from '../screens/AdminSaleDetailScreen';
 import AdminSalesTrashScreen from '../screens/AdminSalesTrashScreen';
@@ -51,6 +52,7 @@ function HomeStack() {
       <HomeStackNav.Screen name="AdminProfile" component={AdminProfileScreen} />
       <HomeStackNav.Screen name="AdminLowStock" component={AdminLowStockScreen} />
       <HomeStackNav.Screen name="AdminTopProducts" component={AdminTopProductsScreen} />
+      <HomeStackNav.Screen name="AdminTopSuppliers" component={AdminTopSuppliersScreen} />
       {/* Also registered in the Ventas and Catálogo stacks. Inicio opens its
           best-sellers and recent sales HERE, on its own stack, so that going back
           returns to Inicio — a cross-tab navigate would push them onto the other

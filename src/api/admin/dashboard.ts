@@ -5,6 +5,7 @@ import type { PaginationMeta } from '../products';
 import type {
   AdminDashboard,
   DashboardTopProduct,
+  DashboardTopSupplier,
   LowStockItem,
   PaymentMethod,
   StatsPeriod,
@@ -73,12 +74,37 @@ type RawAdminDashboard = {
     }[];
     has_more?: boolean;
   };
+  // Purchasing block. Optional/defensive for an older API build without it.
+  purchases?: {
+    period_total: string;
+    received_count: number;
+    pending_orders_count: number;
+    pending_orders_value: string;
+    draft_count: number;
+    top_suppliers?: {
+      supplier_id: number;
+      display_name: string;
+      orders_count: number;
+      total: string;
+    }[];
+    top_suppliers_meta?: { total: number; has_more: boolean; limit: number };
+  };
 };
 
 // Both the inline blocks and their paginated endpoints return the same rows, so
 // the mappers are shared.
 type RawTopProduct = RawAdminDashboard['top_products'][number];
 type RawLowStockItem = NonNullable<RawAdminDashboard['low_stock']['products']>[number];
+type RawTopSupplier = NonNullable<NonNullable<RawAdminDashboard['purchases']>['top_suppliers']>[number];
+
+function mapTopSupplier(s: RawTopSupplier): DashboardTopSupplier {
+  return {
+    supplierId: s.supplier_id,
+    displayName: s.display_name,
+    ordersCount: s.orders_count,
+    total: parseFloat(s.total),
+  };
+}
 
 function mapLowStockItem(p: RawLowStockItem): LowStockItem {
   return {
@@ -151,6 +177,22 @@ export async function fetchAdminDashboard(
       products: (res.low_stock?.products ?? []).map(mapLowStockItem),
       hasMore: res.low_stock?.has_more ?? false,
     },
+    purchases: (() => {
+      const topSuppliers = (res.purchases?.top_suppliers ?? []).map(mapTopSupplier);
+      return {
+        periodTotal: parseFloat(res.purchases?.period_total ?? '0'),
+        receivedCount: res.purchases?.received_count ?? 0,
+        pendingOrdersCount: res.purchases?.pending_orders_count ?? 0,
+        pendingOrdersValue: parseFloat(res.purchases?.pending_orders_value ?? '0'),
+        draftCount: res.purchases?.draft_count ?? 0,
+        topSuppliers,
+        topSuppliersMeta: {
+          total: res.purchases?.top_suppliers_meta?.total ?? topSuppliers.length,
+          hasMore: res.purchases?.top_suppliers_meta?.has_more ?? false,
+          limit: res.purchases?.top_suppliers_meta?.limit ?? topSuppliers.length,
+        },
+      };
+    })(),
   };
 }
 
@@ -203,4 +245,26 @@ export async function fetchAdminLowStock(
     threshold: res.threshold,
     meta: mapMeta(res.meta),
   };
+}
+
+// GET /admin/dashboard/top-suppliers — the full supplier ranking for the period
+// (Σ received-order totals), paged. Backs the dashboard's "Ver todos".
+export async function fetchAdminTopSuppliers(
+  period: StatsPeriod,
+  branchId: number | null | undefined,
+  page = 1,
+  perPage = 20
+): Promise<{ items: DashboardTopSupplier[]; meta: PaginationMeta }> {
+  const q = new URLSearchParams();
+  q.set('period', period);
+  if (branchId) q.set('branch_id', String(branchId));
+  q.set('page', String(page));
+  q.set('per_page', String(perPage));
+
+  const res = await apiRequest<{
+    data: RawTopSupplier[];
+    meta: { current_page: number; last_page: number; per_page: number; total: number };
+  }>(`/admin/dashboard/top-suppliers?${q.toString()}`);
+
+  return { items: res.data.map(mapTopSupplier), meta: mapMeta(res.meta) };
 }

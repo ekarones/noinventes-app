@@ -13,6 +13,7 @@ import type {
   AdminVariation,
   LowStockItem,
   Product,
+  PurchaseOrderStatus,
   SaleSummary,
   StatsPeriod,
   StockByBranch,
@@ -116,6 +117,8 @@ export type AdminHomeStackParamList = AdminProductRoutes &
     AdminLowStock: { items: LowStockItem[]; threshold: number; hasMore: boolean };
     // The full cross-seller ranking, keeping the dashboard's period + branch scope.
     AdminTopProducts: { period: StatsPeriod; branchId?: number | null };
+    // The full supplier ranking (purchasing), same period + branch scope.
+    AdminTopSuppliers: { period: StatsPeriod; branchId?: number | null };
   };
 
 export type AdminSalesStackParamList = AdminSaleDetailRoute & {
@@ -144,7 +147,8 @@ export type AdminMoreStackParamList = {
   AdminSuppliers: undefined;
   // `supplier` absent = creating a new one.
   AdminSupplierForm: { supplier?: AdminSupplier };
-  AdminPurchaseOrders: undefined;
+  // `status` preselects the list filter (e.g. the dashboard's "por recibir").
+  AdminPurchaseOrders: { status?: PurchaseOrderStatus } | undefined;
   // The detail re-fetches from the id; `order` is a seed row for the header.
   AdminPurchaseOrderDetail: { order: AdminPurchaseOrderRow };
   // `order` absent = new draft; present = editing (only allowed while draft).

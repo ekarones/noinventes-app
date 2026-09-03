@@ -214,6 +214,31 @@ export default function AdminDashboardScreen() {
               </TouchableOpacity>
             )}
 
+            {/* Purchase orders awaiting reception (stock on the way) */}
+            {data && data.purchases.pendingOrdersCount > 0 && (
+              <TouchableOpacity
+                style={styles.pending}
+                activeOpacity={ROW_PRESS_OPACITY}
+                onPress={() =>
+                  navigation.navigate('AdminMoreTab', {
+                    screen: 'AdminPurchaseOrders',
+                    params: { status: 'ordered' },
+                  })
+                }
+              >
+                <Ionicons name="cube-outline" size={22} color={colors.primary} />
+                <Text style={styles.pendingText}>
+                  <Text style={styles.pendingStrong}>{data.purchases.pendingOrdersCount}</Text>
+                  {data.purchases.pendingOrdersCount === 1 ? ' orden' : ' órdenes'} por recibir ·{' '}
+                  <Text style={styles.pendingStrong}>
+                    {formatPrice(data.purchases.pendingOrdersValue)}
+                  </Text>{' '}
+                  en camino
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+
             {/* Top products */}
             <View style={styles.card}>
               <SectionHeader
@@ -298,6 +323,64 @@ export default function AdminDashboardScreen() {
                     <Text style={styles.breakTotal}>{formatPrice(s.total)}</Text>
                   </View>
                 ))}
+              </View>
+            )}
+
+            {/* Purchasing (proveedores + órdenes de compra) */}
+            {data && (
+              <View style={styles.card}>
+                <SectionHeader
+                  card
+                  dot
+                  icon="cart-outline"
+                  title="Compras"
+                  action={
+                    data.purchases.topSuppliersMeta.hasMore
+                      ? {
+                          label: 'Ver todos',
+                          onPress: () => navigation.navigate('AdminTopSuppliers', { period, branchId }),
+                        }
+                      : undefined
+                  }
+                />
+                <View style={styles.purchaseSummary}>
+                  <View style={styles.purchaseKpi}>
+                    <Text style={styles.purchaseKpiValue}>{formatPrice(data.purchases.periodTotal)}</Text>
+                    <Text style={styles.purchaseKpiLabel}>Gasto del período</Text>
+                  </View>
+                  <View style={styles.purchaseKpi}>
+                    <Text style={styles.purchaseKpiValue}>{data.purchases.receivedCount}</Text>
+                    <Text style={styles.purchaseKpiLabel}>
+                      {data.purchases.receivedCount === 1 ? 'orden recibida' : 'órdenes recibidas'}
+                    </Text>
+                  </View>
+                  {data.purchases.draftCount > 0 && (
+                    <View style={styles.purchaseKpi}>
+                      <Text style={styles.purchaseKpiValue}>{data.purchases.draftCount}</Text>
+                      <Text style={styles.purchaseKpiLabel}>
+                        {data.purchases.draftCount === 1 ? 'borrador' : 'borradores'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {data.purchases.topSuppliers.length === 0 ? (
+                  <EmptyState compact icon="briefcase-outline" message="Sin compras recibidas en este período." />
+                ) : (
+                  data.purchases.topSuppliers.map((s, index) => (
+                    <View key={s.supplierId} style={[styles.breakRow, index > 0 && styles.rowBorder]}>
+                      <Text style={styles.rank}>{index + 1}</Text>
+                      <View style={styles.breakInfo}>
+                        <Text style={styles.breakName} numberOfLines={1}>
+                          {s.displayName}
+                        </Text>
+                        <Text style={styles.breakCount}>
+                          {s.ordersCount} {s.ordersCount === 1 ? 'orden' : 'órdenes'}
+                        </Text>
+                      </View>
+                      <Text style={styles.breakTotal}>{formatPrice(s.total)}</Text>
+                    </View>
+                  ))
+                )}
               </View>
             )}
 
@@ -417,6 +500,31 @@ const makeStyles = (colors: Palette) =>
     },
     lowStockText: { flex: 1, fontSize: 13.5, fontFamily: FONT_FAMILY.extrabold, color: '#7a5600', lineHeight: 18 },
     lowStockCount: { fontFamily: FONT_FAMILY.black, color: colors.primary },
+    // "Órdenes por recibir" — informational (navy-light) vs the amber low-stock warning.
+    pending: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 14,
+      borderRadius: 18,
+      backgroundColor: '#e8ebf2',
+      borderWidth: 1.5,
+      borderColor: '#d3d9e6',
+    },
+    pendingText: { flex: 1, fontSize: 13.5, fontFamily: FONT_FAMILY.extrabold, color: colors.primary, lineHeight: 18 },
+    pendingStrong: { fontFamily: FONT_FAMILY.black },
+    // Compras card
+    purchaseSummary: {
+      flexDirection: 'row',
+      gap: 22,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.separator,
+    },
+    purchaseKpi: { flexShrink: 1 },
+    purchaseKpiValue: { fontSize: 18, fontFamily: FONT_FAMILY.black, color: colors.primary, letterSpacing: -0.3 },
+    purchaseKpiLabel: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.5)', marginTop: 2 },
+    rank: { width: 20, textAlign: 'center', fontSize: 13, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.4)' },
     breakRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 },
     rowBorder: { borderTopWidth: 1, borderTopColor: colors.separator },
     breakInfo: { flex: 1, minWidth: 0 },
