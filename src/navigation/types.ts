@@ -4,6 +4,7 @@ import type { CompositeNavigationProp, NavigatorScreenParams } from '@react-navi
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type {
+  AdminPaymentLink,
   AdminProductDetail,
   AdminPurchaseOrderDetail,
   AdminPurchaseOrderRow,
@@ -153,6 +154,12 @@ export type AdminMoreStackParamList = {
   AdminPurchaseOrderDetail: { order: AdminPurchaseOrderRow };
   // `order` absent = new draft; present = editing (only allowed while draft).
   AdminPurchaseOrderForm: { order?: AdminPurchaseOrderDetail };
+  // Cobros — links de pago Culqi. History → form → status is a push chain, same
+  // shape as suppliers/purchase orders.
+  AdminPaymentLinks: undefined;
+  AdminPaymentLinkForm: undefined;
+  // `replace`d in from the form once Culqi confirms the link was created.
+  AdminPaymentLinkStatus: { paymentLink: AdminPaymentLink };
 };
 
 export type AdminTabParamList = {

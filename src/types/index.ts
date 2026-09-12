@@ -538,6 +538,36 @@ export type AdminPurchaseOrderDetail = {
   can: { edit: boolean; send: boolean; receive: boolean; cancel: boolean; delete: boolean };
 };
 
+// ---- Links de pago (Culqi) ----
+
+export type PaymentLinkStatus = 'pending' | 'paid' | 'expired' | 'cancelled';
+export type PaymentLinkMethod =
+  | 'tarjeta'
+  | 'yape'
+  | 'bancaMovil'
+  | 'agente'
+  | 'billetera'
+  | 'cuotealo';
+
+// A CulqiLink-backed charge: a hosted payment page the app shares as a URL/QR
+// instead of collecting card data itself. `chargeId` / `paidAt` only appear
+// once `status` is "paid".
+export type AdminPaymentLink = {
+  id: number;
+  culqiLinkId: string;
+  url: string;
+  title: string;
+  description: string | null;
+  amount: number;
+  currency: string;
+  status: PaymentLinkStatus;
+  methods: PaymentLinkMethod[];
+  chargeId: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  expirationAt: string | null;
+};
+
 // A pickable product/variation for the order form (from /options).
 export type PurchaseOrderPickable = {
   productId: number | null;
