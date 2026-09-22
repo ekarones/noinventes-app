@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -23,6 +23,7 @@ import { PAYMENT_METHODS } from '../utils/payment';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { createSale, type CreateSaleItem } from '../api/sales';
+import { createPaymentIntent, fetchPaymentIntentConfig } from '../api/paymentIntents';
 import { lookupByCode } from '../api/products';
 import { ApiError, TIMEOUT_STATUS } from '../api/client';
 import { hapticSuccess } from '../utils/haptics';
@@ -77,12 +78,40 @@ export default function CheckoutScreen({ navigation }: Props) {
   const colors = useTheme();
 
   const [customerName, setCustomerName] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  // 'link' is not a real sale payment method — it switches the CTA to generate a
+  // Culqi payment link (QR) for the total instead of registering the sale. The
+  // sale is then recorded separately with a real method.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | 'link'>('cash');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  // null = unknown yet → show the "Link Culqi" option by default; hide it only
+  // when the tenant is confirmed to have no Culqi account. A 503 on create is the
+  // backstop if the keys get removed while this screen is open.
+  const [culqiConfigured, setCulqiConfigured] = useState<boolean | null>(null);
+
+  const isLink = paymentMethod === 'link';
+  const showLink = culqiConfigured !== false;
+
+  useEffect(() => {
+    let alive = true;
+    fetchPaymentIntentConfig()
+      .then((c) => alive && setCulqiConfigured(c.configured))
+      .catch(() => {
+        // Config unreachable — leave the option visible; create-time 503 covers it.
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // If Culqi turns out unavailable while "Link Culqi" was selected, fall back.
+  useEffect(() => {
+    if (culqiConfigured === false && paymentMethod === 'link') setPaymentMethod('cash');
+  }, [culqiConfigured, paymentMethod]);
 
   async function handleSubmit() {
-    if (submitting || items.length === 0) return;
+    if (submitting || items.length === 0 || paymentMethod === 'link') return;
 
     const payloadItems: CreateSaleItem[] = items.map((i) => ({
       product_id: i.product.id,
@@ -125,6 +154,31 @@ export default function CheckoutScreen({ navigation }: Props) {
       handleError(e);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // Generates a Culqi payment link (QR) for the total and opens the status screen
+  // to poll it. Does NOT register the sale — the seller records that separately
+  // once the customer has paid (chosen product decision: "solo generar el link").
+  async function generateLink() {
+    if (generatingLink || items.length === 0) return;
+    setGeneratingLink(true);
+    try {
+      const intent = await createPaymentIntent({
+        amount: total,
+        description: customerName.trim() || undefined,
+        // Let the customer pick card or Yape on the page.
+        method: null,
+        expiresHours: 24,
+      });
+      navigation.navigate('PaymentIntent', { intent });
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) return; // handled globally
+      const msg =
+        e instanceof ApiError ? e.message : 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+      Alert.alert('No se pudo generar el cobro', msg);
+    } finally {
+      setGeneratingLink(false);
     }
   }
 
@@ -270,7 +324,31 @@ export default function CheckoutScreen({ navigation }: Props) {
                   </TouchableOpacity>
                 );
               })}
+              {/* Not a sale method — switches the CTA to "generate payment link".
+                  Hidden when this tenant has no Culqi account. */}
+              {showLink && (
+                <TouchableOpacity
+                  style={[styles.payPill, styles.linkPill, isLink && styles.payPillActive]}
+                  onPress={() => setPaymentMethod('link')}
+                  activeOpacity={ROW_PRESS_OPACITY}
+                  accessibilityRole="button"
+                >
+                  <Ionicons
+                    name="qr-code-outline"
+                    size={14}
+                    color={isLink ? '#fff' : colors.primary}
+                    style={styles.linkPillIcon}
+                  />
+                  <Text style={[styles.payText, isLink && styles.payTextActive]}>Link Culqi</Text>
+                </TouchableOpacity>
+              )}
             </View>
+            {isLink && (
+              <Text style={styles.cardHint}>
+                Genera un link/QR para que el cliente pague con tarjeta o Yape. La venta se registra
+                aparte con su método real.
+              </Text>
+            )}
           </View>
 
           {/* Notes */}
@@ -316,14 +394,20 @@ export default function CheckoutScreen({ navigation }: Props) {
         {/* Submit — the tab bar stays visible on this screen, so no bottom inset. */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.cta, submitting && styles.ctaBusy]}
-            onPress={handleSubmit}
-            disabled={submitting}
+            style={[styles.cta, (submitting || generatingLink) && styles.ctaBusy]}
+            onPress={isLink ? generateLink : handleSubmit}
+            disabled={submitting || generatingLink}
             activeOpacity={ROW_PRESS_OPACITY}
             accessibilityRole="button"
           >
             <Text style={styles.ctaText}>
-              {submitting ? 'Registrando venta…' : `Cobrar ${formatPrice(total)}`}
+              {isLink
+                ? generatingLink
+                  ? 'Generando link…'
+                  : `Generar cobro con link ${formatPrice(total)}`
+                : submitting
+                  ? 'Registrando venta…'
+                  : `Cobrar ${formatPrice(total)}`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -458,6 +542,8 @@ const makeStyles = (colors: Palette) =>
     },
     payText: { fontSize: 13.5, fontFamily: FONT_FAMILY.black, color: 'rgba(22, 33, 58, 0.62)' },
     payTextActive: { color: '#fff' },
+    linkPill: { flexDirection: 'row', alignItems: 'center' },
+    linkPillIcon: { marginRight: 6 },
 
     // ---- Totals ----
     totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },

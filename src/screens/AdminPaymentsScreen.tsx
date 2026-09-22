@@ -3,7 +3,7 @@ import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } fr
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { fetchPaymentLinks } from '../api/admin/paymentLinks';
+import { fetchPaymentIntents } from '../api/admin/paymentIntents';
 import { usePagedList } from '../hooks/usePagedList';
 import type { Palette } from '../theme/colors';
 import { useTheme, useThemedStyles } from '../theme/theme';
@@ -14,40 +14,45 @@ import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import PushedHeader from '../components/PushedHeader';
-import type { AdminPaymentLink, PaymentLinkStatus } from '../types';
+import type { AdminPaymentIntent, PaymentIntentStatus } from '../types';
 import type { AdminMoreStackParamList } from '../navigation/types';
 
-type Props = NativeStackScreenProps<AdminMoreStackParamList, 'AdminPaymentLinks'>;
+type Props = NativeStackScreenProps<AdminMoreStackParamList, 'AdminPayments'>;
 
 const PER_PAGE = 20;
 
-const STATUS_FILTERS: { value: PaymentLinkStatus | 'all'; label: string }[] = [
+const STATUS_FILTERS: { value: PaymentIntentStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Todos' },
   { value: 'pending', label: 'Pendientes' },
-  { value: 'paid', label: 'Pagados' },
-  { value: 'expired', label: 'Vencidos' },
+  { value: 'captured', label: 'Cobrados' },
+  { value: 'failed', label: 'Rechazados' },
   { value: 'cancelled', label: 'Anulados' },
+  { value: 'expired', label: 'Vencidos' },
 ];
 
-const STATUS_META: Record<PaymentLinkStatus, { label: string; fg: keyof Palette; bg: keyof Palette }> = {
-  pending: { label: 'Pendiente', fg: 'warning', bg: 'warningSoft' },
-  paid: { label: 'Pagado', fg: 'success', bg: 'successSoft' },
-  expired: { label: 'Vencido', fg: 'textSecondary', bg: 'fill' },
-  cancelled: { label: 'Anulado', fg: 'error', bg: 'errorSoft' },
+export const INTENT_STATUS_META: Record<
+  PaymentIntentStatus,
+  { label: string; fg: keyof Palette; bg: keyof Palette; icon: keyof typeof Ionicons.glyphMap }
+> = {
+  pending: { label: 'Pendiente', fg: 'warning', bg: 'warningSoft', icon: 'time-outline' },
+  captured: { label: 'Cobrado', fg: 'success', bg: 'successSoft', icon: 'checkmark-circle' },
+  failed: { label: 'Rechazado', fg: 'error', bg: 'errorSoft', icon: 'close-circle' },
+  cancelled: { label: 'Anulado', fg: 'error', bg: 'errorSoft', icon: 'ban-outline' },
+  expired: { label: 'Vencido', fg: 'textSecondary', bg: 'fill', icon: 'alert-circle-outline' },
 };
 
-export default function AdminPaymentLinksScreen({ navigation }: Props) {
+export default function AdminPaymentsScreen({ navigation }: Props) {
   const colors = useTheme();
   const styles = useThemedStyles(makeStyles);
 
-  const [status, setStatus] = useState<PaymentLinkStatus | 'all'>('all');
+  const [status, setStatus] = useState<PaymentIntentStatus | 'all'>('all');
 
   const fetchPage = useCallback(
-    (page: number) => fetchPaymentLinks({ status, page, perPage: PER_PAGE }),
+    (page: number) => fetchPaymentIntents({ status, page, perPage: PER_PAGE }),
     [status]
   );
   const { items, meta, page, loading, refreshing, error, listRef, loadPage } =
-    usePagedList<AdminPaymentLink>(fetchPage, 'No se pudieron cargar los cobros.');
+    usePagedList<AdminPaymentIntent>(fetchPage, 'No se pudieron cargar los cobros.');
 
   useFocusEffect(
     useCallback(() => {
@@ -57,21 +62,21 @@ export default function AdminPaymentLinksScreen({ navigation }: Props) {
 
   const subtitle = useMemo(() => (meta ? `${meta.total} cobros generados` : undefined), [meta]);
 
-  function renderItem({ item }: { item: AdminPaymentLink }) {
-    const meta = STATUS_META[item.status];
+  function renderItem({ item }: { item: AdminPaymentIntent }) {
+    const m = INTENT_STATUS_META[item.status];
     return (
       <TouchableOpacity
         style={styles.card}
-        onPress={() => navigation.navigate('AdminPaymentLinkStatus', { paymentLink: item })}
+        onPress={() => navigation.navigate('AdminPaymentIntent', { intent: item })}
         activeOpacity={ROW_PRESS_OPACITY}
         accessibilityRole="button"
       >
-        <View style={styles.iconBox}>
-          <Ionicons name="qr-code-outline" size={19} color="#8A6400" />
+        <View style={[styles.iconBox, { backgroundColor: colors[m.bg] }]}>
+          <Ionicons name={m.icon} size={19} color={colors[m.fg]} />
         </View>
         <View style={styles.info}>
           <Text style={styles.title} numberOfLines={1}>
-            {item.title}
+            {item.description || item.email || 'Cobro'}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
             {formatRelative(item.createdAt)}
@@ -79,8 +84,8 @@ export default function AdminPaymentLinksScreen({ navigation }: Props) {
         </View>
         <View style={styles.right}>
           <Text style={styles.amount}>{formatPrice(item.amount)}</Text>
-          <View style={[styles.badge, { backgroundColor: colors[meta.bg] }]}>
-            <Text style={[styles.badgeText, { color: colors[meta.fg] }]}>{meta.label}</Text>
+          <View style={[styles.badge, { backgroundColor: colors[m.bg] }]}>
+            <Text style={[styles.badgeText, { color: colors[m.fg] }]}>{m.label}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -93,7 +98,7 @@ export default function AdminPaymentLinksScreen({ navigation }: Props) {
         title="Cobros"
         subtitle={subtitle}
         onBack={() => navigation.goBack()}
-        addAction={{ label: 'Nuevo', onPress: () => navigation.navigate('AdminPaymentLinkForm') }}
+        addAction={{ label: 'Cobrar', onPress: () => navigation.navigate('AdminPaymentForm') }}
       />
 
       <View style={styles.filters}>
@@ -132,9 +137,9 @@ export default function AdminPaymentLinksScreen({ navigation }: Props) {
           }
           ListEmptyComponent={
             <EmptyState
-              icon="qr-code-outline"
+              icon="card-outline"
               title="Sin cobros"
-              message="Genera un link de pago con el botón +."
+              message="Genera un cobro con tarjeta o Yape con el botón +."
             />
           }
         />
@@ -166,14 +171,7 @@ const makeStyles = (colors: Palette) =>
       shadowOffset: { width: 0, height: 1 },
       elevation: 1,
     },
-    iconBox: {
-      width: 42,
-      height: 42,
-      borderRadius: 14,
-      backgroundColor: '#FFF3CF',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
+    iconBox: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
     info: { flex: 1, minWidth: 0 },
     title: { fontSize: 15, fontFamily: FONT_FAMILY.black, color: colors.primary },
     meta: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: colors.textSecondary, marginTop: 3 },

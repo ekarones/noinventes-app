@@ -4,7 +4,7 @@ import type { CompositeNavigationProp, NavigatorScreenParams } from '@react-navi
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type {
-  AdminPaymentLink,
+  AdminPaymentIntent,
   AdminProductDetail,
   AdminPurchaseOrderDetail,
   AdminPurchaseOrderRow,
@@ -57,6 +57,9 @@ export type CatalogStackParamList = ProductDetailRoute & {
 export type CartStackParamList = {
   Cart: undefined;
   Checkout: undefined;
+  // POS "cobro con link": the QR/status screen for a payment intent created from
+  // the checkout total. Pushed on top of Checkout.
+  PaymentIntent: { intent: AdminPaymentIntent };
 };
 
 export type OrdersStackParamList = OrderDetailRoute & {
@@ -154,12 +157,13 @@ export type AdminMoreStackParamList = {
   AdminPurchaseOrderDetail: { order: AdminPurchaseOrderRow };
   // `order` absent = new draft; present = editing (only allowed while draft).
   AdminPurchaseOrderForm: { order?: AdminPurchaseOrderDetail };
-  // Cobros — links de pago Culqi. History → form → status is a push chain, same
-  // shape as suppliers/purchase orders.
-  AdminPaymentLinks: undefined;
-  AdminPaymentLinkForm: undefined;
-  // `replace`d in from the form once Culqi confirms the link was created.
-  AdminPaymentLinkStatus: { paymentLink: AdminPaymentLink };
+  // Cobros Culqi (host-and-share): historial → form → intent (URL/QR + polling).
+  // El cliente paga en la página del server; la app nunca ve la tarjeta.
+  AdminPayments: undefined;
+  AdminPaymentForm: undefined;
+  // `replace`d in from the form once the intent is created; also opened from the
+  // history to view / keep polling an existing intent.
+  AdminPaymentIntent: { intent: AdminPaymentIntent };
 };
 
 export type AdminTabParamList = {

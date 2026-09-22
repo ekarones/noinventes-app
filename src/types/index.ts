@@ -538,34 +538,52 @@ export type AdminPurchaseOrderDetail = {
   can: { edit: boolean; send: boolean; receive: boolean; cancel: boolean; delete: boolean };
 };
 
-// ---- Links de pago (Culqi) ----
+// ---- Pagos Culqi (flujo host-and-share: intent → URL/QR → página del server) ----
 
-export type PaymentLinkStatus = 'pending' | 'paid' | 'expired' | 'cancelled';
-export type PaymentLinkMethod =
-  | 'tarjeta'
-  | 'yape'
-  | 'bancaMovil'
-  | 'agente'
-  | 'billetera'
-  | 'cuotealo';
+// The app never touches Culqi or card data. It creates a payment intent, then
+// shares its URL (WhatsApp/QR); the customer pays on a server-hosted page that
+// runs the Culqi widget. The POS polls the intent's status.
+//
+// Only `pending` is non-terminal — once it resolves it stays put; a rejected
+// card does NOT return to pending (the merchant generates a fresh link).
+export type PaymentIntentStatus = 'pending' | 'captured' | 'failed' | 'cancelled' | 'expired';
 
-// A CulqiLink-backed charge: a hosted payment page the app shares as a URL/QR
-// instead of collecting card data itself. `chargeId` / `paidAt` only appear
-// once `status` is "paid".
-export type AdminPaymentLink = {
-  id: number;
-  culqiLinkId: string;
-  url: string;
-  title: string;
-  description: string | null;
-  amount: number;
+// Optional method preselection for the hosted payment page. `null` = the page
+// shows both card and Yape; otherwise it opens straight into that one.
+export type PaymentIntentMethod = 'card' | 'yape';
+
+// Config from GET /admin/payment-intents/config. The app only needs the minimum
+// (for local validation); `publicKey` null flags a tenant with no Culqi account.
+export type PaymentIntentConfig = {
+  publicKey: string | null;
+  // Per-tenant Culqi credentials are loaded from the super-admin panel. `false`
+  // → this store hasn't been configured; the app blocks charging and explains.
+  configured: boolean;
   currency: string;
-  status: PaymentLinkStatus;
-  methods: PaymentLinkMethod[];
-  chargeId: string | null;
+  minAmountCents: number;
+  paymentUrlTemplate: string | null;
+};
+
+export type AdminPaymentIntent = {
+  id: number;
+  publicUuid: string;
+  // Shareable payment page URL — this is what goes into the QR / WhatsApp.
+  url: string;
+  amount: number;
+  amountCents: number;
+  currency: string;
+  installments: number;
+  email: string | null;
+  description: string | null;
+  status: PaymentIntentStatus;
+  // Preselected payment method for the page, or null = both offered.
+  method: PaymentIntentMethod | null;
+  expiresAt: string | null;
   paidAt: string | null;
+  culqiChargeId: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
   createdAt: string;
-  expirationAt: string | null;
 };
 
 // A pickable product/variation for the order form (from /options).

@@ -6,6 +6,7 @@ import CatalogScreen from '../screens/CatalogScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CartScreen from '../screens/CartScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
+import PaymentIntentScreen from '../screens/PaymentIntentScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -57,6 +58,7 @@ function CartStack() {
     <CartStackNav.Navigator screenOptions={{ headerShown: false }}>
       <CartStackNav.Screen name="Cart" component={CartScreen} />
       <CartStackNav.Screen name="Checkout" component={CheckoutScreen} />
+      <CartStackNav.Screen name="PaymentIntent" component={PaymentIntentScreen} />
     </CartStackNav.Navigator>
   );
 }

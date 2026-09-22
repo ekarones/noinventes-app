@@ -22,7 +22,7 @@ type Route =
   | 'AdminCompany'
   | 'AdminSuppliers'
   | 'AdminPurchaseOrders'
-  | 'AdminPaymentLinks';
+  | 'AdminPayments';
 type Row = { icon: keyof typeof Ionicons.glyphMap; name: string; desc: string; route: Route };
 type Group = { title: string; tint: 'amber' | 'navy'; rows: Row[] };
 
@@ -65,7 +65,7 @@ const GROUPS: Group[] = [
     title: 'Cobros',
     tint: 'amber',
     rows: [
-      { icon: 'qr-code-outline', name: 'Links de pago', desc: 'Cobra con tarjeta o Yape vía Culqi', route: 'AdminPaymentLinks' },
+      { icon: 'card-outline', name: 'Cobros con tarjeta', desc: 'Cobra con tarjeta o Yape vía Culqi', route: 'AdminPayments' },
     ],
   },
 ];

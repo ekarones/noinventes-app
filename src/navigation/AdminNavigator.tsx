@@ -29,9 +29,9 @@ import AdminSupplierFormScreen from '../screens/AdminSupplierFormScreen';
 import AdminPurchaseOrdersScreen from '../screens/AdminPurchaseOrdersScreen';
 import AdminPurchaseOrderDetailScreen from '../screens/AdminPurchaseOrderDetailScreen';
 import AdminPurchaseOrderFormScreen from '../screens/AdminPurchaseOrderFormScreen';
-import AdminPaymentLinksScreen from '../screens/AdminPaymentLinksScreen';
-import AdminPaymentLinkFormScreen from '../screens/AdminPaymentLinkFormScreen';
-import AdminPaymentLinkStatusScreen from '../screens/AdminPaymentLinkStatusScreen';
+import AdminPaymentsScreen from '../screens/AdminPaymentsScreen';
+import AdminPaymentFormScreen from '../screens/AdminPaymentFormScreen';
+import AdminPaymentIntentScreen from '../screens/AdminPaymentIntentScreen';
 import { useTheme } from '../theme/theme';
 import { FONT_FAMILY } from '../theme/tokens';
 import type {
@@ -111,9 +111,9 @@ function MoreStack() {
       <MoreStackNav.Screen name="AdminPurchaseOrders" component={AdminPurchaseOrdersScreen} />
       <MoreStackNav.Screen name="AdminPurchaseOrderDetail" component={AdminPurchaseOrderDetailScreen} />
       <MoreStackNav.Screen name="AdminPurchaseOrderForm" component={AdminPurchaseOrderFormScreen} />
-      <MoreStackNav.Screen name="AdminPaymentLinks" component={AdminPaymentLinksScreen} />
-      <MoreStackNav.Screen name="AdminPaymentLinkForm" component={AdminPaymentLinkFormScreen} />
-      <MoreStackNav.Screen name="AdminPaymentLinkStatus" component={AdminPaymentLinkStatusScreen} />
+      <MoreStackNav.Screen name="AdminPayments" component={AdminPaymentsScreen} />
+      <MoreStackNav.Screen name="AdminPaymentForm" component={AdminPaymentFormScreen} />
+      <MoreStackNav.Screen name="AdminPaymentIntent" component={AdminPaymentIntentScreen} />
     </MoreStackNav.Navigator>
   );
 }
