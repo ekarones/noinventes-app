@@ -1,0 +1,39 @@
+import { apiRequest } from './client';
+
+// Structured payload the assistant can attach for widget rendering. We currently
+// render only `answer` (natural-language text); these types are here for when we
+// add widgets (stat tiles / tables / lists) under the bubble.
+export type ChatData =
+  | { type: 'summary'; [k: string]: unknown }
+  | { type: 'table'; columns: string[]; rows: unknown[][]; [k: string]: unknown }
+  | { type: 'list'; items: { title: string; subtitle?: string; value?: string }[]; [k: string]: unknown }
+  | { type: 'scalar'; value: string | number; label: string; [k: string]: unknown }
+  | { type: 'empty' };
+
+export type ChatReply = {
+  // Natural-language answer in Spanish, may contain **bold** markdown.
+  answer: string;
+  // Classified intent name, or null if not recognized.
+  intent: string | null;
+  data: ChatData | null;
+  tookMs: number;
+};
+
+// POST /api/mobile/chat — the assistant. Under mobile-api (seller + admin); the
+// server returns only the intents the role is allowed to see. apiRequest attaches
+// the Bearer + X-Tenant and turns a 401 into a global sign-out; a 429/503 comes
+// back as an ApiError the caller maps to a friendly bubble.
+export async function sendChatMessage(message: string): Promise<ChatReply> {
+  const res = await apiRequest<{
+    answer: string;
+    intent: string | null;
+    data: ChatData | null;
+    took_ms: number;
+  }>('/chat', { method: 'POST', body: { message } });
+  return {
+    answer: res.answer,
+    intent: res.intent ?? null,
+    data: res.data ?? null,
+    tookMs: res.took_ms,
+  };
+}

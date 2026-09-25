@@ -18,6 +18,7 @@ import { PrinterProvider } from './src/context/PrinterContext';
 import LoginScreen from './src/screens/LoginScreen';
 import AppNavigator from './src/navigation/AppNavigator';
 import AdminNavigator from './src/navigation/AdminNavigator';
+import ChatFab from './src/components/ChatFab';
 import { colors } from './src/theme/colors';
 import { ThemeProvider } from './src/theme/theme';
 
@@ -51,6 +52,7 @@ function Root() {
         <NavigationContainer>
           <AdminNavigator />
         </NavigationContainer>
+        <ChatFab />
       </ThemeProvider>
     );
   } else {
@@ -60,6 +62,7 @@ function Root() {
           <NavigationContainer>
             <AppNavigator />
           </NavigationContainer>
+          <ChatFab />
         </CartProvider>
       </ThemeProvider>
     );
