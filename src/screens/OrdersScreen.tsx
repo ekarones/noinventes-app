@@ -20,6 +20,7 @@ import PagedList from '../components/PagedList';
 import Select from '../components/Select';
 import PrinterSheet from '../components/PrinterSheet';
 import { usePrinter } from '../context/PrinterContext';
+import { useAuth } from '../context/AuthContext';
 import { SortControl } from '../components/FilterControls';
 import EmptyState from '../components/EmptyState';
 import { PAYMENT_METHODS } from '../utils/payment';
@@ -36,6 +37,9 @@ function shortDate(d: Date): string {
 }
 
 export default function OrdersScreen({ navigation }: Props) {
+  const { user } = useAuth();
+  // An admin in "modo venta" sees only the sales they personally registered here.
+  const isAdmin = user?.role === 'admin';
 
   // ---- Filters ----
   const [searchText, setSearchText] = useState('');
@@ -190,6 +194,15 @@ export default function OrdersScreen({ navigation }: Props) {
         }
       />
 
+      {isAdmin && (
+        <View style={styles.adminBanner}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
+          <Text style={styles.adminBannerText}>
+            Estás viendo solo tus ventas. Para ver todas las del comercio, usá Ventas en el panel admin.
+          </Text>
+        </View>
+      )}
+
       {/* Filters below the header, on a white band. The search leads (full width),
           then the pickers and the date range. */}
       <View style={styles.filters}>
@@ -289,6 +302,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   // The filter block, below the header, on a white band — same as the catalogue.
   // `gap` spaces the search from the rows below it.
+  adminBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: SPACING.sm,
+    marginTop: SPACING.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: colors.fill,
+  },
+  adminBannerText: { flex: 1, fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: colors.primary, lineHeight: 16 },
   filters: {
     backgroundColor: colors.surface,
     paddingHorizontal: SPACING.sm,

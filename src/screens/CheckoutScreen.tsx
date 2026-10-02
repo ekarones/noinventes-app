@@ -20,16 +20,23 @@ import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { formatPrice } from '../utils/format';
 import { linePrice, variationLabel } from '../utils/cart';
 import { PAYMENT_METHODS } from '../utils/payment';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { createSale, type CreateSaleItem } from '../api/sales';
 import { createPaymentIntent, fetchPaymentIntentConfig } from '../api/paymentIntents';
+import { fetchAdminBranches } from '../api/admin/branches';
 import { lookupByCode } from '../api/products';
 import { ApiError, TIMEOUT_STATUS } from '../api/client';
 import { hapticSuccess } from '../utils/haptics';
 import DashedLine from '../components/DashedLine';
-import type { CartItem, PaymentMethod } from '../types';
+import BottomSheet, { SheetOption } from '../components/BottomSheet';
+import type { AdminBranch, CartItem, PaymentMethod } from '../types';
 import type { CartStackParamList, RootTabNavigation } from '../navigation/types';
+
+// Remembers the admin's last-used sales branch to pre-select it next time.
+const LAST_BRANCH_KEY = 'pos:lastBranchId';
 
 type Props = NativeStackScreenProps<CartStackParamList, 'Checkout'>;
 
@@ -74,8 +81,17 @@ export default function CheckoutScreen({ navigation }: Props) {
   const { items, totalPrice: subtotal, discount, total, clear, updateQuantity, removeItem, invalidateStock } =
     useCart();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const colors = useTheme();
+
+  // An admin selling from the POS must pick the branch the sale belongs to; a
+  // seller always uses their own branch and never sees this.
+  const isAdmin = user?.role === 'admin';
+  const [branches, setBranches] = useState<AdminBranch[]>([]);
+  const [branchId, setBranchId] = useState<number | null>(null);
+  const [branchPickerOpen, setBranchPickerOpen] = useState(false);
+  const [branchError, setBranchError] = useState<string | null>(null);
 
   const [customerName, setCustomerName] = useState('');
   // 'link' is not a real sale payment method — it switches the CTA to generate a
@@ -110,8 +126,40 @@ export default function CheckoutScreen({ navigation }: Props) {
     if (culqiConfigured === false && paymentMethod === 'link') setPaymentMethod('cash');
   }, [culqiConfigured, paymentMethod]);
 
+  // Load active branches for the admin branch picker, pre-selecting the last one
+  // used (or the only one, if there's just one).
+  useEffect(() => {
+    if (!isAdmin) return;
+    let alive = true;
+    (async () => {
+      try {
+        const all = await fetchAdminBranches();
+        const active = all.filter((b) => b.active);
+        if (!alive) return;
+        setBranches(active);
+        const saved = await AsyncStorage.getItem(LAST_BRANCH_KEY);
+        const savedId = saved ? Number(saved) : null;
+        if (savedId && active.some((b) => b.id === savedId)) setBranchId(savedId);
+        else if (active.length === 1) setBranchId(active[0].id);
+      } catch {
+        // Leave the picker empty; the server still enforces branch_id with a 422.
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [isAdmin]);
+
+  const branchName = branchId == null ? null : branches.find((b) => b.id === branchId)?.name ?? null;
+
   async function handleSubmit() {
     if (submitting || items.length === 0 || paymentMethod === 'link') return;
+
+    // Admin must choose the branch the sale is registered against.
+    if (isAdmin && branchId == null) {
+      setBranchError('Elegí la sucursal donde se registra la venta.');
+      return;
+    }
 
     const payloadItems: CreateSaleItem[] = items.map((i) => ({
       product_id: i.product.id,
@@ -121,12 +169,16 @@ export default function CheckoutScreen({ navigation }: Props) {
 
     setSubmitting(true);
     try {
-      // Optimistic stock check before charging.
-      const issues = await verifyStock(items);
-      if (issues.length > 0) {
-        setSubmitting(false);
-        promptStockIssues(issues);
-        return;
+      // Optimistic stock check before charging — only for a seller, whose stock is
+      // scoped to their own branch. An admin picks the branch per sale, so we let
+      // the server validate stock against the chosen branch instead.
+      if (!isAdmin) {
+        const issues = await verifyStock(items);
+        if (issues.length > 0) {
+          setSubmitting(false);
+          promptStockIssues(issues);
+          return;
+        }
       }
 
       const sale = await createSale({
@@ -134,8 +186,14 @@ export default function CheckoutScreen({ navigation }: Props) {
         payment_method: paymentMethod,
         discount: discount > 0 ? discount : undefined,
         notes: notes.trim() || undefined,
+        branch_id: isAdmin && branchId != null ? branchId : undefined,
         items: payloadItems,
       });
+
+      if (isAdmin && branchId != null) {
+        // Remember the branch for the next sale.
+        AsyncStorage.setItem(LAST_BRANCH_KEY, String(branchId)).catch(() => {});
+      }
 
       clear();
       // Stock just changed — let the catalogue re-fetch next time it's shown.
@@ -151,9 +209,27 @@ export default function CheckoutScreen({ navigation }: Props) {
       });
       navigation.popToTop();
     } catch (e) {
-      handleError(e);
+      // Branch-specific validation (missing / inactive) shows inline on the picker;
+      // an inactive branch may have been disabled since we loaded the list, so
+      // refresh it too.
+      if (e instanceof ApiError && e.errors?.branch_id) {
+        setBranchError(e.errors.branch_id[0]);
+        if (isAdmin) reloadBranches();
+      } else {
+        handleError(e);
+      }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // Refetch active branches (after an "inactive branch" error).
+  async function reloadBranches() {
+    try {
+      const all = await fetchAdminBranches();
+      setBranches(all.filter((b) => b.active));
+    } catch {
+      // Keep the current list; the server will still guard the next attempt.
     }
   }
 
@@ -290,6 +366,36 @@ export default function CheckoutScreen({ navigation }: Props) {
             ))}
           </View>
 
+          {/* Branch — admin only (a seller always uses their own branch) */}
+          {isAdmin && (
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>Sucursal</Text>
+              <TouchableOpacity
+                style={[styles.branchField, !!branchError && styles.branchFieldError]}
+                onPress={() => {
+                  setBranchError(null);
+                  setBranchPickerOpen(true);
+                }}
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityRole="button"
+              >
+                <Ionicons name="storefront-outline" size={18} color={colors.primary} />
+                <Text
+                  style={[styles.branchText, !branchName && styles.branchPlaceholder]}
+                  numberOfLines={1}
+                >
+                  {branchName ?? 'Elegir sucursal'}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color="rgba(22, 33, 58, 0.4)" />
+              </TouchableOpacity>
+              {branchError ? (
+                <Text style={styles.branchErrorText}>{branchError}</Text>
+              ) : (
+                <Text style={styles.cardHint}>La venta se registra en esta sucursal.</Text>
+              )}
+            </View>
+          )}
+
           {/* Customer */}
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Cliente</Text>
@@ -412,6 +518,28 @@ export default function CheckoutScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {isAdmin && (
+        <BottomSheet
+          visible={branchPickerOpen}
+          onClose={() => setBranchPickerOpen(false)}
+          title="Elegir sucursal"
+          scrollable
+        >
+          {branches.map((b) => (
+            <SheetOption
+              key={b.id}
+              label={b.name}
+              active={b.id === branchId}
+              onPress={() => {
+                setBranchId(b.id);
+                setBranchError(null);
+                setBranchPickerOpen(false);
+              }}
+            />
+          ))}
+        </BottomSheet>
+      )}
     </View>
   );
 }
@@ -506,6 +634,22 @@ const makeStyles = (colors: Palette) =>
       color: colors.primary,
     },
     cardHint: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.45)', marginTop: 8 },
+
+    // ---- Branch selector (admin) ----
+    branchField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      height: 52,
+      paddingHorizontal: 14,
+      borderWidth: 1.5,
+      borderColor: colors.controlBorder,
+      borderRadius: 15,
+    },
+    branchFieldError: { borderColor: colors.error },
+    branchText: { flex: 1, fontSize: 16, fontFamily: FONT_FAMILY.extrabold, color: colors.primary },
+    branchPlaceholder: { fontFamily: FONT_FAMILY.bold, color: 'rgba(22, 33, 58, 0.35)' },
+    branchErrorText: { fontSize: 11.5, fontFamily: FONT_FAMILY.bold, color: colors.error, marginTop: 8 },
     textarea: {
       minHeight: 76,
       paddingHorizontal: 14,

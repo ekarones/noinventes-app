@@ -24,6 +24,9 @@ export type CreateSalePayload = {
   payment_method: PaymentMethod;
   discount?: number;
   notes?: string;
+  // Required when the authenticated user is an admin selling from the POS; the
+  // server ignores it for sellers (they always use their own branch).
+  branch_id?: number;
   items: CreateSaleItem[];
 };
 
