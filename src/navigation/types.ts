@@ -46,6 +46,8 @@ export type DashboardStackParamList = ProductDetailRoute &
   OrderDetailRoute & {
     Dashboard: undefined;
     Profile: undefined;
+    // In-app user guide (role-aware content).
+    Guide: undefined;
     // The full best-sellers ranking, scoped to the period the dashboard shows.
     TopProducts: { period: StatsPeriod };
   };
@@ -121,6 +123,9 @@ export type AdminHomeStackParamList = AdminProductRoutes &
   AdminSaleDetailRoute & {
     AdminDashboard: undefined;
     AdminProfile: undefined;
+    // In-app user guide (role-aware content). Same route name as the seller's so
+    // the shared profile scaffold can navigate to it in either navigator.
+    Guide: undefined;
     AdminLowStock: { items: LowStockItem[]; threshold: number; hasMore: boolean };
     // The full cross-seller ranking, keeping the dashboard's period + branch scope.
     AdminTopProducts: { period: StatsPeriod; branchId?: number | null };
@@ -167,6 +172,8 @@ export type AdminMoreStackParamList = {
   // `replace`d in from the form once the intent is created; also opened from the
   // history to view / keep polling an existing intent.
   AdminPaymentIntent: { intent: AdminPaymentIntent };
+  // In-app user guide (also reachable from Perfil).
+  Guide: undefined;
 };
 
 export type AdminTabParamList = {

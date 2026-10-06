@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { tabIcon } from './tabIcon';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminProfileScreen from '../screens/AdminProfileScreen';
+import UserGuideScreen from '../screens/UserGuideScreen';
 import AdminLowStockScreen from '../screens/AdminLowStockScreen';
 import AdminTopProductsScreen from '../screens/AdminTopProductsScreen';
 import AdminTopSuppliersScreen from '../screens/AdminTopSuppliersScreen';
@@ -54,6 +55,7 @@ function HomeStack() {
     <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
       <HomeStackNav.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <HomeStackNav.Screen name="AdminProfile" component={AdminProfileScreen} />
+      <HomeStackNav.Screen name="Guide" component={UserGuideScreen} />
       <HomeStackNav.Screen name="AdminLowStock" component={AdminLowStockScreen} />
       <HomeStackNav.Screen name="AdminTopProducts" component={AdminTopProductsScreen} />
       <HomeStackNav.Screen name="AdminTopSuppliers" component={AdminTopSuppliersScreen} />
@@ -115,6 +117,7 @@ function MoreStack() {
       <MoreStackNav.Screen name="AdminPayments" component={AdminPaymentsScreen} />
       <MoreStackNav.Screen name="AdminPaymentForm" component={AdminPaymentFormScreen} />
       <MoreStackNav.Screen name="AdminPaymentIntent" component={AdminPaymentIntentScreen} />
+      <MoreStackNav.Screen name="Guide" component={UserGuideScreen} />
     </MoreStackNav.Navigator>
   );
 }

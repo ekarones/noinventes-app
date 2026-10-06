@@ -12,6 +12,7 @@ import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import TopProductsScreen from '../screens/TopProductsScreen';
+import UserGuideScreen from '../screens/UserGuideScreen';
 import { useTheme } from '../theme/theme';
 import { FONT_FAMILY } from '../theme/tokens';
 import { useCart } from '../context/CartContext';
@@ -35,6 +36,7 @@ function DashboardStack() {
     <DashboardStackNav.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStackNav.Screen name="Dashboard" component={DashboardScreen} />
       <DashboardStackNav.Screen name="Profile" component={ProfileScreen} />
+      <DashboardStackNav.Screen name="Guide" component={UserGuideScreen} />
       <DashboardStackNav.Screen name="TopProducts" component={TopProductsScreen} />
       {/* Also registered in the Catálogo and Ventas stacks. Inicio opens its
           best-sellers and recent sales HERE, on its own stack, so that going back

@@ -138,6 +138,25 @@ export default function ProfileScaffold({ roleBadge, rows, support }: Props) {
           <Text style={styles.syncText}>{syncing ? 'Sincronizando…' : 'Sincronizar sesión'}</Text>
         </TouchableOpacity>
 
+        {/* User guide — both roles */}
+        <View style={styles.supportCard}>
+          <TouchableOpacity
+            style={styles.supportRow}
+            onPress={() => navigation.navigate('Guide' as never)}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+          >
+            <View style={styles.supportIcon}>
+              <Ionicons name="book-outline" size={18} color={colors.primary} />
+            </View>
+            <View style={styles.supportTexts}>
+              <Text style={styles.supportTitle}>Guía de uso</Text>
+              <Text style={styles.supportSub}>Cómo usar la app paso a paso</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="rgba(22, 33, 58, 0.3)" />
+          </TouchableOpacity>
+        </View>
+
         {/* Support (seller only) */}
         {support && (
           <View style={styles.supportCard}>

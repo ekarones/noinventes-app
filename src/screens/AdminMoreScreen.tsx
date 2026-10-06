@@ -22,7 +22,8 @@ type Route =
   | 'AdminCompany'
   | 'AdminSuppliers'
   | 'AdminPurchaseOrders'
-  | 'AdminPayments';
+  | 'AdminPayments'
+  | 'Guide';
 type Row = { icon: keyof typeof Ionicons.glyphMap; name: string; desc: string; route: Route };
 type Group = { title: string; tint: 'amber' | 'navy'; rows: Row[] };
 
@@ -66,6 +67,13 @@ const GROUPS: Group[] = [
     tint: 'amber',
     rows: [
       { icon: 'card-outline', name: 'Cobros con tarjeta', desc: 'Cobra con tarjeta o Yape vía Culqi', route: 'AdminPayments' },
+    ],
+  },
+  {
+    title: 'Ayuda',
+    tint: 'navy',
+    rows: [
+      { icon: 'book-outline', name: 'Guía de uso', desc: 'Cómo usar la app paso a paso', route: 'Guide' },
     ],
   },
 ];
