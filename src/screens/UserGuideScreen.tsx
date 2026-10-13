@@ -115,10 +115,10 @@ const ADMIN_SECTIONS: Section[] = [
     icon: 'cart-outline',
     title: 'Vender (modo venta)',
     steps: [
-      'Tocá la pestaña "Vender" para entrar al punto de venta.',
+      'Entrá a modo venta desde tu Perfil → "Entrar a modo venta".',
       'Armá el carrito desde el catálogo y, en Cobrar, elegí la sucursal donde se registra la venta.',
       'En "Ventas" ves solo las que vos registraste; para ver todas usá Ventas del panel.',
-      'Tocá "Salir" para volver al panel de administración.',
+      'Volvé al panel desde Perfil → "Volver al panel de administración".',
     ],
   },
   {

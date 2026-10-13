@@ -1,6 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
 import { tabIcon } from './tabIcon';
 import DashboardScreen from '../screens/DashboardScreen';
 import CatalogScreen from '../screens/CatalogScreen';
@@ -16,7 +15,6 @@ import UserGuideScreen from '../screens/UserGuideScreen';
 import { useTheme } from '../theme/theme';
 import { FONT_FAMILY } from '../theme/tokens';
 import { useCart } from '../context/CartContext';
-import { usePosMode } from '../context/PosModeContext';
 import type {
   CartStackParamList,
   CatalogStackParamList,
@@ -76,16 +74,9 @@ function OrdersStack() {
   );
 }
 
-// Placeholder for the "Salir" tab shown to an admin in modo venta — its press is
-// intercepted to leave the POS, so it never renders a screen.
-function ExitLauncher() {
-  return null;
-}
-
 export default function AppNavigator() {
   const { totalItems } = useCart();
   const colors = useTheme();
-  const pos = usePosMode();
 
   return (
     <Tab.Navigator
@@ -122,29 +113,6 @@ export default function AppNavigator() {
         component={OrdersStack}
         options={{ title: 'Ventas', tabBarIcon: tabIcon('sales', colors) }}
       />
-      {pos.isAdminPos && (
-        <Tab.Screen
-          name="ExitPos"
-          component={ExitLauncher}
-          options={{
-            title: 'Salir',
-            tabBarIcon: ({ focused }) => (
-              <Ionicons
-                name="exit-outline"
-                size={20}
-                color={focused ? colors.primary : 'rgba(22, 33, 58, 0.42)'}
-              />
-            ),
-          }}
-          listeners={{
-            tabPress: (e) => {
-              // Leave modo venta instead of focusing an empty screen.
-              e.preventDefault();
-              pos.exit();
-            },
-          }}
-        />
-      )}
     </Tab.Navigator>
   );
 }

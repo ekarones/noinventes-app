@@ -9,6 +9,7 @@ import { useTheme, useThemedStyles } from '../theme/theme';
 import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { usePosMode } from '../context/PosModeContext';
 import { ApiError } from '../api/client';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
@@ -38,7 +39,12 @@ export default function ProfileScaffold({ roleBadge, rows, support }: Props) {
   const navigation = useNavigation();
   const { user, signOut, refresh } = useAuth();
   const { showToast } = useToast();
+  const pos = usePosMode();
   const [syncing, setSyncing] = useState(false);
+
+  // An admin switches between the admin panel and the seller POS ("modo venta")
+  // from here — the mode swap lives in Perfil, not in a tab.
+  const isAdmin = user?.role === 'admin';
 
   const initial = user?.name?.trim().charAt(0).toUpperCase() ?? '?';
 
@@ -125,6 +131,25 @@ export default function ProfileScaffold({ roleBadge, rows, support }: Props) {
             </View>
           ))}
         </View>
+
+        {/* Mode switch (admin only): admin panel ⇄ seller POS */}
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.modeBtn}
+            onPress={pos.isAdminPos ? pos.exit : pos.enter}
+            activeOpacity={ROW_PRESS_OPACITY}
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name={pos.isAdminPos ? 'grid-outline' : 'cart-outline'}
+              size={18}
+              color={colors.onChrome}
+            />
+            <Text style={styles.modeText}>
+              {pos.isAdminPos ? 'Volver al panel de administración' : 'Entrar a modo venta'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Sync */}
         <TouchableOpacity
@@ -308,6 +333,23 @@ const makeStyles = (colors: Palette) =>
       color: 'rgba(22, 33, 58, 0.45)',
     },
     dataValue: { flex: 1, textAlign: 'right', fontSize: 14, fontFamily: FONT_FAMILY.extrabold, color: colors.primary },
+
+    // ---- Mode switch (admin) ----
+    modeBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 9,
+      height: 54,
+      borderRadius: 17,
+      backgroundColor: colors.chromeFill,
+      shadowColor: '#16213a',
+      shadowOpacity: 0.18,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+    },
+    modeText: { fontSize: 15, fontFamily: FONT_FAMILY.black, color: colors.onChrome },
 
     // ---- Sync ----
     syncBtn: {

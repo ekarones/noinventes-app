@@ -35,7 +35,6 @@ import AdminPaymentFormScreen from '../screens/AdminPaymentFormScreen';
 import AdminPaymentIntentScreen from '../screens/AdminPaymentIntentScreen';
 import { useTheme } from '../theme/theme';
 import { FONT_FAMILY } from '../theme/tokens';
-import { usePosMode } from '../context/PosModeContext';
 import type {
   AdminHomeStackParamList,
   AdminMoreStackParamList,
@@ -122,17 +121,11 @@ function MoreStack() {
   );
 }
 
-// Placeholder for the "Vender" launcher tab — it never renders because its
-// tabPress is intercepted to enter the POS instead of focusing a screen.
-function PosLauncher() {
-  return null;
-}
-
 // Root navigator for admin users. Bottom tabs, each wrapping its own stack.
 // New admin areas (productos, usuarios, …) get added as new tabs as they ship.
+// Entering the seller POS ("modo venta") is a switch in Perfil, not a tab.
 export default function AdminNavigator() {
   const colors = useTheme();
-  const pos = usePosMode();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -147,18 +140,6 @@ export default function AdminNavigator() {
         name="AdminHomeTab"
         component={HomeStack}
         options={{ title: 'Inicio', tabBarIcon: tabIcon('home', colors) }}
-      />
-      <Tab.Screen
-        name="AdminSellTab"
-        component={PosLauncher}
-        options={{ title: 'Vender', tabBarIcon: tabIcon('cart', colors) }}
-        listeners={{
-          tabPress: (e) => {
-            // Don't navigate to the empty screen — enter the POS instead.
-            e.preventDefault();
-            pos.enter();
-          },
-        }}
       />
       <Tab.Screen
         name="AdminProductsTab"

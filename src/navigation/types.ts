@@ -76,9 +76,6 @@ export type TabParamList = {
   CatalogTab: NavigatorScreenParams<CatalogStackParamList> | undefined;
   CartTab: NavigatorScreenParams<CartStackParamList> | undefined;
   OrdersTab: NavigatorScreenParams<OrdersStackParamList> | undefined;
-  // Only present when an admin is in "modo venta": a launcher tab that exits back
-  // to the admin panel.
-  ExitPos: undefined;
 };
 
 // Admin interface = bottom tabs, each wrapping its own native-stack.
@@ -178,9 +175,6 @@ export type AdminMoreStackParamList = {
 
 export type AdminTabParamList = {
   AdminHomeTab: NavigatorScreenParams<AdminHomeStackParamList> | undefined;
-  // A launcher tab: pressing it enters the seller POS ("modo venta"), it has no
-  // screen of its own.
-  AdminSellTab: undefined;
   AdminSalesTab: NavigatorScreenParams<AdminSalesStackParamList> | undefined;
   AdminProductsTab: NavigatorScreenParams<AdminProductsStackParamList> | undefined;
   AdminMoreTab: NavigatorScreenParams<AdminMoreStackParamList> | undefined;
