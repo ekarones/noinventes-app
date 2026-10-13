@@ -48,7 +48,8 @@
       "expo-secure-store",
       "expo-sharing",
       "expo-image",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-status-bar"
     ],
     "owner": "mizonaonline",
     "extra": {
