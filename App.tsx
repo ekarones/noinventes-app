@@ -16,6 +16,7 @@ import { CartProvider } from './src/context/CartContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { PrinterProvider } from './src/context/PrinterContext';
 import LoginScreen from './src/screens/LoginScreen';
+import TenantSuspendedScreen from './src/screens/TenantSuspendedScreen';
 import AppNavigator from './src/navigation/AppNavigator';
 import AdminNavigator from './src/navigation/AdminNavigator';
 import ChatFab from './src/components/ChatFab';
@@ -24,7 +25,7 @@ import { ThemeProvider } from './src/theme/theme';
 import { PosModeProvider } from './src/context/PosModeContext';
 
 function Root() {
-  const { user, initializing } = useAuth();
+  const { user, initializing, suspended } = useAuth();
 
   // An admin can step into the seller POS ("modo venta") to register sales. We
   // reuse the whole seller navigator for it, so this just swaps the admin root.
@@ -42,7 +43,8 @@ function Root() {
   // The POS (seller chrome, amber) takes dark status-bar content — that includes
   // an admin who is in "modo venta". The admin panel (navy) takes light content.
   const sellerLook = user?.role === 'seller' || (user?.role === 'admin' && adminSelling);
-  const statusBarStyle = sellerLook ? 'dark' : 'light';
+  // The suspended screen is navy → light status-bar content, like the admin panel.
+  const statusBarStyle = sellerLook && !suspended ? 'dark' : 'light';
 
   let content: ReactNode;
   if (initializing) {
@@ -53,6 +55,9 @@ function Root() {
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
+  } else if (suspended) {
+    // Kill switch: the store is paused. Keep the session; don't drop to login.
+    content = <TenantSuspendedScreen />;
   } else if (!user) {
     content = <LoginScreen />;
   } else if (user.role === 'admin' && adminSelling) {

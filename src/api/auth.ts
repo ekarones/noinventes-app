@@ -19,17 +19,32 @@ export type User = {
   branch: Branch | null;
 };
 
+export type PlanName = 'basic' | 'pro' | 'business';
+
+// The tenant's commercial plan + which features it unlocks. Returned by login
+// and /me. Gate premium UI on `features.<name>` (e.g. `features.culqi`), never on
+// `plan === 'pro'` — new plans/features are added to the map without breaking us.
+export type TenantInfo = {
+  id: number;
+  subdomain: string;
+  name: string;
+  plan: PlanName;
+  features: { culqi?: boolean } & Record<string, boolean>;
+};
+
 type LoginResponse = {
   token: string;
   token_type: string;
   user: User;
+  tenant?: TenantInfo | null;
 };
 
 type MeResponse = {
   user: User;
+  tenant?: TenantInfo | null;
 };
 
-// POST /login — authenticates a seller and returns a token + profile.
+// POST /login — authenticates a seller and returns a token + profile + plan.
 export async function login(
   email: string,
   password: string,
@@ -41,10 +56,10 @@ export async function login(
   });
 }
 
-// GET /me — validates the token is still alive and refreshes the profile/branch.
-export async function fetchMe(token: string): Promise<User> {
+// GET /me — validates the token is still alive and refreshes profile + plan.
+export async function fetchMe(token: string): Promise<{ user: User; tenant: TenantInfo | null }> {
   const data = await apiRequest<MeResponse>('/me', { token });
-  return data.user;
+  return { user: data.user, tenant: data.tenant ?? null };
 }
 
 // POST /logout — revokes only the current device's token.

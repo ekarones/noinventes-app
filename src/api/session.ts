@@ -40,3 +40,28 @@ export function setUnauthorizedHandler(fn: (() => void) | null): void {
 export function notifyUnauthorized(): void {
   unauthorizedHandler?.();
 }
+
+// Called when the tenant looks suspended (kill switch `is_active=false`): the
+// backend 404s every request before auth. AuthContext shows a "store suspended"
+// screen WITHOUT signing out (the token stays valid for when it's reactivated).
+let tenantSuspendedHandler: (() => void) | null = null;
+
+export function setTenantSuspendedHandler(fn: (() => void) | null): void {
+  tenantSuspendedHandler = fn;
+}
+
+export function notifyTenantSuspended(): void {
+  tenantSuspendedHandler?.();
+}
+
+// Called on a 403 whose body carries `upgrade_required: true` (a plan-gated
+// feature). AuthContext re-syncs the plan via /me so the UI hides the feature.
+let upgradeRequiredHandler: ((feature?: string) => void) | null = null;
+
+export function setUpgradeRequiredHandler(fn: ((feature?: string) => void) | null): void {
+  upgradeRequiredHandler = fn;
+}
+
+export function notifyUpgradeRequired(feature?: string): void {
+  upgradeRequiredHandler?.(feature);
+}

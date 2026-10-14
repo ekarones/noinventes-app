@@ -22,6 +22,7 @@ import Segmented from '../components/Segmented';
 import LoadingState from '../components/LoadingState';
 import EmptyState from '../components/EmptyState';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import type { PaymentIntentConfig, PaymentIntentMethod } from '../types';
 import type { AdminMoreStackParamList } from '../navigation/types';
 
@@ -47,8 +48,13 @@ const METHOD_OPTIONS: { id: MethodOption; label: string }[] = [
 
 export default function AdminPaymentFormScreen({ navigation }: Props) {
   const { showToast } = useToast();
+  const { tenant } = useAuth();
   const colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+
+  // Plan gate (defense-in-depth): the entry point is hidden when the plan lacks
+  // Culqi, but a live downgrade could land someone here.
+  const hasCulqi = tenant?.features?.culqi === true;
 
   const [config, setConfig] = useState<PaymentIntentConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,8 +77,9 @@ export default function AdminPaymentFormScreen({ navigation }: Props) {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (hasCulqi) load();
+    else setLoading(false);
+  }, [hasCulqi, load]);
 
   const amountValue = parseFloat(amount);
   const minAmount = (config?.minAmountCents ?? 0) / 100;
@@ -101,6 +108,19 @@ export default function AdminPaymentFormScreen({ navigation }: Props) {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (!hasCulqi) {
+    return (
+      <View style={styles.container}>
+        <PushedHeader title="Nuevo cobro" titleSize={22} onBack={() => navigation.goBack()} />
+        <EmptyState
+          icon="lock-closed-outline"
+          title="Función del plan Pro"
+          message="Los cobros con tarjeta (Culqi) no están incluidos en tu plan actual. Pedile al administrador de la plataforma que active el plan Pro."
+        />
+      </View>
+    );
   }
 
   if (loading) {

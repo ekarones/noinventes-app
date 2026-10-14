@@ -1,5 +1,11 @@
 import { API_BASE_URL } from './config';
-import { getSessionTenant, getSessionToken, notifyUnauthorized } from './session';
+import {
+  getSessionTenant,
+  getSessionToken,
+  notifyTenantSuspended,
+  notifyUnauthorized,
+  notifyUpgradeRequired,
+} from './session';
 
 // Shape of Laravel-style validation errors: { field: ["msg", ...] }
 type FieldErrors = Record<string, string[]>;
@@ -9,12 +15,50 @@ type FieldErrors = Record<string, string[]>;
 export class ApiError extends Error {
   status: number;
   errors?: FieldErrors;
+  // Set on a 403 whose body had `upgrade_required: true` — a plan-gated feature,
+  // not a plain permission error. The UI shows an "upgrade" CTA for these.
+  upgradeRequired?: boolean;
+  feature?: string;
 
-  constructor(message: string, status: number, errors?: FieldErrors) {
+  constructor(
+    message: string,
+    status: number,
+    errors?: FieldErrors,
+    extra?: { upgradeRequired?: boolean; feature?: string }
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.errors = errors;
+    this.upgradeRequired = extra?.upgradeRequired;
+    this.feature = extra?.feature;
+  }
+}
+
+// A suspended tenant (kill switch) 404s every request before auth. On a 404 for a
+// normal session request, probe /me once: if it 404s too, the store is suspended.
+// Guarded so a burst of 404s fires a single probe.
+let suspendProbeInFlight = false;
+async function probeTenantSuspended(): Promise<void> {
+  if (suspendProbeInFlight) return;
+  suspendProbeInFlight = true;
+  try {
+    const token = getSessionToken();
+    const tenant = getSessionTenant();
+    if (!token || !tenant) return;
+    const res = await fetch(`${API_BASE_URL}/me`, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Auth-Token': token,
+        'X-Tenant': tenant,
+      },
+    });
+    if (res.status === 404) notifyTenantSuspended();
+  } catch {
+    // Network error — can't tell; leave it.
+  } finally {
+    suspendProbeInFlight = false;
   }
 }
 
@@ -139,7 +183,19 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     // (Login/me/logout pass an explicit token, so a bad-credentials 401 there
     // won't bounce anyone.)
     if (response.status === 401 && usesSessionToken) notifyUnauthorized();
-    throw new ApiError(extractMessage(data, response.status), response.status, data?.errors);
+
+    // 403 with `upgrade_required` = a plan-gated feature (not a permission error).
+    // Re-sync the plan so the UI hides it, and flag the error for the caller.
+    const upgradeRequired = response.status === 403 && data?.upgrade_required === true;
+    if (upgradeRequired) notifyUpgradeRequired(data?.feature);
+
+    // A suspended store 404s everything before auth. Probe /me to confirm.
+    if (response.status === 404 && usesSessionToken) void probeTenantSuspended();
+
+    throw new ApiError(extractMessage(data, response.status), response.status, data?.errors, {
+      upgradeRequired,
+      feature: data?.feature,
+    });
   }
 
   return data as T;

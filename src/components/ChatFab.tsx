@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { sendChatMessage } from '../api/chat';
+import { sendChatMessage, type ChatHistoryItem } from '../api/chat';
 import { ApiError } from '../api/client';
 import type { Palette } from '../theme/colors';
 import { useTheme, useThemedStyles } from '../theme/theme';
@@ -85,10 +85,14 @@ export default function ChatFab() {
     const t = (preset ?? text).trim();
     if (!t || sending) return;
     if (!preset) setText('');
+    // Prior turns as context (drop the canned greeting; map to the API's shape).
+    const history: ChatHistoryItem[] = messages
+      .filter((m) => m.id !== 'greet')
+      .map((m) => ({ role: m.from === 'me' ? 'user' : 'assistant', content: m.text }));
     setMessages((prev) => [...prev, { id: nextId(), text: t, from: 'me' }]);
     setSending(true);
     try {
-      const reply = await sendChatMessage(t);
+      const reply = await sendChatMessage(t, history);
       setMessages((prev) => [...prev, { id: nextId(), text: reply.answer, from: 'bot' }]);
     } catch (e) {
       // 401 signs out globally (handled in the API client) — just stop here.

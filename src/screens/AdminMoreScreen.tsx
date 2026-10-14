@@ -6,6 +6,7 @@ import ScreenTitle from '../components/ScreenTitle';
 import type { Palette } from '../theme/colors';
 import { useThemedStyles } from '../theme/theme';
 import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
+import { useAuth } from '../context/AuthContext';
 import type { AdminMoreStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<AdminMoreStackParamList, 'AdminMore'>;
@@ -80,13 +81,17 @@ const GROUPS: Group[] = [
 
 export default function AdminMoreScreen({ navigation }: Props) {
   const styles = useThemedStyles(makeStyles);
+  const { tenant } = useAuth();
+  // "Cobros" (Culqi) is plan-gated — hide the whole group unless the plan has it.
+  const hasCulqi = tenant?.features?.culqi === true;
+  const groups = GROUPS.filter((g) => g.title !== 'Cobros' || hasCulqi);
 
   return (
     <View style={styles.container}>
       <ScreenTitle title="Gestión" subtitle="Catálogo, abastecimiento, organización y facturación" />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {GROUPS.map((group) => (
+        {groups.map((group) => (
           <View key={group.title} style={styles.group}>
             <Text style={styles.overline}>{group.title}</Text>
             <View style={styles.card}>

@@ -81,9 +81,13 @@ export default function CheckoutScreen({ navigation }: Props) {
   const { items, totalPrice: subtotal, discount, total, clear, updateQuantity, removeItem, invalidateStock } =
     useCart();
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user, tenant } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const colors = useTheme();
+
+  // Culqi ("cobro con link") is a plan-gated feature — hide it unless the tenant's
+  // plan includes it.
+  const hasCulqi = tenant?.features?.culqi === true;
 
   // An admin selling from the POS must pick the branch the sale belongs to; a
   // seller always uses their own branch and never sees this.
@@ -107,9 +111,12 @@ export default function CheckoutScreen({ navigation }: Props) {
   const [culqiConfigured, setCulqiConfigured] = useState<boolean | null>(null);
 
   const isLink = paymentMethod === 'link';
-  const showLink = culqiConfigured !== false;
+  // Show the "Link Culqi" option only if the plan includes Culqi AND the tenant
+  // has it configured (keys loaded).
+  const showLink = hasCulqi && culqiConfigured !== false;
 
   useEffect(() => {
+    if (!hasCulqi) return; // plan without Culqi — don't even probe the config
     let alive = true;
     fetchPaymentIntentConfig()
       .then((c) => alive && setCulqiConfigured(c.configured))
@@ -119,7 +126,7 @@ export default function CheckoutScreen({ navigation }: Props) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [hasCulqi]);
 
   // If Culqi turns out unavailable while "Link Culqi" was selected, fall back.
   useEffect(() => {
