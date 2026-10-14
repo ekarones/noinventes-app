@@ -25,6 +25,7 @@ import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import { hapticAdd } from '../utils/haptics';
 import ScreenHeader from '../components/ScreenHeader';
+import ProductQrModal from '../components/ProductQrModal';
 import BottomSheet from '../components/BottomSheet';
 import ProductImage from '../components/ProductImage';
 import StockBadge from '../components/StockBadge';
@@ -64,6 +65,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const [zoomed, setZoomed] = useState(false);
   // The product-info sheet (descriptions + tags).
   const [infoOpen, setInfoOpen] = useState(false);
+  // The QR sheet for the current code (product / selected variation).
+  const [qrOpen, setQrOpen] = useState(false);
 
   // Load the full product on open: the listing omits descriptions and tags, so we
   // fetch the detail to back the info sheet (and refresh stock/price meanwhile).
@@ -202,6 +205,17 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
               <IconLabel icon="cube-outline" text="Elige variante" />
             ) : (
               <StockBadge stock={stock} />
+            )}
+            {!needsVariation && (
+              <TouchableOpacity
+                style={styles.qrBtn}
+                onPress={() => setQrOpen(true)}
+                activeOpacity={ROW_PRESS_OPACITY}
+                accessibilityRole="button"
+                accessibilityLabel="Ver código QR"
+              >
+                <Ionicons name="qr-code-outline" size={16} color={colors.primary} />
+              </TouchableOpacity>
             )}
           </View>
           {/* No variation chosen → the product's full range ("S/ 39.90 – S/ 59.90"
@@ -406,6 +420,13 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           </View>
         )}
       </BottomSheet>
+
+      <ProductQrModal
+        visible={qrOpen}
+        onClose={() => setQrOpen(false)}
+        code={code}
+        title={selected ? `${product.name} · ${variationLabel(selected)}` : product.name}
+      />
     </View>
   );
 }
@@ -487,6 +508,15 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flexWrap: 'wrap',
     minHeight: 24,
     marginTop: SPACING.hairline,
+  },
+  qrBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: colors.controlBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   variantsSection: { flex: 1 },
   // The section title + filter, inside the card like a dashboard SectionHeader:

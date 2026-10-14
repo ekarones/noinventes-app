@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
+import { LayoutAnimation, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Palette } from '../theme/colors';
@@ -7,10 +7,6 @@ import { useTheme, useThemedStyles } from '../theme/theme';
 import { FONT_FAMILY, ROW_PRESS_OPACITY } from '../theme/tokens';
 import { useAuth } from '../context/AuthContext';
 import PushedHeader from '../components/PushedHeader';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 type Section = { id: string; icon: keyof typeof Ionicons.glyphMap; title: string; steps: string[] };
 

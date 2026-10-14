@@ -30,6 +30,7 @@ import { useToast } from '../context/ToastContext';
 import ProductImage from '../components/ProductImage';
 import VariationFilter, { useVariationFilter } from '../components/VariationFilter';
 import CopyableCode from '../components/CopyableCode';
+import ProductQrModal from '../components/ProductQrModal';
 import LabelPrintSheet from '../components/LabelPrintSheet';
 import PrinterSheet from '../components/PrinterSheet';
 import { PRODUCT_STATUS_LABEL, productStatusColor } from '../utils/productStatus';
@@ -55,6 +56,8 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
   // picker inside the label sheet would be a modal inside a modal.
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [printerOpen, setPrinterOpen] = useState(false);
+  // The QR sheet: holds the code + title to show, or null when closed.
+  const [qr, setQr] = useState<{ code: string; title: string } | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     isRefresh ? setRefreshing(true) : setLoading(true);
@@ -241,6 +244,20 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
             <Text style={styles.name}>{d.name}</Text>
             <View style={styles.codeRow}>
               <CopyableCode code={d.code} />
+              {/* A variable parent's code isn't scannable (lookup wants a
+                  variation), so the QR only applies to a simple product here. */}
+              {d.type === 'simple' && (
+                <TouchableOpacity
+                  style={styles.qrBtn}
+                  onPress={() => setQr({ code: d.code, title: d.name })}
+                  hitSlop={HIT_SLOP}
+                  activeOpacity={ROW_PRESS_OPACITY}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver código QR"
+                >
+                  <Ionicons name="qr-code-outline" size={18} color={colors.primary} />
+                </TouchableOpacity>
+              )}
             </View>
             <View style={styles.badges}>
               <View style={[styles.statusBadge, statusStyle(d.status, colors)]}>
@@ -363,6 +380,18 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
                       <View style={styles.varActions}>
                         <TouchableOpacity
                           onPress={() =>
+                            setQr({ code: v.code, title: `${d.name} · ${variationLabel(v)}` })
+                          }
+                          hitSlop={HIT_SLOP}
+                          style={styles.varIconBtn}
+                          activeOpacity={ROW_PRESS_OPACITY}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Ver QR de ${variationLabel(v)}`}
+                        >
+                          <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() =>
                             navigation.navigate('AdminVariationForm', {
                               productId: d.id,
                               productName: d.name,
@@ -440,6 +469,13 @@ export default function AdminProductDetailScreen({ route, navigation }: Props) {
         />
       )}
       <PrinterSheet visible={printerOpen} onClose={() => setPrinterOpen(false)} />
+
+      <ProductQrModal
+        visible={!!qr}
+        onClose={() => setQr(null)}
+        code={qr?.code ?? ''}
+        title={qr?.title ?? ''}
+      />
     </View>
   );
 }
@@ -542,7 +578,16 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     elevation: 2,
   },
   name: { fontSize: FONT_SIZE.title, fontFamily: FONT_FAMILY.black, color: colors.primary, letterSpacing: -0.4 },
-  codeRow: { flexDirection: 'row', marginTop: SPACING.sm },
+  codeRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: SPACING.sm },
+  qrBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: colors.controlBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginTop: SPACING.md },
   statusBadge: { paddingHorizontal: SPACING.md, paddingVertical: 5, borderRadius: RADIUS.badge },
   statusText: { fontSize: FONT_SIZE.micro, fontFamily: FONT_FAMILY.extrabold },
